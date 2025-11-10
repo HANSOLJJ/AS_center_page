@@ -79,6 +79,9 @@ function mysql_fetch_array($result, $result_type = MYSQLI_BOTH) {
     if ($result === null) {
         $result = $GLOBALS['___mysql_result'];
     }
+    if ($result === false || $result === null || !is_object($result)) {
+        return null;
+    }
 
     // Convert old MySQL constants to mysqli constants if needed
     // MYSQL_ASSOC, MYSQL_NUM, MYSQL_BOTH are already defined above
@@ -98,12 +101,18 @@ function mysql_fetch_assoc($result) {
     if ($result === null) {
         $result = $GLOBALS['___mysql_result'];
     }
+    if ($result === false || $result === null || !is_object($result)) {
+        return null;
+    }
     return mysqli_fetch_assoc($result);
 }
 
 function mysql_fetch_row($result) {
     if ($result === null) {
         $result = $GLOBALS['___mysql_result'];
+    }
+    if ($result === false || $result === null || !is_object($result)) {
+        return null;
     }
     return mysqli_fetch_row($result);
 }
@@ -112,12 +121,18 @@ function mysql_num_rows($result) {
     if ($result === null) {
         $result = $GLOBALS['___mysql_result'];
     }
+    if ($result === false || $result === null || !is_object($result)) {
+        return 0;
+    }
     return mysqli_num_rows($result);
 }
 
 function mysql_num_fields($result) {
     if ($result === null) {
         $result = $GLOBALS['___mysql_result'];
+    }
+    if ($result === false || $result === null || !is_object($result)) {
+        return 0;
     }
     return mysqli_num_fields($result);
 }
@@ -174,6 +189,9 @@ function mysql_fetch_object($result) {
     if ($result === null) {
         $result = $GLOBALS['___mysql_result'];
     }
+    if ($result === false || $result === null || !is_object($result)) {
+        return null;
+    }
     return mysqli_fetch_object($result);
 }
 
@@ -181,14 +199,17 @@ function mysql_result($result, $row = 0, $field = 0) {
     if ($result === null) {
         $result = $GLOBALS['___mysql_result'];
     }
-    
+    if ($result === false || $result === null || !is_object($result)) {
+        return false;
+    }
+
     // Fetch rows until we reach the desired row number
     $current_row = 0;
     while ($current_row < $row) {
         mysqli_fetch_array($result, MYSQLI_NUM);
         $current_row++;
     }
-    
+
     $data = mysqli_fetch_array($result, MYSQLI_NUM);
     if ($data === null) {
         return false;

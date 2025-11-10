@@ -756,7 +756,7 @@ function getStatusColor($level)
                     onclick="location.href='as_requests.php?tab=request'">
                     AS 요청 (<?php
                     $req_count = @mysql_query("SELECT COUNT(*) as cnt FROM step13_as WHERE s13_as_level NOT IN ('2','3','4','5')");
-                    $req_row = mysql_fetch_assoc($req_count);
+                    $req_row = ($req_count && is_object($req_count)) ? mysql_fetch_assoc($req_count) : array();
                     echo $req_row['cnt'] ?? 0;
                     ?>)
                 </button>
@@ -764,7 +764,7 @@ function getStatusColor($level)
                     onclick="location.href='as_requests.php?tab=working'">
                     AS 진행 (<?php
                     $work_count = @mysql_query("SELECT COUNT(*) as cnt FROM step13_as WHERE s13_as_level IN ('2','3','4')");
-                    $work_row = mysql_fetch_assoc($work_count);
+                    $work_row = ($work_count && is_object($work_count)) ? mysql_fetch_assoc($work_count) : array();
                     echo $work_row['cnt'] ?? 0;
                     ?>)
                 </button>
@@ -772,7 +772,7 @@ function getStatusColor($level)
                     onclick="location.href='as_requests.php?tab=completed'">
                     AS 완료 (<?php
                     $comp_count = @mysql_query("SELECT COUNT(*) as cnt FROM step13_as WHERE s13_as_level='5'");
-                    $comp_row = mysql_fetch_assoc($comp_count);
+                    $comp_row = ($comp_count && is_object($comp_count)) ? mysql_fetch_assoc($comp_count) : array();
                     echo $comp_row['cnt'] ?? 0;
                     ?>)
                 </button>
