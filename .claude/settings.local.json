@@ -59,7 +59,10 @@
       "Bash(git checkout:*)",
       "Bash(gh repo delete:*)",
       "Bash(echo:*)",
-      "mcp__git-mcp-server__git_remote"
+      "mcp__git-mcp-server__git_remote",
+      "Bash(netstat:*)",
+      "Bash(php update_bankcheck_w.php:*)",
+      "Bash(docker inspect:*)"
     ],
     "deny": [],
     "ask": []
