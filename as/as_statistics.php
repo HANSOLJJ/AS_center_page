@@ -23,8 +23,28 @@ $tab = isset($_GET['tab']) ? $_GET['tab'] : 'overview';
 $current_tab = in_array($tab, ['overview', 'as_analysis', 'sales_analysis']) ? $tab : 'overview';
 
 // 기간 설정 (기본값: 오늘)
-$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d');
-$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
+$range = isset($_GET['range']) ? $_GET['range'] : 'today';
+$today = date('Y-m-d');
+$week_start = date('Y-m-d', strtotime('monday this week'));
+$month_start = date('Y-m-01');
+$year_start = date('Y-01-01');
+
+if ($range === 'today') {
+    $start_date = $today;
+    $end_date = $today;
+} elseif ($range === 'week') {
+    $start_date = $week_start;
+    $end_date = $today;
+} elseif ($range === 'month') {
+    $start_date = $month_start;
+    $end_date = $today;
+} elseif ($range === 'year') {
+    $start_date = $year_start;
+    $end_date = $today;
+} else {
+    $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : $today;
+    $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : $today;
+}
 
 // 통계 데이터 조회 함수
 function getStatistics($connect, $start_date, $end_date)
@@ -314,12 +334,43 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 
         .date-filter {
             background: #f9f9f9;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
+        }
+
+        .date-filter-controls {
             display: flex;
             gap: 10px;
             align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .date-filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .date-filter-btn {
+            padding: 8px 16px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .date-filter-btn:hover {
+            background: #f0f4ff;
+        }
+
+        .date-filter-btn.active {
+            background: #667eea;
+            color: white;
         }
 
         .date-filter input {
@@ -329,7 +380,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
             font-size: 14px;
         }
 
-        .date-filter button {
+        .date-filter button[type="submit"] {
             padding: 8px 20px;
             background: #667eea;
             color: white;
@@ -339,7 +390,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
             font-weight: 500;
         }
 
-        .date-filter button:hover {
+        .date-filter button[type="submit"]:hover {
             background: #5568d3;
         }
 
@@ -499,11 +550,56 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
             <!-- 기간 필터 -->
             <form method="GET" class="date-filter">
                 <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
-                <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
-                <span>~</span>
-                <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
-                <button type="submit">조회</button>
+
+                <div class="date-filter-buttons">
+                    <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setDateRange('today', this.form)">오늘</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setDateRange('week', this.form)">금주</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setDateRange('month', this.form)">금월</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setDateRange('year', this.form)">금년</button>
+                </div>
+
+                <div class="date-filter-controls">
+                    <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
+                    <span style="color: #999;">~</span>
+                    <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
+                    <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                    <button type="submit">조회</button>
+                </div>
             </form>
+
+            <script>
+            function setDateRange(range, form) {
+                const today = new Date();
+                let startDate, endDate;
+
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const todayStr = year + '-' + month + '-' + day;
+
+                if (range === 'today') {
+                    startDate = todayStr;
+                    endDate = todayStr;
+                } else if (range === 'week') {
+                    const dayOfWeek = today.getDay();
+                    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                    const monday = new Date(today.setDate(diff));
+                    startDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
+                    endDate = todayStr;
+                } else if (range === 'month') {
+                    startDate = year + '-' + month + '-01';
+                    endDate = todayStr;
+                } else if (range === 'year') {
+                    startDate = year + '-01-01';
+                    endDate = todayStr;
+                }
+
+                form.start_date.value = startDate;
+                form.end_date.value = endDate;
+                form.range.value = range;
+                form.submit();
+            }
+            </script>
 
             <?php if ($current_tab === 'overview'): ?>
                 <!-- 개요 탭 -->

@@ -303,6 +303,36 @@ if (!empty($sellid_list)) {
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
+        }
+
+        .date-filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .date-filter-btn {
+            padding: 8px 16px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .date-filter-btn:hover {
+            background: #f0f4ff;
+        }
+
+        .date-filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .date-filter-controls {
             display: flex;
             gap: 10px;
             align-items: flex-end;
@@ -317,7 +347,8 @@ if (!empty($sellid_list)) {
             min-width: 150px;
         }
 
-        .search-box button {
+        .search-box button[type="submit"],
+        .search-box button[type="button"] {
             padding: 10px 20px;
             background: #667eea;
             color: white;
@@ -327,8 +358,9 @@ if (!empty($sellid_list)) {
             white-space: nowrap;
         }
 
-        .search-box button:hover {
-            background: #764ba2;
+        .search-box button[type="submit"]:hover,
+        .search-box button[type="button"]:hover {
+            background: #5568d3;
         }
 
         .search-box a {
@@ -698,25 +730,65 @@ if (!empty($sellid_list)) {
             <!-- 판매 요청 탭 -->
             <div class="tab-content <?php echo $tab === 'request' ? 'active' : ''; ?>" id="tab-request">
                 <!-- 검색 박스 -->
-                <form method="GET" class="search-box" id="search-form-request">
+                <form method="GET" class="search-box date-filter" id="search-form-request">
                     <input type="hidden" name="tab" value="request">
-                    <input type="date" name="search_start_date" placeholder="시작 날짜"
-                        value="<?php echo htmlspecialchars($search_start_date); ?>">
-                    <span style="color: #999;">~</span>
-                    <input type="date" name="search_end_date" placeholder="종료 날짜"
-                        value="<?php echo htmlspecialchars($search_end_date); ?>">
-                    <button type="button" class="register-btn today-btn" id="today-btn-request"
-                        style="padding: 10px 15px; font-size: 13px;"
-                        data-today="<?php echo (!empty($search_start_date) && $search_start_date === $search_end_date) ? 'on' : 'off'; ?>"
-                        onclick="toggleTodayDate('search-form-request', this)">오늘</button>
-                    <input type="text" name="search_customer" placeholder="고객명"
-                        value="<?php echo htmlspecialchars($search_customer); ?>">
-                    <input type="text" name="search_phone" placeholder="전화번호"
-                        value="<?php echo htmlspecialchars($search_phone); ?>">
-                    <button type="submit">검색</button>
-                    <a href="orders.php?tab=request"
-                        style="padding: 10px 20px; background: #95a5a6; color: white; border-radius: 5px; text-decoration: none;">초기화</a>
+
+                    <div class="date-filter-buttons">
+                        <button type="button" class="date-filter-btn" onclick="setOrderDateRange('today', 'search-form-request')">오늘</button>
+                        <button type="button" class="date-filter-btn" onclick="setOrderDateRange('week', 'search-form-request')">금주</button>
+                        <button type="button" class="date-filter-btn" onclick="setOrderDateRange('month', 'search-form-request')">금월</button>
+                        <button type="button" class="date-filter-btn" onclick="setOrderDateRange('year', 'search-form-request')">금년</button>
+                    </div>
+
+                    <div class="date-filter-controls">
+                        <input type="date" name="search_start_date" placeholder="시작 날짜"
+                            value="<?php echo htmlspecialchars($search_start_date); ?>">
+                        <span style="color: #999;">~</span>
+                        <input type="date" name="search_end_date" placeholder="종료 날짜"
+                            value="<?php echo htmlspecialchars($search_end_date); ?>">
+                        <input type="text" name="search_customer" placeholder="고객명"
+                            value="<?php echo htmlspecialchars($search_customer); ?>">
+                        <input type="text" name="search_phone" placeholder="전화번호"
+                            value="<?php echo htmlspecialchars($search_phone); ?>">
+                        <button type="submit">검색</button>
+                        <a href="orders.php?tab=request"
+                            style="padding: 10px 20px; background: #95a5a6; color: white; border-radius: 5px; text-decoration: none;">초기화</a>
+                    </div>
                 </form>
+
+                <script>
+                function setOrderDateRange(range, formId) {
+                    const form = document.getElementById(formId);
+                    const today = new Date();
+                    let startDate, endDate;
+
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const todayStr = year + '-' + month + '-' + day;
+
+                    if (range === 'today') {
+                        startDate = todayStr;
+                        endDate = todayStr;
+                    } else if (range === 'week') {
+                        const dayOfWeek = today.getDay();
+                        const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                        const monday = new Date(today.setDate(diff));
+                        startDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
+                        endDate = todayStr;
+                    } else if (range === 'month') {
+                        startDate = year + '-' + month + '-01';
+                        endDate = todayStr;
+                    } else if (range === 'year') {
+                        startDate = year + '-01-01';
+                        endDate = todayStr;
+                    }
+
+                    form.search_start_date.value = startDate;
+                    form.search_end_date.value = endDate;
+                    form.submit();
+                }
+                </script>
 
                 <!-- 액션 버튼 -->
                 <div class="action-buttons">
