@@ -57,13 +57,14 @@ function getStatistics($connect, $start_date, $end_date)
     return array('as' => $as_stats, 'sales' => $sales_stats);
 }
 
-// 월별 AS 통계
+// 월별 AS 통계 (접수 기준)
 function getMonthlyASStats($connect)
 {
     $query = "SELECT
         DATE_FORMAT(s13_as_in_date, '%Y-%m') as month,
         COUNT(*) as total,
-        SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN s13_as_level = '5' AND DATE_FORMAT(s13_as_out_date, '%Y-%m') = DATE_FORMAT(s13_as_in_date, '%Y-%m') THEN 1 ELSE 0 END) as completed_same_month,
+        SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as completed_all,
         SUM(COALESCE(ex_total_cost, 0)) as total_cost
         FROM step13_as
         WHERE s13_as_in_date IS NOT NULL
@@ -79,13 +80,14 @@ function getMonthlyASStats($connect)
     return $data;
 }
 
-// 월별 판매 통계
+// 월별 판매 통계 (요청 기준)
 function getMonthlySalesStats($connect)
 {
     $query = "SELECT
         DATE_FORMAT(s20_sell_in_date, '%Y-%m') as month,
         COUNT(*) as total,
-        SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN s20_sell_level = '2' AND DATE_FORMAT(s20_sell_out_date, '%Y-%m') = DATE_FORMAT(s20_sell_in_date, '%Y-%m') THEN 1 ELSE 0 END) as completed_same_month,
+        SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as completed_all,
         SUM(COALESCE(s20_total_cost, 0)) as total_cost
         FROM step20_sell
         WHERE s20_sell_in_date IS NOT NULL
@@ -467,8 +469,8 @@ $customer_as = getCustomerASStats($connect);
                         <thead>
                             <tr>
                                 <th>월</th>
-                                <th class="text-right">전체</th>
-                                <th class="text-right">완료</th>
+                                <th class="text-right">전체 (접수)</th>
+                                <th class="text-right">완료 (같은 달)</th>
                                 <th class="text-right">매출</th>
                             </tr>
                         </thead>
@@ -477,7 +479,7 @@ $customer_as = getCustomerASStats($connect);
                                 <tr>
                                     <td><?php echo htmlspecialchars($row['month']); ?></td>
                                     <td class="text-right"><?php echo number_format($row['total']); ?></td>
-                                    <td class="text-right"><?php echo number_format($row['completed']); ?></td>
+                                    <td class="text-right"><?php echo number_format($row['completed_same_month']); ?></td>
                                     <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
                                 </tr>
                             <?php endforeach; ?>
@@ -491,8 +493,8 @@ $customer_as = getCustomerASStats($connect);
                         <thead>
                             <tr>
                                 <th>월</th>
-                                <th class="text-right">전체</th>
-                                <th class="text-right">완료</th>
+                                <th class="text-right">전체 (요청)</th>
+                                <th class="text-right">완료 (같은 달)</th>
                                 <th class="text-right">매출</th>
                             </tr>
                         </thead>
@@ -501,7 +503,7 @@ $customer_as = getCustomerASStats($connect);
                                 <tr>
                                     <td><?php echo htmlspecialchars($row['month']); ?></td>
                                     <td class="text-right"><?php echo number_format($row['total']); ?></td>
-                                    <td class="text-right"><?php echo number_format($row['completed']); ?></td>
+                                    <td class="text-right"><?php echo number_format($row['completed_same_month']); ?></td>
                                     <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
                                 </tr>
                             <?php endforeach; ?>
