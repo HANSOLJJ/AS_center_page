@@ -32,6 +32,13 @@ $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = 10;
 $offset = ($page - 1) * $limit;
 
+// 기간 필터 설정
+$range = isset($_GET['range']) ? $_GET['range'] : '';
+$today = date('Y-m-d');
+$week_start = date('Y-m-d', strtotime('monday this week'));
+$month_start = date('Y-m-01');
+$year_start = date('Y-01-01');
+
 // 검색 조건 (GET으로 받아서 검색 유지)
 $search_customer = isset($_GET['search_customer']) ? trim($_GET['search_customer']) : (isset($_POST['search_customer']) ? trim($_POST['search_customer']) : '');
 $search_phone = isset($_GET['search_phone']) ? trim($_GET['search_phone']) : (isset($_POST['search_phone']) ? trim($_POST['search_phone']) : '');
@@ -734,10 +741,10 @@ if (!empty($sellid_list)) {
                     <input type="hidden" name="tab" value="request">
 
                     <div class="date-filter-buttons">
-                        <button type="button" class="date-filter-btn" onclick="setOrderDateRange('today', 'search-form-request')">오늘</button>
-                        <button type="button" class="date-filter-btn" onclick="setOrderDateRange('week', 'search-form-request')">금주</button>
-                        <button type="button" class="date-filter-btn" onclick="setOrderDateRange('month', 'search-form-request')">금월</button>
-                        <button type="button" class="date-filter-btn" onclick="setOrderDateRange('year', 'search-form-request')">금년</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setOrderDateRange('today', 'search-form-request')">오늘</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setOrderDateRange('week', 'search-form-request')">금주</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setOrderDateRange('month', 'search-form-request')">금월</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setOrderDateRange('year', 'search-form-request')">금년</button>
                     </div>
 
                     <div class="date-filter-controls">
@@ -750,6 +757,7 @@ if (!empty($sellid_list)) {
                             value="<?php echo htmlspecialchars($search_customer); ?>">
                         <input type="text" name="search_phone" placeholder="전화번호"
                             value="<?php echo htmlspecialchars($search_phone); ?>">
+                        <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
                         <button type="submit">검색</button>
                         <a href="orders.php?tab=request"
                             style="padding: 10px 20px; background: #95a5a6; color: white; border-radius: 5px; text-decoration: none;">초기화</a>
@@ -786,6 +794,7 @@ if (!empty($sellid_list)) {
 
                     form.search_start_date.value = startDate;
                     form.search_end_date.value = endDate;
+                    form.range.value = range;
                     form.submit();
                 }
                 </script>
@@ -974,24 +983,31 @@ if (!empty($sellid_list)) {
             <!-- 판매 완료 탭 -->
             <div class="tab-content <?php echo $tab === 'completed' ? 'active' : ''; ?>" id="tab-completed">
                 <!-- 검색 박스 -->
-                <form method="GET" class="search-box" id="search-form-completed">
+                <form method="GET" class="search-box date-filter" id="search-form-completed">
                     <input type="hidden" name="tab" value="completed">
-                    <input type="date" name="search_start_date" placeholder="시작 날짜"
-                        value="<?php echo htmlspecialchars($search_start_date); ?>">
-                    <span style="color: #999;">~</span>
-                    <input type="date" name="search_end_date" placeholder="종료 날짜"
-                        value="<?php echo htmlspecialchars($search_end_date); ?>">
-                    <button type="button" class="register-btn today-btn" id="today-btn-completed"
-                        style="padding: 10px 15px; font-size: 13px;"
-                        data-today="<?php echo (!empty($search_start_date) && $search_start_date === $search_end_date) ? 'on' : 'off'; ?>"
-                        onclick="toggleTodayDate('search-form-completed', this)">오늘</button>
-                    <input type="text" name="search_customer" placeholder="고객명"
-                        value="<?php echo htmlspecialchars($search_customer); ?>">
-                    <input type="text" name="search_phone" placeholder="전화번호"
-                        value="<?php echo htmlspecialchars($search_phone); ?>">
-                    <button type="submit">검색</button>
-                    <a href="orders.php?tab=completed"
-                        style="padding: 10px 20px; background: #95a5a6; color: white; border-radius: 5px; text-decoration: none;">초기화</a>
+
+                    <div class="date-filter-buttons">
+                        <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setOrderDateRange('today', 'search-form-completed')">오늘</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setOrderDateRange('week', 'search-form-completed')">금주</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setOrderDateRange('month', 'search-form-completed')">금월</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setOrderDateRange('year', 'search-form-completed')">금년</button>
+                    </div>
+
+                    <div class="date-filter-controls">
+                        <input type="date" name="search_start_date" placeholder="시작 날짜"
+                            value="<?php echo htmlspecialchars($search_start_date); ?>">
+                        <span style="color: #999;">~</span>
+                        <input type="date" name="search_end_date" placeholder="종료 날짜"
+                            value="<?php echo htmlspecialchars($search_end_date); ?>">
+                        <input type="text" name="search_customer" placeholder="고객명"
+                            value="<?php echo htmlspecialchars($search_customer); ?>">
+                        <input type="text" name="search_phone" placeholder="전화번호"
+                            value="<?php echo htmlspecialchars($search_phone); ?>">
+                        <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                        <button type="submit">검색</button>
+                        <a href="orders.php?tab=completed"
+                            style="padding: 10px 20px; background: #95a5a6; color: white; border-radius: 5px; text-decoration: none;">초기화</a>
+                    </div>
                 </form>
 
                 <!-- 정보 텍스트 -->

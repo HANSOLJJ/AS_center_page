@@ -27,6 +27,13 @@ $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
+// 기간 필터 설정
+$range = isset($_GET['range']) ? $_GET['range'] : '';
+$today = date('Y-m-d');
+$week_start = date('Y-m-d', strtotime('monday this week'));
+$month_start = date('Y-m-01');
+$year_start = date('Y-01-01');
+
 // 검색 조건 (GET으로 받아서 검색 유지)
 $search_start_date = isset($_GET['search_start_date']) ? $_GET['search_start_date'] : (isset($_POST['search_start_date']) ? $_POST['search_start_date'] : '');
 $search_end_date = isset($_GET['search_end_date']) ? $_GET['search_end_date'] : (isset($_POST['search_end_date']) ? $_POST['search_end_date'] : '');
@@ -833,10 +840,10 @@ function getStatusColor($level)
                 <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
 
                 <div class="date-filter-buttons">
-                    <button type="button" class="date-filter-btn" onclick="setSearchDateRange('today', 'search-form-tab')">오늘</button>
-                    <button type="button" class="date-filter-btn" onclick="setSearchDateRange('week', 'search-form-tab')">금주</button>
-                    <button type="button" class="date-filter-btn" onclick="setSearchDateRange('month', 'search-form-tab')">금월</button>
-                    <button type="button" class="date-filter-btn" onclick="setSearchDateRange('year', 'search-form-tab')">금년</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setSearchDateRange('today', 'search-form-tab')">오늘</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setSearchDateRange('week', 'search-form-tab')">금주</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setSearchDateRange('month', 'search-form-tab')">금월</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setSearchDateRange('year', 'search-form-tab')">금년</button>
                 </div>
 
                 <div class="date-filter-controls">
@@ -849,6 +856,7 @@ function getStatusColor($level)
                         value="<?php echo htmlspecialchars($search_customer); ?>">
                     <input type="text" name="search_phone" placeholder="전화번호"
                         value="<?php echo htmlspecialchars($search_phone); ?>">
+                    <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
                     <button type="submit">검색</button>
                     <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
                 </div>
@@ -884,6 +892,7 @@ function getStatusColor($level)
 
                 form.search_start_date.value = startDate;
                 form.search_end_date.value = endDate;
+                form.range.value = range;
                 form.submit();
             }
             </script>
