@@ -821,7 +821,9 @@ function getStatusColor($level)
                 <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
             </form>
 
-            <!-- 정보 텍스트 -->
+            <?php
+
+                <!-- 정보 텍스트 -->
                 <div class="info-text">
                     총 <?php echo $total_count; ?>개의 AS 요청 (페이지: <?php echo $page; ?>/<?php echo max(1, $total_pages); ?>)
                 </div>
