@@ -482,6 +482,7 @@ function getStatusColor($level)
         .date-filter-btn.active {
             background: #667eea !important;
             color: white !important;
+            border-color: #667eea !important;
         }
 
         .date-filter-controls {

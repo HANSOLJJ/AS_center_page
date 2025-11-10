@@ -371,6 +371,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
         .date-filter-btn.active {
             background: #667eea !important;
             color: white !important;
+            border-color: #667eea !important;
         }
 
         .date-filter input {
