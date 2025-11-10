@@ -121,13 +121,16 @@ if (!empty($search_phone)) {
     $where_conditions[] = "a.ex_tel LIKE '%" . $phone_esc . "%'";
 }
 
+// WHERE 조건 생성
+$where = implode(' AND ', $where_conditions);
+
 // DB 쿼리 실행
 // 총 개수 조회
 $count_query = "SELECT COUNT(DISTINCT a.s13_asid) as total FROM step13_as a
                 WHERE $where";
 $count_result = @mysql_query($count_query);
-$count_row = mysql_fetch_assoc($count_result);
-$total_count = $count_row['total'] ?? 0;
+$count_row = ($count_result && is_object($count_result)) ? mysql_fetch_assoc($count_result) : null;
+$total_count = ($count_row && isset($count_row['total'])) ? intval($count_row['total']) : 0;
 $total_pages = ceil($total_count / $per_page);
 
 // 먼저 페이징을 위해 DISTINCT asid 조회
@@ -149,7 +152,7 @@ if ($current_tab === 'completed') {
 $asid_result = @mysql_query($asid_query);
 $target_asids = array();
 
-if ($asid_result && mysql_num_rows($asid_result) > 0) {
+if ($asid_result && is_object($asid_result) && mysql_num_rows($asid_result) > 0) {
     while ($row = mysql_fetch_assoc($asid_result)) {
         $target_asids[] = $row['s13_asid'];
     }
@@ -191,10 +194,10 @@ if (!empty($target_asids)) {
                   ORDER BY a.s13_asid DESC, b.s14_aiid ASC, c.s18_accid ASC";
     }
 
-    $result = mysql_query($query);
+    $result = @mysql_query($query);
     $grouped_list = array(); // asid별로 그룹화
 
-    if ($result && mysql_num_rows($result) > 0) {
+    if ($result && is_object($result) && mysql_num_rows($result) > 0) {
         while ($row = mysql_fetch_assoc($result)) {
             $asid = $row['s13_asid'];
             if (!isset($grouped_list[$asid])) {
