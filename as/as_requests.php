@@ -28,7 +28,7 @@ $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
 // 기간 필터 설정
-$range = isset($_GET['range']) ? $_GET['range'] : '';
+$range = isset($_GET['range']) ? $_GET['range'] : 'today';
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 $month_start = date('Y-m-01');
