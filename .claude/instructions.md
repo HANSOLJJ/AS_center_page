@@ -274,7 +274,7 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ---
 
-## 📋 다음 작업 예정 (2025-11-09~)
+## 📋 다음 작업 예정 (2025-11-09)
 
 ### 1️⃣ as_statistics.php 그래프 기능 추가 (우선순위: 높음)
 
@@ -344,64 +344,6 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ---
 
-### 3️⃣ as_request_handler.php 등록 버튼 추가 (우선순위: 중간)
-
-**목표**: Step 3 완료 후 AS 요청을 데이터베이스에 저장
-
-**작업 내용**:
-- Step 4: AS 내용 등록 (선택 사항 또는 추후 추가)
-- 최종 저장 버튼 추가
-- 유효성 검사:
-  - 업체명 선택 필수
-  - 수령 방법 선택 필수
-  - 제품 1개 이상 추가 필수
-- 백엔드 처리:
-  - `step13_as` 테이블에 AS 요청 기본 정보 저장
-  - `step14_as_item` 테이블에 선택된 제품 및 불량증상 저장
-  - 트랜잭션 처리 (저장 실패 시 롤백)
-- 저장 완료 후 `as_requests.php`로 리다이렉트
-
-**예상 파일**: as/as_request_handler.php
-
----
-
-### 4️⃣ as_requests.php 구현 - AS 요청 목록 조회 (우선순위: 중간)
-
-**목표**: 등록된 AS 요청을 확인하고 관리할 수 있는 페이지 구현
-
-**작업 내용**:
-- 기본 레이아웃: orders.php와 동일한 구조
-  - Header, nav-bar, 컨테이너 레이아웃
-- 2개 탭:
-  - Tab1: AS 요청 목록 (진행 예정)
-  - Tab2: 완료된 AS (진행 완료)
-- 각 탭에서:
-  - 테이블로 요청 목록 표시 (고객명, 제품, 불량증상, 수령방법, 요청일시 등)
-  - 검색 기능 (고객명, 전화번호, 제품명 등)
-  - 페이징 시스템 (10개씩 표시)
-  - 행 클릭 시 상세정보 조회 → as_request_view.php로 이동
-  - 삭제, 상태변경 등의 액션 버튼
-
-**예상 파일**: as/as_requests.php
-
----
-
-### 5️⃣ as_request_view.php 구현 - AS 요청 상세 조회 (우선순위: 낮음)
-
-**목표**: 등록된 AS 요청의 상세정보를 조회하고 AS 진행 단계로 이동
-
-**작업 내용**:
-- Step1: 업체 정보 표시 (읽기 전용)
-- Step2: 수령 방법 표시 (읽기 전용)
-- Step3: 선택된 제품 및 불량증상 목록 (읽기 전용)
-- "AS 진행 시작" 버튼
-  - 클릭 시 as_center/ 페이지로 이동하여 실제 AS 처리 진행
-  - 상태를 "진행 중"으로 변경 (step13_as.s13_step 업데이트)
-
-**예상 파일**: as/as_request_view.php
-
----
-
 ## 📝 작업 시 체크리스트
 
 1. **파일 수정 전**
@@ -451,17 +393,17 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ### ⚠️ 진행 중
 
-- as_request_handler.php 등록 버튼 및 저장 기능 (다음 우선순위 1)
+없음
 
 ### 📌 향후 예정
 
-- as_request_handler.php 등록 버튼 및 저장 기능 (내일 우선순위 1)
-- as_requests.php 목록 조회 페이지 (내일 우선순위 2)
-- as_request_view.php 상세 조회 페이지 (내일 우선순위 3)
+- as_statistics.php 그래프 기능 (내일 우선순위 1)
+- as_statistics.php 월간 리포트 XLSX 내보내기 (내일 우선순위 2)
+- as_repair.php 추가 기능 개선 (필요시)
 - as_center/ 페이지들과의 연동 (추후)
-- parts.php Tab3-5 기능 구현
-- dashboard.php 고도화
-- 전체 페이지 일관된 UI/UX 적용
+- parts.php Tab3-5 기능 구현 (추후)
+- dashboard.php 고도화 (추후)
+- 전체 페이지 일관된 UI/UX 적용 (추후)
 
 ---
 
