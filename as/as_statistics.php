@@ -104,6 +104,7 @@ function getTopRepairProducts($connect, $start_date, $end_date)
 {
     $query = "SELECT
         b.s14_model,
+        MAX(b.cost_name) as cost_name,
         COUNT(*) as count
         FROM step14_as_item b
         LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
@@ -153,7 +154,7 @@ function getTopSaleParts($connect, $start_date, $end_date)
         SUM(c.s21_quantity) as total_qty,
         COUNT(*) as item_count
         FROM step21_sell_cart c
-        LEFT JOIN step20_sell s ON c.s21_sid = s.s20_sid
+        LEFT JOIN step20_sell s ON c.s21_sellid = s.s20_sellid
         WHERE s.s20_sell_level = '2' AND DATE(s.s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'
         GROUP BY c.s21_uid, c.cost_name
         ORDER BY total_qty DESC
@@ -165,6 +166,17 @@ function getTopSaleParts($connect, $start_date, $end_date)
         $data[] = $row;
     }
     return $data;
+}
+
+// 매출 포맷팅 함수 (백만원 이상일 때만 만원 단위 표시)
+function formatRevenue($cost)
+{
+    $cost = intval($cost);
+    if ($cost >= 1000000) {
+        return '<div class="revenue-amount">' . number_format(intval($cost)) . '</div><div class="revenue-unit">만원</div>';
+    } else {
+        return '<div class="revenue-amount">' . number_format($cost) . '</div><div class="revenue-unit">원</div>';
+    }
 }
 
 // 통계 데이터 조회
@@ -393,6 +405,17 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
             color: #666;
         }
 
+        .revenue-amount {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .revenue-unit {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
         .table-section {
             margin-top: 30px;
         }
@@ -503,7 +526,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_products as $idx => $product): ?>
-                                        <li><?php echo htmlspecialchars($product['s14_model']); ?> (<?php echo $product['count']; ?>)</li>
+                                        <li><?php echo htmlspecialchars($product['cost_name']); ?> <span style="font-weight: bold; color: #2563eb;"><?php echo $product['count']; ?>건</span></li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_products) === 0): ?>
                                         <li>데이터 없음</li>
@@ -516,7 +539,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_parts as $idx => $part): ?>
-                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> (<?php echo $part['total_qty']; ?>)</li>
+                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> <span style="font-weight: bold; color: #2563eb;"><?php echo $part['total_qty']; ?>개</span></li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_parts) === 0): ?>
                                         <li>데이터 없음</li>
@@ -526,8 +549,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                         </div>
                         <div class="stat-card as-card">
                             <h4>AS 매출</h4>
-                            <div class="number"><?php echo number_format(intval($stats['as']['total_as_cost'] ?? 0) / 10000); ?></div>
-                            <div class="label">만원</div>
+                            <?php echo formatRevenue($stats['as']['total_as_cost'] ?? 0); ?>
                         </div>
                     </div>
                 </div>
@@ -546,7 +568,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_sale_parts as $idx => $part): ?>
-                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> (<?php echo $part['total_qty']; ?>)</li>
+                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> <span style="font-weight: bold; color: #059669;"><?php echo $part['total_qty']; ?>개</span></li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_sale_parts) === 0): ?>
                                         <li>데이터 없음</li>
@@ -556,8 +578,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                         </div>
                         <div class="stat-card sales-card">
                             <h4>판매 매출</h4>
-                            <div class="number"><?php echo number_format(intval($stats['sales']['total_sales_cost'] ?? 0) / 10000); ?></div>
-                            <div class="label">만원</div>
+                            <?php echo formatRevenue($stats['sales']['total_sales_cost'] ?? 0); ?>
                         </div>
                     </div>
                 </div>
