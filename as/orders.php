@@ -371,7 +371,7 @@ if (!empty($sellid_list)) {
         }
 
         .search-box button[type="submit"],
-        .search-box button[type="button"] {
+        .search-box button[type="button"]:not(.date-filter-btn) {
             padding: 10px 20px;
             background: #667eea;
             color: white;
@@ -382,7 +382,7 @@ if (!empty($sellid_list)) {
         }
 
         .search-box button[type="submit"]:hover,
-        .search-box button[type="button"]:hover {
+        .search-box button[type="button"]:not(.date-filter-btn):hover {
             background: #5568d3;
         }
 
