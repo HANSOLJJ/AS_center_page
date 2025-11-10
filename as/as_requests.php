@@ -13,7 +13,12 @@ require_once 'mysql_compat.php';
 
 // 데이터베이스 연결
 $connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+if (!$connect) {
+    die('MySQL 연결 실패: ' . mysql_error());
+}
+if (!mysql_select_db('mic4u', $connect)) {
+    die('데이터베이스 선택 실패: ' . mysql_error());
+}
 
 $user_name = $_SESSION['member_id'];
 $current_page = 'as_requests';
@@ -129,7 +134,10 @@ if (!empty($search_phone)) {
     $count_query = "SELECT COUNT(DISTINCT a.s13_asid) as total FROM step13_as a
                     LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                     WHERE $where";
-    $count_result = @mysql_query($count_query);
+    $count_result = mysql_query($count_query);
+    if (!$count_result) {
+        die('COUNT 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($count_query));
+    }
     $count_row = mysql_fetch_assoc($count_result);
     $total_count = $count_row['total'] ?? 0;
     $total_pages = ceil($total_count / $per_page);
@@ -152,7 +160,10 @@ if (!empty($search_phone)) {
                        LIMIT $per_page OFFSET $offset";
     }
 
-    $asid_result = @mysql_query($asid_query);
+    $asid_result = mysql_query($asid_query);
+    if (!$asid_result) {
+        die('ASID 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($asid_query));
+    }
     $target_asids = array();
 
     if ($asid_result && mysql_num_rows($asid_result) > 0) {

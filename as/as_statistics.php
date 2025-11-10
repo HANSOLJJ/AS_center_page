@@ -13,7 +13,12 @@ require_once 'mysql_compat.php';
 
 // 데이터베이스 연결
 $connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+if (!$connect) {
+    die('MySQL 연결 실패: ' . mysql_error());
+}
+if (!mysql_select_db('mic4u', $connect)) {
+    die('데이터베이스 선택 실패: ' . mysql_error());
+}
 
 $user_name = $_SESSION['member_id'];
 $current_page = 'statistics';
@@ -59,8 +64,11 @@ switch ($current_tab) {
                     GROUP BY a.s13_meid, a.ex_company
                     ORDER BY as_count DESC";
 
-        $result = @mysql_query($as_query);
-        if ($result && mysql_num_rows($result) > 0) {
+        $result = mysql_query($as_query);
+        if (!$result) {
+            die('AS 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($as_query));
+        }
+        if (mysql_num_rows($result) > 0) {
             while ($row = mysql_fetch_assoc($result)) {
                 $stats_data[] = array(
                     'company' => $row['ex_company'],
@@ -79,8 +87,11 @@ switch ($current_tab) {
                         GROUP BY a.s20_meid, a.ex_company
                         ORDER BY sell_count DESC";
 
-        $result = @mysql_query($parts_query);
-        if ($result && mysql_num_rows($result) > 0) {
+        $result = mysql_query($parts_query);
+        if (!$result) {
+            die('자재 판매 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($parts_query));
+        }
+        if (mysql_num_rows($result) > 0) {
             while ($row = mysql_fetch_assoc($result)) {
                 // 기존 회사가 있는지 확인
                 $found = false;
@@ -121,8 +132,11 @@ switch ($current_tab) {
                     GROUP BY a.s13_meid, a.ex_company
                     ORDER BY as_count DESC";
 
-        $result = @mysql_query($as_query);
-        if ($result && mysql_num_rows($result) > 0) {
+        $result = mysql_query($as_query);
+        if (!$result) {
+            die('AS 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($as_query));
+        }
+        if (mysql_num_rows($result) > 0) {
             while ($row = mysql_fetch_assoc($result)) {
                 $stats_data[] = array(
                     'company' => $row['ex_company'],
@@ -143,8 +157,11 @@ switch ($current_tab) {
                         GROUP BY a.s20_meid, a.ex_company
                         ORDER BY sell_count DESC";
 
-        $result = @mysql_query($parts_query);
-        if ($result && mysql_num_rows($result) > 0) {
+        $result = mysql_query($parts_query);
+        if (!$result) {
+            die('자재 판매 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($parts_query));
+        }
+        if (mysql_num_rows($result) > 0) {
             while ($row = mysql_fetch_assoc($result)) {
                 $stats_data[] = array(
                     'company' => $row['ex_company'],
@@ -593,3 +610,4 @@ switch ($current_tab) {
 </body>
 
 </html>
+<?php mysql_close($connect); ?>
