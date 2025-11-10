@@ -15,7 +15,55 @@
 
 ## 📅 최근 작업 현황
 
-### 2025-11-07 작업 (오늘 완료)
+### 2025-11-08 작업 (오늘 완료)
+
+#### 1. as_requests.php, orders.php, as_statistics.php "전체 기간" 버튼 구현 (✅ 완료)
+
+**목표**: 날짜 검색 필터에 "전체 기간" 버튼을 추가하여 기간 제한 없이 전체 데이터 조회 가능
+
+**작업 내용**:
+
+1. **as_requests.php**
+   - 기본값 변경: `$range = ''` (전체 기간)
+   - "전체 기간" 버튼을 첫 번째 옵션으로 추가
+   - setSearchDateRange() 함수에 'all' 케이스 추가 (startDate, endDate = '')
+   - 페이지네이션에 range 파라미터 추가
+
+2. **orders.php**
+   - 기본값 변경: `$range = ''` (전체 기간)
+   - 요청 탭(Tab1), 완료 탭(Tab2) 모두에 "전체 기간" 버튼 추가
+   - setOrderDateRange() 함수에 'all' 케이스 추가 (startDate, endDate = '')
+   - 두 탭의 페이지네이션 모두에 range 파라미터 추가
+
+3. **as_statistics.php**
+   - 기본값 변경: `$range = 'month'` (금월 - 사용자 요구)
+   - "전체 기간" 버튼을 첫 번째 옵션으로 추가
+   - setDateRange() 함수에 'all' 케이스 추가 (startDate, endDate = '')
+   - **SQL 쿼리 4개 함수 업데이트** (빈 날짜 값 처리):
+     - `getStatistics()`: WHERE 절 조건부 처리
+     - `getTopRepairProducts()`: WHERE 절 조건부 처리
+     - `getTopRepairParts()`: WHERE 절 조건부 처리
+     - `getTopSaleParts()`: WHERE 절 조건부 처리
+
+**버튼 순서**: 전체 기간 → 오늘 → 금주 → 금월 → 금년
+
+**기본값 정책**:
+- `as_requests.php`: 전체 기간 (사용성 향상 - 모든 데이터 조회 기본)
+- `orders.php`: 전체 기간 (사용성 향상 - 모든 데이터 조회 기본)
+- `as_statistics.php`: 금월 (통계 조회 시 일반적인 습관)
+
+**수정 파일**:
+- `as/as_requests.php` (라인 31, 860-864, 884-918, 1189-1191)
+- `as/orders.php` (라인 36, 760-764, 1009-1013, 955-956, 1164-1165, setOrderDateRange 함수)
+- `as/as_statistics.php` (라인 25-26, 44-47, 57-89, 137-150, 163-178, 191-205, 561-562, 627-634)
+
+**커밋**: 예정 (아직 커밋하지 않음)
+
+**상태**: ✅ 완료
+
+---
+
+### 2025-11-07 작업 (이전 완료)
 
 #### 1. as_repair.php 제품명 선택 기능 구현 (✅ 완료)
 
@@ -226,21 +274,77 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ---
 
-## 📋 다음 작업 예정 (2025-11-08)
+## 📋 다음 작업 예정 (2025-11-09~)
 
-### 1️⃣ as_repair.php 최종 완성 (우선순위: 높음)
+### 1️⃣ as_statistics.php 그래프 기능 추가 (우선순위: 높음)
 
-**목표**: AS 수리 처리 기능 완성
+**목표**: AS 분석 및 판매 분석 탭에서 고객별, 제품별, 자재별 통계를 그래프로 시각화
 
 **작업 내용**:
-- ✅ 제품 선택 기능 완성 (오늘 완료)
-- ✅ 자재 선택 및 개수 관리 (이전 완료)
-- ✅ s14_cart 자재 개수 업데이트 (오늘 완료)
-- 향후: 추가 필드 및 기능이 있으면 구현
 
-**상태**: 🔵 구현 완료, 테스트 필요
+1. **AS 분석 탭 (as_analysis)**
+   - 제품별 AS 건수 (막대 그래프)
+   - 불량증상별 AS 건수 (파이 차트)
+   - 고객별 AS 건수 TOP 10 (막대 그래프)
+   - 기간별 AS 추이 (선 그래프)
 
-### 2️⃣ as_request_handler.php 등록 버튼 추가 (우선순위: 높음)
+2. **판매 분석 탭 (sales_analysis)**
+   - 제품별 판매액 (막대 그래프)
+   - 자재별 판매 수량 (파이 차트)
+   - 고객별 판매액 TOP 10 (막대 그래프)
+   - 기간별 판매 추이 (선 그래프)
+
+3. **기술 스택**:
+   - Chart.js 또는 Google Charts 라이브러리 사용
+   - 기간 필터 (전체 기간/오늘/금주/금월/금년)와 연동
+   - AJAX로 동적 데이터 로드
+   - 반응형 디자인
+
+**예상 파일**:
+- `as/as_statistics.php` (그래프 추가)
+- `as/get_graph_data.php` (AJAX 데이터 제공)
+
+---
+
+### 2️⃣ as_statistics.php 월간 리포트 XLSX 내보내기 (우선순위: 높음)
+
+**목표**: 현재 선택된 기간의 통계 데이터를 Excel 파일로 내보내기
+
+**작업 내용**:
+
+1. **내보내기 버튼**
+   - as_statistics.php에 "Excel 다운로드" 버튼 추가
+   - 현재 선택된 기간의 모든 통계 데이터 포함
+
+2. **Excel 파일 구성** (Sheet 별):
+   - Sheet1: 요약 통계 (AS 완료, 판매 완료, 매출 등)
+   - Sheet2: 월별 AS 통계 (월, 완료건수, 매출)
+   - Sheet3: 월별 판매 통계 (월, 완료건수, 매출)
+   - Sheet4: TOP3 수리 제품 (제품명, 건수)
+   - Sheet5: TOP3 수리 자재 (자재명, 수량)
+   - Sheet6: TOP3 판매 자재 (자재명, 수량)
+   - Sheet7: 상세 AS 목록 (고객명, 제품, 불량증상, 상태, 금액)
+   - Sheet8: 상세 판매 목록 (고객명, 자재, 수량, 금액)
+
+3. **기술 스택**:
+   - PHPExcel 또는 OpenSpout 라이브러리 사용
+   - 한글 인코딩 UTF-8 유지
+   - 통화 형식 (￥) 적용
+   - 셀 병합, 스타일 지정
+
+4. **파일명**: `AS_통계_YYYY-MM-DD_HH-MM-SS.xlsx`
+
+**예상 파일**:
+- `as/as_statistics.php` (내보내기 버튼 추가)
+- `as/export_statistics.php` (Excel 생성 및 다운로드)
+
+**예상 라이브러리**:
+- PHPExcel (또는 더 가벼운 OpenSpout)
+- composer로 설치 필요
+
+---
+
+### 3️⃣ as_request_handler.php 등록 버튼 추가 (우선순위: 중간)
 
 **목표**: Step 3 완료 후 AS 요청을 데이터베이스에 저장
 
@@ -259,7 +363,9 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 **예상 파일**: as/as_request_handler.php
 
-### 2️⃣ as_requests.php 구현 - AS 요청 목록 조회 (우선순위: 높음)
+---
+
+### 4️⃣ as_requests.php 구현 - AS 요청 목록 조회 (우선순위: 중간)
 
 **목표**: 등록된 AS 요청을 확인하고 관리할 수 있는 페이지 구현
 
@@ -278,7 +384,9 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 **예상 파일**: as/as_requests.php
 
-### 3️⃣ as_request_view.php 구현 - AS 요청 상세 조회 (우선순위: 중간)
+---
+
+### 5️⃣ as_request_view.php 구현 - AS 요청 상세 조회 (우선순위: 낮음)
 
 **목표**: 등록된 AS 요청의 상세정보를 조회하고 AS 진행 단계로 이동
 
@@ -291,12 +399,6 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
   - 상태를 "진행 중"으로 변경 (step13_as.s13_step 업데이트)
 
 **예상 파일**: as/as_request_view.php
-
-### 4️⃣ AS 진행 단계 연동 (우선순위: 낮음 - 추후)
-
-**목표**: as_center/ 페이지들과 연동하여 실제 AS 처리 진행
-
-**예상 파일**: as/as_center/*.php
 
 ---
 
@@ -334,6 +436,8 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ### ✅ 해결됨
 
+- [2025-11-08] as_requests.php, orders.php, as_statistics.php "전체 기간" 버튼 구현 (기간 제한 없이 전체 데이터 조회 가능)
+- [2025-11-08] as_statistics.php SQL 쿼리 4개 함수 업데이트 (빈 날짜 값 처리 추가)
 - [2025-11-07] receipt.php & as_request_view.php 1970년 날짜 문제 해결 (datetime validation 추가)
 - [2025-11-07] as_repair.php 제품 선택 기능 구현 (step15_as_model 통합)
 - [2025-11-07] as_repair_handler.php s18_accid 기존값 유지 (UPDATE/INSERT 전략)
@@ -363,18 +467,21 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ## 📚 참고 파일
 
-| 파일명                      | 용도                      | 최근 수정일 |
-| --------------------------- | ------------------------- | ----------- |
-| `.claude/instructions.md`   | 프로젝트 지침 (현재 파일) | 2025-11-05  |
-| `CLAUDE.md`                 | 전체 프로젝트 문서        | 2025-11-04  |
-| `as/as_request_handler.php` | AS 요청 신청 (핵심 작업)  | 2025-11-05  |
-| `as/order_handler.php`      | 자재 판매 신청 (참고용)   | 2025-11-05  |
-| `as/orders.php`             | 자재 판매 관리 (참고용)   | 2025-11-03  |
-| `as/as_requests.php`        | AS 요청 관리 (예정)       | -           |
-| `as/as_request_view.php`    | AS 상세 조회 (예정)       | -           |
-| `as/parts.php`              | 자재 관리 (참고용)        | 2025-11-04  |
-| `as/members.php`            | 고객 관리 (참고용)        | 2025-11-04  |
-| `as/products.php`           | 제품 관리 (참고용)        | 2025-11-04  |
+| 파일명                        | 용도                           | 최근 수정일 |
+| ----------------------------- | ------------------------------ | ----------- |
+| `.claude/instructions.md`     | 프로젝트 지침 (현재 파일)      | 2025-11-08  |
+| `CLAUDE.md`                   | 전체 프로젝트 문서             | 2025-11-04  |
+| `as/as_statistics.php`        | 통계/분석 (기간 필터 완료)     | 2025-11-08  |
+| `as/as_requests.php`          | AS 요청 관리 (기간 필터 완료)  | 2025-11-08  |
+| `as/orders.php`               | 자재 판매 관리 (기간 필터 완료)| 2025-11-08  |
+| `as/as_request_handler.php`   | AS 요청 신청 (Step 3 완료)     | 2025-11-05  |
+| `as/order_handler.php`        | 자재 판매 신청 (참고용)        | 2025-11-05  |
+| `as/as_request_view.php`      | AS 상세 조회 (날짜 처리 개선)  | 2025-11-07  |
+| `as/as_repair.php`            | AS 수리 처리 (제품 선택 완료)  | 2025-11-07  |
+| `as/as_repair_handler.php`    | AS 수리 저장 (자재 관리 완료)  | 2025-11-07  |
+| `as/parts.php`                | 자재 관리 (참고용)             | 2025-11-04  |
+| `as/members.php`              | 고객 관리 (참고용)             | 2025-11-04  |
+| `as/products.php`             | 제품 관리 (참고용)             | 2025-11-04  |
 
 ---
 
@@ -431,5 +538,5 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ---
 
-**마지막 업데이트**: 2025-11-07 (오늘)
-**최신 작업**: as_repair.php 제품 선택 + datetime validation 개선
+**마지막 업데이트**: 2025-11-08 (오늘)
+**최신 작업**: "전체 기간" 버튼 구현 완료 (as_requests/orders/as_statistics)
