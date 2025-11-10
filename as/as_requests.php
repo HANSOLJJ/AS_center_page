@@ -13,19 +13,14 @@ require_once 'mysql_compat.php';
 
 // 데이터베이스 연결
 $connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-if (!$connect) {
-    die('MySQL 연결 실패: ' . mysql_error());
-}
-if (!mysql_select_db('mic4u', $connect)) {
-    die('데이터베이스 선택 실패: ' . mysql_error());
-}
+mysql_select_db('mic4u', $connect);
 
 $user_name = $_SESSION['member_id'];
 $current_page = 'as_requests';
 
 // 탭 선택
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'request';
-$current_tab = in_array($tab, ['request', 'working', 'completed']) ? $tab : 'request';
+$current_tab = in_array($tab, ['request', 'working', 'completed', 'spare']) ? $tab : 'request';
 
 // 페이지 처리
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
@@ -88,6 +83,7 @@ $delete_type = isset($_GET['delete_type']) ? $_GET['delete_type'] : '';
 
 // 탭별 WHERE 조건
 $where_conditions = array();
+$is_spare = false;
 
 switch ($current_tab) {
     case 'request':
@@ -101,6 +97,10 @@ switch ($current_tab) {
     case 'completed':
         $where_conditions[] = "a.s13_as_level = '5'";
         $tab_title = 'AS 완료';
+        break;
+    case 'spare':
+        $is_spare = true;
+        $tab_title = 'Spare';
         break;
 }
 
@@ -120,24 +120,20 @@ if (!empty($search_customer)) {
     $where_conditions[] = "a.ex_company LIKE '%" . mysql_real_escape_string($search_customer) . "%'";
 }
 
-// 전화번호 검색 (step11_member의 전화번호 필드 사용)
+// 전화번호 검색 (ex_tel 사용)
 if (!empty($search_phone)) {
     $phone_esc = mysql_real_escape_string($search_phone);
-    $where_conditions[] = "(CONCAT(m.s11_phone1, m.s11_phone2, m.s11_phone3) LIKE '%" . $phone_esc . "%' OR CONCAT(m.s11_phone1, '-', m.s11_phone2, '-', m.s11_phone3) LIKE '%" . $phone_esc . "%')";
+    $where_conditions[] = "a.ex_tel LIKE '%" . $phone_esc . "%'";
 }
 
-// DB 쿼리 실행
-{
+// Spare 탭이 아닌 경우에만 DB 쿼리 실행
+if (!$is_spare) {
     $where = implode(' AND ', $where_conditions);
 
     // 총 개수 조회
     $count_query = "SELECT COUNT(DISTINCT a.s13_asid) as total FROM step13_as a
-                    LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                     WHERE $where";
-    $count_result = mysql_query($count_query);
-    if (!$count_result) {
-        die('COUNT 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($count_query));
-    }
+    $count_result = @mysql_query($count_query);
     $count_row = mysql_fetch_assoc($count_result);
     $total_count = $count_row['total'] ?? 0;
     $total_pages = ceil($total_count / $per_page);
@@ -147,23 +143,18 @@ if (!empty($search_phone)) {
     if ($current_tab === 'completed') {
         $asid_query = "SELECT a.s13_asid
                        FROM step13_as a
-                       LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                        WHERE $where
                        ORDER BY a.s13_as_out_date DESC, a.s13_asid DESC
                        LIMIT $per_page OFFSET $offset";
     } else {
         $asid_query = "SELECT a.s13_asid
                        FROM step13_as a
-                       LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                        WHERE $where
                        ORDER BY a.s13_asid DESC
                        LIMIT $per_page OFFSET $offset";
     }
 
-    $asid_result = mysql_query($asid_query);
-    if (!$asid_result) {
-        die('ASID 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($asid_query));
-    }
+    $asid_result = @mysql_query($asid_query);
     $target_asids = array();
 
     if ($asid_result && mysql_num_rows($asid_result) > 0) {
@@ -182,13 +173,11 @@ if (!empty($search_phone)) {
         if ($current_tab === 'working' || $current_tab === 'completed') {
             $order_by = ($current_tab === 'completed') ? "a.s13_as_out_date DESC" : "a.s13_asid DESC";
             $query = "SELECT a.*,
-                             m.s11_phone1, m.s11_phone2, m.s11_phone3,
                              b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.s14_cart,
                              md.s15_model_name, pd.s16_poor,
                              res.s19_result,
                              c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
                       FROM step13_as a
-                      LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                       LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
                       LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
                       LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
@@ -198,12 +187,10 @@ if (!empty($search_phone)) {
                       ORDER BY $order_by, b.s14_aiid ASC, c.s18_accid ASC";
         } else {
             $query = "SELECT a.*,
-                             m.s11_phone1, m.s11_phone2, m.s11_phone3,
                              b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.as_end_result,
                              md.s15_model_name, pd.s16_poor,
                              c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
                       FROM step13_as a
-                      LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                       LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
                       LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
                       LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
@@ -273,6 +260,11 @@ if (!empty($search_phone)) {
             }
         }
     }
+} else {
+    // Spare 탭: 데이터 조회 없음
+    $total_count = 0;
+    $total_pages = 0;
+    $as_list = array();
 }
 
 // 상태 레이블 함수
@@ -754,7 +746,6 @@ function getStatusColor($level)
         <a href="parts.php" class="nav-item">자재 관리</a>
         <a href="members.php" class="nav-item">고객 관리</a>
         <a href="products.php" class="nav-item">제품 관리</a>
-        <a href="as_statistics.php" class="nav-item">통계/분석</a>
     </div>
 
     <div class="container">
@@ -799,6 +790,10 @@ function getStatusColor($level)
                     echo $comp_row['cnt'] ?? 0;
                     ?>)
                 </button>
+                <button class="tab-btn <?php echo $current_tab === 'spare' ? 'active' : ''; ?>"
+                    onclick="location.href='as_requests.php?tab=spare'">
+                    Spare
+                </button>
             </div>
 
             <!-- 액션 버튼 (요청 탭에서만 표시) -->
@@ -822,17 +817,20 @@ function getStatusColor($level)
                 <button type="button" class="today-btn" id="today-btn-tab" style="padding: 10px 15px; font-size: 13px;"
                     data-today="<?php echo (!empty($search_start_date) && $search_start_date === $search_end_date) ? 'on' : 'off'; ?>"
                     onclick="toggleTodayDate('search-form-tab', this)">오늘</button>
-
                 <input type="text" name="search_customer" placeholder="고객명"
                     value="<?php echo htmlspecialchars($search_customer); ?>">
                 <input type="text" name="search_phone" placeholder="전화번호"
                     value="<?php echo htmlspecialchars($search_phone); ?>">
-
                 <button type="submit">검색</button>
                 <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
             </form>
 
-            <?php
+            <?php if ($is_spare): ?>
+                <!-- Spare 탭 -->
+                <div class="empty-state">
+                    <p>예약된 탭입니다.</p>
+                </div>
+            <?php else: ?>
 
                 <!-- 정보 텍스트 -->
                 <div class="info-text">
@@ -940,19 +938,7 @@ function getStatusColor($level)
                                         <?php echo htmlspecialchars($as_info['ex_company'] ?? '-'); ?>
                                     </td>
                                     <td rowspan="<?php echo $rowspan; ?>">
-                                        <?php
-                                        $phone = '';
-                                        if (!empty($as_info['s11_phone1'])) {
-                                            $phone = $as_info['s11_phone1'];
-                                            if (!empty($as_info['s11_phone2'])) {
-                                                $phone .= '-' . $as_info['s11_phone2'];
-                                            }
-                                            if (!empty($as_info['s11_phone3'])) {
-                                                $phone .= '-' . $as_info['s11_phone3'];
-                                            }
-                                        }
-                                        echo htmlspecialchars($phone ?: '-');
-                                        ?>
+                                        <?php echo htmlspecialchars($as_info['ex_tel'] ?? '-'); ?>
                                     </td>
                                     <td rowspan="<?php echo $rowspan; ?>">
                                         <?php echo htmlspecialchars($as_info['s13_as_in_how'] ?? '-'); ?>
@@ -1158,6 +1144,7 @@ function getStatusColor($level)
                     <?php endif; ?>
 
                 <?php endif; ?>
+            <?php endif; ?>
 
         </div>
     </div>
