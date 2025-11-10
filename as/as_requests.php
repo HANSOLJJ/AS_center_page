@@ -115,10 +115,10 @@ if (!empty($search_customer)) {
     $where_conditions[] = "a.ex_company LIKE '%" . mysql_real_escape_string($search_customer) . "%'";
 }
 
-// 전화번호 검색 (ex_phone 사용)
+// 전화번호 검색 (step11_member의 전화번호 필드 사용)
 if (!empty($search_phone)) {
     $phone_esc = mysql_real_escape_string($search_phone);
-    $where_conditions[] = "a.ex_phone LIKE '%" . $phone_esc . "%'";
+    $where_conditions[] = "(CONCAT(m.s11_phone1, m.s11_phone2, m.s11_phone3) LIKE '%" . $phone_esc . "%' OR CONCAT(m.s11_phone1, '-', m.s11_phone2, '-', m.s11_phone3) LIKE '%" . $phone_esc . "%')";
 }
 
 // DB 쿼리 실행
@@ -127,6 +127,7 @@ if (!empty($search_phone)) {
 
     // 총 개수 조회
     $count_query = "SELECT COUNT(DISTINCT a.s13_asid) as total FROM step13_as a
+                    LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                     WHERE $where";
     $count_result = @mysql_query($count_query);
     $count_row = mysql_fetch_assoc($count_result);
@@ -138,12 +139,14 @@ if (!empty($search_phone)) {
     if ($current_tab === 'completed') {
         $asid_query = "SELECT a.s13_asid
                        FROM step13_as a
+                       LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                        WHERE $where
                        ORDER BY a.s13_as_out_date DESC, a.s13_asid DESC
                        LIMIT $per_page OFFSET $offset";
     } else {
         $asid_query = "SELECT a.s13_asid
                        FROM step13_as a
+                       LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                        WHERE $where
                        ORDER BY a.s13_asid DESC
                        LIMIT $per_page OFFSET $offset";
@@ -168,11 +171,13 @@ if (!empty($search_phone)) {
         if ($current_tab === 'working' || $current_tab === 'completed') {
             $order_by = ($current_tab === 'completed') ? "a.s13_as_out_date DESC" : "a.s13_asid DESC";
             $query = "SELECT a.*,
+                             m.s11_phone1, m.s11_phone2, m.s11_phone3,
                              b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.s14_cart,
                              md.s15_model_name, pd.s16_poor,
                              res.s19_result,
                              c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
                       FROM step13_as a
+                      LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                       LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
                       LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
                       LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
@@ -182,10 +187,12 @@ if (!empty($search_phone)) {
                       ORDER BY $order_by, b.s14_aiid ASC, c.s18_accid ASC";
         } else {
             $query = "SELECT a.*,
+                             m.s11_phone1, m.s11_phone2, m.s11_phone3,
                              b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.as_end_result,
                              md.s15_model_name, pd.s16_poor,
                              c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
                       FROM step13_as a
+                      LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                       LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
                       LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
                       LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
@@ -814,9 +821,7 @@ function getStatusColor($level)
                 <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
             </form>
 
-            <?php
-
-                <!-- 정보 텍스트 -->
+            <!-- 정보 텍스트 -->
                 <div class="info-text">
                     총 <?php echo $total_count; ?>개의 AS 요청 (페이지: <?php echo $page; ?>/<?php echo max(1, $total_pages); ?>)
                 </div>
@@ -922,7 +927,19 @@ function getStatusColor($level)
                                         <?php echo htmlspecialchars($as_info['ex_company'] ?? '-'); ?>
                                     </td>
                                     <td rowspan="<?php echo $rowspan; ?>">
-                                        <?php echo htmlspecialchars($as_info['ex_phone'] ?? '-'); ?>
+                                        <?php
+                                        $phone = '';
+                                        if (!empty($as_info['s11_phone1'])) {
+                                            $phone = $as_info['s11_phone1'];
+                                            if (!empty($as_info['s11_phone2'])) {
+                                                $phone .= '-' . $as_info['s11_phone2'];
+                                            }
+                                            if (!empty($as_info['s11_phone3'])) {
+                                                $phone .= '-' . $as_info['s11_phone3'];
+                                            }
+                                        }
+                                        echo htmlspecialchars($phone ?: '-');
+                                        ?>
                                     </td>
                                     <td rowspan="<?php echo $rowspan; ?>">
                                         <?php echo htmlspecialchars($as_info['s13_as_in_how'] ?? '-'); ?>
