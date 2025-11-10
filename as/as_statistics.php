@@ -124,6 +124,7 @@ function getTopRepairProducts($connect, $start_date, $end_date)
 function getTopRepairParts($connect, $start_date, $end_date)
 {
     $query = "SELECT
+        c.s18_uid,
         c.cost_name,
         SUM(c.s18_quantity) as total_qty,
         COUNT(*) as item_count
@@ -131,7 +132,7 @@ function getTopRepairParts($connect, $start_date, $end_date)
         LEFT JOIN step14_as_item b ON c.s18_aiid = b.s14_aiid
         LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
         WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'
-        GROUP BY c.s18_uid
+        GROUP BY c.s18_uid, c.cost_name
         ORDER BY total_qty DESC
         LIMIT 3";
 
@@ -147,13 +148,14 @@ function getTopRepairParts($connect, $start_date, $end_date)
 function getTopSaleParts($connect, $start_date, $end_date)
 {
     $query = "SELECT
-        MAX(c.cost_name) as cost_name,
+        c.s21_uid,
+        c.cost_name,
         SUM(c.s21_quantity) as total_qty,
         COUNT(*) as item_count
         FROM step21_sell_cart c
         LEFT JOIN step20_sell s ON c.s21_sid = s.s20_sid
         WHERE s.s20_sell_level = '2' AND DATE(s.s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'
-        GROUP BY c.s21_uid
+        GROUP BY c.s21_uid, c.cost_name
         ORDER BY total_qty DESC
         LIMIT 3";
 
