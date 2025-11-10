@@ -20,7 +20,7 @@ $current_page = 'as_requests';
 
 // 탭 선택
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'request';
-$current_tab = in_array($tab, ['request', 'working', 'completed', 'spare']) ? $tab : 'request';
+$current_tab = in_array($tab, ['request', 'working', 'completed', 'stats']) ? $tab : 'request';
 
 // 페이지 처리
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
@@ -41,6 +41,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete') {
     if (isset($_GET['itemid']) && intval($_GET['itemid']) > 0) {
         // s14_aiid 기준 삭제 (해당 아이템만)
         $delete_itemid = intval($_GET['itemid']);
+
+        // step18_as_cure_cart에서 먼저 삭제 (외래키 제약 고려)
+        $delete_cure_query = "DELETE FROM step18_as_cure_cart WHERE s18_aiid = $delete_itemid";
+        @mysql_query($delete_cure_query);
+
+        // step14_as_item 삭제
         $delete_query = "DELETE FROM step14_as_item WHERE s14_aiid = $delete_itemid";
         @mysql_query($delete_query);
         $delete_type = 'item';
@@ -48,7 +54,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete') {
         // s13_asid 기준 삭제 (AS 요청 전체)
         $delete_asid = intval($_GET['asid']);
 
-        // step14_as_item 먼저 삭제 (외래키 제약)
+        // step18_as_cure_cart에서 먼저 삭제 (s18_asid 기준)
+        $delete_cure_query = "DELETE FROM step18_as_cure_cart WHERE s18_asid = $delete_asid";
+        @mysql_query($delete_cure_query);
+
+        // step14_as_item 삭제
         $delete_items_query = "DELETE FROM step14_as_item WHERE s14_asid = $delete_asid";
         @mysql_query($delete_items_query);
 
@@ -73,7 +83,7 @@ $delete_type = isset($_GET['delete_type']) ? $_GET['delete_type'] : '';
 
 // 탭별 WHERE 조건
 $where_conditions = array();
-$is_spare = false;
+$is_stats = false;
 
 switch ($current_tab) {
     case 'request':
@@ -88,15 +98,16 @@ switch ($current_tab) {
         $where_conditions[] = "a.s13_as_level = '5'";
         $tab_title = 'AS 완료';
         break;
-    case 'spare':
-        $is_spare = true;
-        $tab_title = 'Spare';
+    case 'stats':
+        $is_stats = true;
+        $where_conditions[] = "a.s13_as_level = '5'";  // 완료된 AS만
+        $tab_title = '통계';
         break;
 }
 
 // 기간 검색 (탭별로 다른 날짜 필드 사용)
-// 요청/작업: s13_as_in_date (입고일), 완료: s13_as_out_date (출고일)
-$date_field = ($current_tab == 'completed') ? 's13_as_out_date' : 's13_as_in_date';
+// 요청/작업: s13_as_in_date (접수일자), 완료/통계: s13_as_out_date (출고일)
+$date_field = ($current_tab == 'completed' || $current_tab == 'stats') ? 's13_as_out_date' : 's13_as_in_date';
 
 if (!empty($search_start_date)) {
     $where_conditions[] = "DATE($date_field) >= '" . mysql_real_escape_string($search_start_date) . "'";
@@ -107,22 +118,21 @@ if (!empty($search_end_date)) {
 
 // 고객명 검색
 if (!empty($search_customer)) {
-    $where_conditions[] = "m.s11_com_name LIKE '%" . mysql_real_escape_string($search_customer) . "%'";
+    $where_conditions[] = "a.ex_company LIKE '%" . mysql_real_escape_string($search_customer) . "%'";
 }
 
-// 전화번호 검색
+// 전화번호 검색 (ex_phone 사용)
 if (!empty($search_phone)) {
     $phone_esc = mysql_real_escape_string($search_phone);
-    $where_conditions[] = "(CONCAT(m.s11_phone1, m.s11_phone2, m.s11_phone3) LIKE '%" . $phone_esc . "%' OR CONCAT(m.s11_phone1, '-', m.s11_phone2, '-', m.s11_phone3) LIKE '%" . $phone_esc . "%')";
+    $where_conditions[] = "a.ex_phone LIKE '%" . $phone_esc . "%'";
 }
 
-// Spare 탭이 아닌 경우에만 DB 쿼리 실행
-if (!$is_spare) {
+// 통계 탭이 아닌 경우에만 상세 데이터 쿼리 실행
+if (!$is_stats) {
     $where = implode(' AND ', $where_conditions);
 
     // 총 개수 조회
     $count_query = "SELECT COUNT(DISTINCT a.s13_asid) as total FROM step13_as a
-                    LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                     WHERE $where";
     $count_result = @mysql_query($count_query);
     $count_row = mysql_fetch_assoc($count_result);
@@ -130,12 +140,20 @@ if (!$is_spare) {
     $total_pages = ceil($total_count / $per_page);
 
     // 먼저 페이징을 위해 DISTINCT asid 조회
-    $asid_query = "SELECT DISTINCT a.s13_asid
-                   FROM step13_as a
-                   LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
-                   WHERE $where
-                   ORDER BY a.s13_asid DESC
-                   LIMIT $per_page OFFSET $offset";
+    // 탭별로 다른 정렬 기준 사용: 완료탭은 AS 완료일 기준, 나머지는 AS ID 역순
+    if ($current_tab === 'completed') {
+        $asid_query = "SELECT a.s13_asid
+                       FROM step13_as a
+                       WHERE $where
+                       ORDER BY a.s13_as_out_date DESC, a.s13_asid DESC
+                       LIMIT $per_page OFFSET $offset";
+    } else {
+        $asid_query = "SELECT a.s13_asid
+                       FROM step13_as a
+                       WHERE $where
+                       ORDER BY a.s13_asid DESC
+                       LIMIT $per_page OFFSET $offset";
+    }
 
     $asid_result = @mysql_query($asid_query);
     $target_asids = array();
@@ -154,27 +172,26 @@ if (!$is_spare) {
         // 실제 데이터 조회
         // working, completed 탭에서는 step18_as_cure_cart와 step19_as_result 조인 추가
         if ($current_tab === 'working' || $current_tab === 'completed') {
-            $query = "SELECT a.*, m.s11_com_name, m.s11_phone1, m.s11_phone2, m.s11_phone3,
+            $order_by = ($current_tab === 'completed') ? "a.s13_as_out_date DESC" : "a.s13_asid DESC";
+            $query = "SELECT a.*,
                              b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.s14_cart,
                              md.s15_model_name, pd.s16_poor,
                              res.s19_result,
                              c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
                       FROM step13_as a
-                      LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                       LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
                       LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
                       LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
                       LEFT JOIN step19_as_result res ON b.s14_asrid = res.s19_asrid
                       LEFT JOIN step18_as_cure_cart c ON b.s14_aiid = c.s18_aiid
                       WHERE a.s13_asid IN ($asid_list)
-                      ORDER BY a.s13_asid DESC, b.s14_aiid ASC, c.s18_accid ASC";
+                      ORDER BY $order_by, b.s14_aiid ASC, c.s18_accid ASC";
         } else {
-            $query = "SELECT a.*, m.s11_com_name, m.s11_phone1, m.s11_phone2, m.s11_phone3,
+            $query = "SELECT a.*,
                              b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.as_end_result,
                              md.s15_model_name, pd.s16_poor,
                              c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
                       FROM step13_as a
-                      LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
                       LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
                       LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
                       LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
@@ -245,9 +262,34 @@ if (!$is_spare) {
         }
     }
 } else {
-    // Spare 탭: 데이터 조회 없음
-    $total_count = 0;
-    $total_pages = 0;
+    // 통계 탭: 고객별 통계 데이터 조회
+    $where = implode(' AND ', $where_conditions);
+
+    // 고객별 record 수 통계
+    $stats_query = "SELECT
+                        a.s13_meid,
+                        a.ex_company,
+                        COUNT(DISTINCT a.s13_asid) as as_count
+                    FROM step13_as a
+                    WHERE $where
+                    GROUP BY a.s13_meid, a.ex_company
+                    ORDER BY as_count DESC";
+
+    $stats_result = @mysql_query($stats_query);
+    $stats_data = array();
+
+    if ($stats_result && mysql_num_rows($stats_result) > 0) {
+        while ($row = mysql_fetch_assoc($stats_result)) {
+            $stats_data[] = array(
+                'meid' => $row['s13_meid'],
+                'company' => $row['ex_company'],
+                'count' => (int)$row['as_count']
+            );
+        }
+    }
+
+    $total_count = count($stats_data);
+    $total_pages = 1;
     $as_list = array();
 }
 
@@ -657,7 +699,7 @@ function getStatusColor($level)
             width: 8%;
         }
 
-        /* 입고일 */
+        /* 접수일자 */
         table.as-table col.c-company {
             width: 14%;
         }
@@ -774,9 +816,9 @@ function getStatusColor($level)
                     echo $comp_row['cnt'] ?? 0;
                     ?>)
                 </button>
-                <button class="tab-btn <?php echo $current_tab === 'spare' ? 'active' : ''; ?>"
-                    onclick="location.href='as_requests.php?tab=spare'">
-                    Spare
+                <button class="tab-btn <?php echo $current_tab === 'stats' ? 'active' : ''; ?>"
+                    onclick="location.href='as_requests.php?tab=stats'">
+                    통계
                 </button>
             </div>
 
@@ -801,19 +843,146 @@ function getStatusColor($level)
                 <button type="button" class="today-btn" id="today-btn-tab" style="padding: 10px 15px; font-size: 13px;"
                     data-today="<?php echo (!empty($search_start_date) && $search_start_date === $search_end_date) ? 'on' : 'off'; ?>"
                     onclick="toggleTodayDate('search-form-tab', this)">오늘</button>
+
+                <!-- 통계 탭이 아닌 경우만 고객명, 전화번호 검색 표시 -->
+                <?php if ($current_tab !== 'stats'): ?>
                 <input type="text" name="search_customer" placeholder="고객명"
                     value="<?php echo htmlspecialchars($search_customer); ?>">
                 <input type="text" name="search_phone" placeholder="전화번호"
                     value="<?php echo htmlspecialchars($search_phone); ?>">
+                <?php endif; ?>
+
                 <button type="submit">검색</button>
                 <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
             </form>
 
-            <?php if ($is_spare): ?>
-                <!-- Spare 탭 -->
-                <div class="empty-state">
-                    <p>예약된 탭입니다.</p>
+            <?php if ($is_stats): ?>
+                <!-- 통계 탭 -->
+                <div style="margin-bottom: 20px; padding: 20px; background: #f9f9f9; border-radius: 8px;">
+                    <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">AS 완료 통계</h3>
+
+                    <!-- 필터 옵션 -->
+                    <div style="margin-bottom: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #666;">기간 기준</label>
+                            <select id="period-basis" name="period_basis"
+                                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                                <option value="month">월별</option>
+                                <option value="week">주간</option>
+                                <option value="day">일별</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Chart.js 그래프 -->
+                    <div style="position: relative; height: 400px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <canvas id="stats-chart"></canvas>
+                    </div>
+
+                    <!-- 통계 데이터 테이블 -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="margin-top: 0; margin-bottom: 15px; color: #333;">고객별 AS 완료 통계</h4>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+                                    <th style="padding: 10px; text-align: left; font-weight: 600;">고객명</th>
+                                    <th style="padding: 10px; text-align: right; font-weight: 600;">AS 완료 건수</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-table-body">
+                                <?php foreach ($stats_data as $stat): ?>
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="padding: 10px;"><?php echo htmlspecialchars($stat['company']); ?></td>
+                                    <td style="padding: 10px; text-align: right; font-weight: 600;"><?php echo $stat['count']; ?>건</td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <?php if (empty($stats_data)): ?>
+                        <div style="text-align: center; padding: 20px; color: #999;">
+                            데이터가 없습니다.
+                        </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
+
+                <!-- Chart.js 라이브러리 -->
+                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+                <script>
+                // PHP에서 데이터 전달
+                const statsData = <?php echo json_encode($stats_data); ?>;
+
+                // Chart.js 설정
+                const ctx = document.getElementById('stats-chart').getContext('2d');
+                let chart = null;
+
+                function updateChart() {
+                    // 라벨과 데이터 준비
+                    const labels = statsData.map(item => item.company || '미등록');
+                    const data = statsData.map(item => item.count);
+
+                    // 색상 생성 (그라데이션)
+                    const colors = [
+                        '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
+                        '#1abc9c', '#34495e', '#e67e22', '#c0392b', '#16a085'
+                    ];
+                    const backgroundColors = data.map((_, i) => colors[i % colors.length]);
+
+                    // 기존 차트 파괴
+                    if (chart) {
+                        chart.destroy();
+                    }
+
+                    // 새 차트 생성
+                    chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'AS 완료 건수',
+                                data: data,
+                                backgroundColor: backgroundColors,
+                                borderColor: backgroundColors,
+                                borderWidth: 1,
+                                borderRadius: 5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',  // 수평 막대 차트
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                },
+                                title: {
+                                    display: true,
+                                    text: '고객별 AS 완료 통계'
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        stepSize: 1
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 초기 차트 생성
+                updateChart();
+
+                // 기간 기준 변경 시 차트 업데이트
+                document.getElementById('period-basis').addEventListener('change', function() {
+                    // 향후 기간별 필터링 로직 추가 예정
+                    console.log('Selected period basis:', this.value);
+                });
+                </script>
+
             <?php else: ?>
 
                 <!-- 정보 텍스트 -->
@@ -842,27 +1011,26 @@ function getStatusColor($level)
                             <col class="c-as-task">
                             <col class="c-as-parts">
                             <col class="c-as-totalcost">
-                            <!-- 관리: 완료(working만), 수정, 삭제, 보기(completed만) -->
+                            <!-- 관리: 완료(working만), 수정, 삭제(request만), 보기(completed만) -->
                             <?php if ($current_tab === 'working' || $current_tab === 'completed'): ?>
-                                <col class="c-admin"> <!-- 완료 -->
+                                <col class="c-admin"> <!-- 완료/보기 -->
                             <?php endif; ?>
-                            <col class="c-admin"> <!-- 수정 -->
-                            <col class="c-admin"> <!-- 삭제 -->
+                            <col class="c-admin"> <!-- 수정/이전 -->
+                            <?php if ($current_tab === 'request'): ?>
+                                <col class="c-admin"> <!-- 삭제 -->
+                            <?php endif; ?>
                         </colgroup>
                         <thead>
                             <tr>
                                 <th>번호</th>
-                                <th>입고일</th>
+                                <th><?php echo ($current_tab === 'completed') ? 'AS 완료일' : '접수일자'; ?></th>
                                 <th>업체명</th>
                                 <th>연락처</th>
                                 <th>수탁</th>
                                 <th>입고품목</th>
                                 <th colspan="3">수리 내역</th>
-                                <?php if ($current_tab === 'request'): ?>
-                                    <th colspan="2">관리</th>
-                                <?php else: ?>
-                                    <th colspan="3">관리</th>
-                                <?php endif; ?>
+                                <th colspan="2">관리</th>
+
 
                             </tr>
                             <tr style="background: #f5f5f5; font-weight: 500;">
@@ -878,7 +1046,9 @@ function getStatusColor($level)
                                     <th>보기</th>
                                 <?php endif; ?>
                                 <th>수정</th>
-                                <th>삭제</th>
+                                <?php if ($current_tab === 'request'): ?>
+                                    <th>삭제</th>
+                                <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
@@ -905,13 +1075,23 @@ function getStatusColor($level)
                                         <?php echo $number; ?>
                                     </td>
                                     <td rowspan="<?php echo $rowspan; ?>">
-                                        <?php echo substr($as_info['s13_as_in_date'], 0, 10); ?>
+                                        <?php
+                                        if ($current_tab === 'completed') {
+                                            // AS 완료일 + 접수일자
+                                            $out_date = $as_info['s13_as_out_date'] ? substr($as_info['s13_as_out_date'], 0, 10) : '-';
+                                            $in_date = $as_info['s13_as_in_date'] ? substr($as_info['s13_as_in_date'], 0, 10) : '-';
+                                            echo "<div style='line-height: 1.2;'>" . htmlspecialchars($out_date) . "<br><span style='font-size: 10px; color: #999;'>(접수: " . htmlspecialchars($in_date) . ")</span></div>";
+                                        } else {
+                                            // 다른 탭: 접수일자
+                                            echo substr($as_info['s13_as_in_date'], 0, 10);
+                                        }
+                                        ?>
                                     </td>
                                     <td rowspan="<?php echo $rowspan; ?>">
-                                        <?php echo htmlspecialchars($as_info['s11_com_name'] ?? '-'); ?>
+                                        <?php echo htmlspecialchars($as_info['ex_company'] ?? '-'); ?>
                                     </td>
                                     <td rowspan="<?php echo $rowspan; ?>">
-                                        <?php echo htmlspecialchars(($as_info['s11_phone1'] ?? '') . '-' . ($as_info['s11_phone2'] ?? '') . '-' . ($as_info['s11_phone3'] ?? '')); ?>
+                                        <?php echo htmlspecialchars($as_info['ex_phone'] ?? '-'); ?>
                                     </td>
                                     <td rowspan="<?php echo $rowspan; ?>">
                                         <?php echo htmlspecialchars($as_info['s13_as_in_how'] ?? '-'); ?>
@@ -957,8 +1137,11 @@ function getStatusColor($level)
                                     </td>
                                     <!-- 총액 (step13_as.ex_total_cost) -->
                                     <td rowspan="<?php echo $rowspan; ?>" style="text-align: center; vertical-align: middle;">
-                                        <strong style="color: #667eea; font-size: 14px;">
-                                            <?php echo htmlspecialchars($as_info['ex_total_cost'] ?? '-'); ?>
+                                        <strong style="color: #000; font-size: 14px; font-weight: 600;">
+                                            <?php
+                                            $total = intval($as_info['ex_total_cost'] ?? 0);
+                                            echo $total > 0 ? number_format($total) . '원' : '-';
+                                            ?>
                                         </strong>
                                     </td>
 
@@ -983,23 +1166,28 @@ function getStatusColor($level)
                                                     style="font-size: 11px; padding: 5px 8px; background: #f39c12;">수리 작업 등록</button>
                                             </td>
                                         <?php else: ?>
-                                            <td>
-                                                <a href="as_request_handler.php?edit=<?php echo $items[0]['s14_aiid']; ?>"
-                                                    class="action-btn edit">수정</a>
+                                            <td rowspan="<?php echo $rowspan; ?>">
+                                                <a href="as_repair_handler.php?action=restore&itemid=<?php echo $items[0]['s14_aiid']; ?>"
+                                                    class="action-btn edit"
+                                                    onclick="return confirm('수리 작업을 초기화하고 요청 탭으로 되돌리시겠습니까?');">이전</a>
                                             </td>
                                         <?php endif; ?>
-                                        <td>
-                                            <a href="as_requests.php?action=delete&itemid=<?php echo $items[0]['s14_aiid']; ?>&tab=<?php echo $current_tab; ?>"
-                                                class="action-btn delete" onclick="return confirm('삭제하시겠습니까?');">삭제</a>
-                                        </td>
+                                        <?php if ($current_tab === 'request'): ?>
+                                            <td>
+                                                <a href="as_requests.php?action=delete&itemid=<?php echo $items[0]['s14_aiid']; ?>&tab=<?php echo $current_tab; ?>"
+                                                    class="action-btn delete" onclick="return confirm('삭제하시겠습니까?');">삭제</a>
+                                            </td>
+                                        <?php endif; ?>
 
                                     <?php else: ?>
-                                        <!-- 아이템이 없을 때: 삭제 버튼만 -->
+                                        <!-- 아이템이 없을 때 -->
                                         <td>-</td>
-                                        <td>
-                                            <a href="as_requests.php?action=delete&asid=<?php echo $asid; ?>&tab=<?php echo $current_tab; ?>"
-                                                class="action-btn delete" onclick="return confirm('삭제하시겠습니까?');">삭제</a>
-                                        </td>
+                                        <?php if ($current_tab === 'request'): ?>
+                                            <td>
+                                                <a href="as_requests.php?action=delete&asid=<?php echo $asid; ?>&tab=<?php echo $current_tab; ?>"
+                                                    class="action-btn delete" onclick="return confirm('삭제하시겠습니까?');">삭제</a>
+                                            </td>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </tr>
 
@@ -1042,16 +1230,13 @@ function getStatusColor($level)
                                                 <button onclick="repairItem(<?php echo $items[$i]['s14_aiid']; ?>)" class="action-btn"
                                                     style="font-size: 11px; padding: 5px 8px; background: #f39c12;">수리 작업 등록</button>
                                             </td>
-                                        <?php else: ?>
+                                        <?php endif; ?>
+                                        <?php if ($current_tab === 'request'): ?>
                                             <td>
-                                                <a href="as_request_handler.php?edit=<?php echo $items[$i]['s14_aiid']; ?>"
-                                                    class="action-btn edit">수정</a>
+                                                <a href="as_requests.php?action=delete&itemid=<?php echo $items[$i]['s14_aiid']; ?>&tab=<?php echo $current_tab; ?>"
+                                                    class="action-btn delete" onclick="return confirm('삭제하시겠습니까?');">삭제</a>
                                             </td>
                                         <?php endif; ?>
-                                        <td>
-                                            <a href="as_requests.php?action=delete&itemid=<?php echo $items[$i]['s14_aiid']; ?>&tab=<?php echo $current_tab; ?>"
-                                                class="action-btn delete" onclick="return confirm('삭제하시겠습니까?');">삭제</a>
-                                        </td>
                                     </tr>
                                 <?php endfor; ?>
                             <?php endforeach; ?>
