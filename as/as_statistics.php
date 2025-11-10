@@ -99,18 +99,57 @@ function getMonthlySalesStats($connect)
     return $data;
 }
 
-// 고객별 AS 통계
-function getCustomerASStats($connect, $limit = 10)
+// TOP3 수리 제품 (AS)
+function getTopRepairProducts($connect, $start_date, $end_date)
 {
     $query = "SELECT
-        a.ex_company,
-        COUNT(*) as total,
-        SUM(COALESCE(a.ex_total_cost, 0)) as total_cost,
-        SUM(CASE WHEN a.s13_as_level = '5' THEN 1 ELSE 0 END) as completed
-        FROM step13_as a
-        GROUP BY a.ex_company
-        ORDER BY total DESC
-        LIMIT $limit";
+        s8_product_name,
+        COUNT(*) as count
+        FROM step13_as
+        WHERE s13_as_level = '5' AND DATE(s13_as_out_date) BETWEEN '$start_date' AND '$end_date'
+        GROUP BY s8_product_name
+        ORDER BY count DESC
+        LIMIT 3";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
+// TOP3 수리 자재 (AS)
+function getTopRepairParts($connect, $start_date, $end_date)
+{
+    $query = "SELECT
+        s14_as_item_title,
+        COUNT(*) as count
+        FROM step14_as_item
+        WHERE DATE(s14_as_item_in_date) BETWEEN '$start_date' AND '$end_date'
+        GROUP BY s14_as_item_title
+        ORDER BY count DESC
+        LIMIT 3";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
+// TOP3 판매 자재 (판매)
+function getTopSaleParts($connect, $start_date, $end_date)
+{
+    $query = "SELECT
+        s5_parts_name,
+        COUNT(*) as count
+        FROM step20_sell
+        WHERE s20_sell_level = '2' AND DATE(s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'
+        GROUP BY s5_parts_name
+        ORDER BY count DESC
+        LIMIT 3";
 
     $result = mysql_query($query);
     $data = array();
@@ -124,7 +163,9 @@ function getCustomerASStats($connect, $limit = 10)
 $stats = getStatistics($connect, $start_date, $end_date);
 $monthly_as = getMonthlyASStats($connect);
 $monthly_sales = getMonthlySalesStats($connect);
-$customer_as = getCustomerASStats($connect);
+$top_products = getTopRepairProducts($connect, $start_date, $end_date);
+$top_parts = getTopRepairParts($connect, $start_date, $end_date);
+$top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -301,6 +342,14 @@ $customer_as = getCustomerASStats($connect);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
+        .stat-card.as-card {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+
+        .stat-card.sales-card {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
         .stat-card h4 {
             font-size: 13px;
             text-transform: uppercase;
@@ -317,6 +366,23 @@ $customer_as = getCustomerASStats($connect);
         .stat-card .label {
             font-size: 12px;
             opacity: 0.8;
+        }
+
+        .top-list {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .top-list ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .top-list li {
+            padding: 5px 0;
+            color: #666;
         }
 
         .table-section {
@@ -415,46 +481,76 @@ $customer_as = getCustomerASStats($connect);
                 <!-- 개요 탭 -->
                 <h3 style="color: #667eea; margin-bottom: 20px; font-size: 16px;">📈 종합 통계</h3>
 
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h4>전체 AS 요청</h4>
-                        <div class="number"><?php echo number_format($stats['as']['total_as'] ?? 0); ?></div>
-                        <div class="label">건</div>
+                <!-- AS 통계 -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #3b82f6; margin-bottom: 15px; font-size: 14px;">🔧 AS 통계</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card as-card">
+                            <h4>AS 완료</h4>
+                            <div class="number"><?php echo number_format($stats['as']['as_completed'] ?? 0); ?></div>
+                            <div class="label">건</div>
+                        </div>
+                        <div class="stat-card as-card">
+                            <h4>TOP3 수리 제품</h4>
+                            <div class="top-list">
+                                <ol>
+                                    <?php foreach ($top_products as $idx => $product): ?>
+                                        <li><?php echo htmlspecialchars($product['s8_product_name']); ?> (<?php echo $product['count']; ?>)</li>
+                                    <?php endforeach; ?>
+                                    <?php if (count($top_products) === 0): ?>
+                                        <li>데이터 없음</li>
+                                    <?php endif; ?>
+                                </ol>
+                            </div>
+                        </div>
+                        <div class="stat-card as-card">
+                            <h4>TOP3 수리 자재</h4>
+                            <div class="top-list">
+                                <ol>
+                                    <?php foreach ($top_parts as $idx => $part): ?>
+                                        <li><?php echo htmlspecialchars($part['s14_as_item_title']); ?> (<?php echo $part['count']; ?>)</li>
+                                    <?php endforeach; ?>
+                                    <?php if (count($top_parts) === 0): ?>
+                                        <li>데이터 없음</li>
+                                    <?php endif; ?>
+                                </ol>
+                            </div>
+                        </div>
+                        <div class="stat-card as-card">
+                            <h4>AS 매출</h4>
+                            <div class="number"><?php echo number_format(intval($stats['as']['total_as_cost'] ?? 0) / 10000); ?></div>
+                            <div class="label">만원</div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <h4>AS 요청 중</h4>
-                        <div class="number"><?php echo number_format($stats['as']['as_request'] ?? 0); ?></div>
-                        <div class="label">건</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>AS 진행 중</h4>
-                        <div class="number"><?php echo number_format($stats['as']['as_working'] ?? 0); ?></div>
-                        <div class="label">건</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>AS 완료</h4>
-                        <div class="number"><?php echo number_format($stats['as']['as_completed'] ?? 0); ?></div>
-                        <div class="label">건</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>AS 매출</h4>
-                        <div class="number"><?php echo number_format(intval($stats['as']['total_as_cost'] ?? 0)); ?></div>
-                        <div class="label">원</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>자재 판매</h4>
-                        <div class="number"><?php echo number_format($stats['sales']['total_sales'] ?? 0); ?></div>
-                        <div class="label">건</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>판매 완료</h4>
-                        <div class="number"><?php echo number_format($stats['sales']['sales_completed'] ?? 0); ?></div>
-                        <div class="label">건</div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>판매 매출</h4>
-                        <div class="number"><?php echo number_format(intval($stats['sales']['total_sales_cost'] ?? 0)); ?></div>
-                        <div class="label">원</div>
+                </div>
+
+                <!-- 판매 통계 -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #10b981; margin-bottom: 15px; font-size: 14px;">🔋 판매 통계</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card sales-card">
+                            <h4>판매 완료</h4>
+                            <div class="number"><?php echo number_format($stats['sales']['sales_completed'] ?? 0); ?></div>
+                            <div class="label">건</div>
+                        </div>
+                        <div class="stat-card sales-card">
+                            <h4>TOP3 판매 자재</h4>
+                            <div class="top-list">
+                                <ol>
+                                    <?php foreach ($top_sale_parts as $idx => $part): ?>
+                                        <li><?php echo htmlspecialchars($part['s5_parts_name']); ?> (<?php echo $part['count']; ?>)</li>
+                                    <?php endforeach; ?>
+                                    <?php if (count($top_sale_parts) === 0): ?>
+                                        <li>데이터 없음</li>
+                                    <?php endif; ?>
+                                </ol>
+                            </div>
+                        </div>
+                        <div class="stat-card sales-card">
+                            <h4>판매 매출</h4>
+                            <div class="number"><?php echo number_format(intval($stats['sales']['total_sales_cost'] ?? 0) / 10000); ?></div>
+                            <div class="label">만원</div>
+                        </div>
                     </div>
                 </div>
 
