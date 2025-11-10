@@ -20,7 +20,7 @@ $current_page = 'as_requests';
 
 // 탭 선택
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'request';
-$current_tab = in_array($tab, ['request', 'working', 'completed', 'spare']) ? $tab : 'request';
+$current_tab = in_array($tab, ['request', 'working', 'completed']) ? $tab : 'request';
 
 // 페이지 처리
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
@@ -83,7 +83,6 @@ $delete_type = isset($_GET['delete_type']) ? $_GET['delete_type'] : '';
 
 // 탭별 WHERE 조건
 $where_conditions = array();
-$is_spare = false;
 
 switch ($current_tab) {
     case 'request':
@@ -97,10 +96,6 @@ switch ($current_tab) {
     case 'completed':
         $where_conditions[] = "a.s13_as_level = '5'";
         $tab_title = 'AS 완료';
-        break;
-    case 'spare':
-        $is_spare = true;
-        $tab_title = 'Spare';
         break;
 }
 
@@ -126,120 +121,99 @@ if (!empty($search_phone)) {
     $where_conditions[] = "a.ex_tel LIKE '%" . $phone_esc . "%'";
 }
 
-// Spare 탭이 아닌 경우에만 DB 쿼리 실행
-if (!$is_spare) {
-    $where = implode(' AND ', $where_conditions);
+// DB 쿼리 실행
+// 총 개수 조회
+$count_query = "SELECT COUNT(DISTINCT a.s13_asid) as total FROM step13_as a
+                WHERE $where";
+$count_result = @mysql_query($count_query);
+$count_row = mysql_fetch_assoc($count_result);
+$total_count = $count_row['total'] ?? 0;
+$total_pages = ceil($total_count / $per_page);
 
-    // 총 개수 조회
-    $count_query = "SELECT COUNT(DISTINCT a.s13_asid) as total FROM step13_as a
-                    WHERE $where";
-    $count_result = @mysql_query($count_query);
-    $count_row = mysql_fetch_assoc($count_result);
-    $total_count = $count_row['total'] ?? 0;
-    $total_pages = ceil($total_count / $per_page);
+// 먼저 페이징을 위해 DISTINCT asid 조회
+// 탭별로 다른 정렬 기준 사용: 완료탭은 AS 완료일 기준, 나머지는 AS ID 역순
+if ($current_tab === 'completed') {
+    $asid_query = "SELECT a.s13_asid
+                   FROM step13_as a
+                   WHERE $where
+                   ORDER BY a.s13_as_out_date DESC, a.s13_asid DESC
+                   LIMIT $per_page OFFSET $offset";
+} else {
+    $asid_query = "SELECT a.s13_asid
+                   FROM step13_as a
+                   WHERE $where
+                   ORDER BY a.s13_asid DESC
+                   LIMIT $per_page OFFSET $offset";
+}
 
-    // 먼저 페이징을 위해 DISTINCT asid 조회
-    // 탭별로 다른 정렬 기준 사용: 완료탭은 AS 완료일 기준, 나머지는 AS ID 역순
-    if ($current_tab === 'completed') {
-        $asid_query = "SELECT a.s13_asid
-                       FROM step13_as a
-                       WHERE $where
-                       ORDER BY a.s13_as_out_date DESC, a.s13_asid DESC
-                       LIMIT $per_page OFFSET $offset";
+$asid_result = @mysql_query($asid_query);
+$target_asids = array();
+
+if ($asid_result && mysql_num_rows($asid_result) > 0) {
+    while ($row = mysql_fetch_assoc($asid_result)) {
+        $target_asids[] = $row['s13_asid'];
+    }
+}
+
+$as_list = array();
+
+if (!empty($target_asids)) {
+    $asid_list = implode(',', array_map('intval', $target_asids));
+
+    // 실제 데이터 조회
+    // working, completed 탭에서는 step18_as_cure_cart와 step19_as_result 조인 추가
+    if ($current_tab === 'working' || $current_tab === 'completed') {
+        $order_by = ($current_tab === 'completed') ? "a.s13_as_out_date DESC" : "a.s13_asid DESC";
+        $query = "SELECT a.*,
+                         b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.s14_cart,
+                         md.s15_model_name, pd.s16_poor,
+                         res.s19_result,
+                         c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
+                  FROM step13_as a
+                  LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
+                  LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
+                  LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
+                  LEFT JOIN step19_as_result res ON b.s14_asrid = res.s19_asrid
+                  LEFT JOIN step18_as_cure_cart c ON b.s14_aiid = c.s18_aiid
+                  WHERE a.s13_asid IN ($asid_list)
+                  ORDER BY $order_by, b.s14_aiid ASC, c.s18_accid ASC";
     } else {
-        $asid_query = "SELECT a.s13_asid
-                       FROM step13_as a
-                       WHERE $where
-                       ORDER BY a.s13_asid DESC
-                       LIMIT $per_page OFFSET $offset";
+        $query = "SELECT a.*,
+                         b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.as_end_result,
+                         md.s15_model_name, pd.s16_poor,
+                         c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
+                  FROM step13_as a
+                  LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
+                  LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
+                  LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
+                  LEFT JOIN step18_as_cure_cart c ON b.s14_aiid = c.s18_aiid
+                  WHERE a.s13_asid IN ($asid_list)
+                  ORDER BY a.s13_asid DESC, b.s14_aiid ASC, c.s18_accid ASC";
     }
 
-    $asid_result = @mysql_query($asid_query);
-    $target_asids = array();
+    $result = mysql_query($query);
+    $grouped_list = array(); // asid별로 그룹화
 
-    if ($asid_result && mysql_num_rows($asid_result) > 0) {
-        while ($row = mysql_fetch_assoc($asid_result)) {
-            $target_asids[] = $row['s13_asid'];
-        }
-    }
+    if ($result && mysql_num_rows($result) > 0) {
+        while ($row = mysql_fetch_assoc($result)) {
+            $asid = $row['s13_asid'];
+            if (!isset($grouped_list[$asid])) {
+                $grouped_list[$asid] = array(
+                    'as_info' => $row,
+                    'items' => array()
+                );
+            }
+            if ($row['s14_aiid']) {
+                $aiid = $row['s14_aiid'];
 
-    $as_list = array();
-
-    if (!empty($target_asids)) {
-        $asid_list = implode(',', array_map('intval', $target_asids));
-
-        // 실제 데이터 조회
-        // working, completed 탭에서는 step18_as_cure_cart와 step19_as_result 조인 추가
-        if ($current_tab === 'working' || $current_tab === 'completed') {
-            $order_by = ($current_tab === 'completed') ? "a.s13_as_out_date DESC" : "a.s13_asid DESC";
-            $query = "SELECT a.*,
-                             b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.s14_cart,
-                             md.s15_model_name, pd.s16_poor,
-                             res.s19_result,
-                             c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
-                      FROM step13_as a
-                      LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
-                      LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
-                      LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
-                      LEFT JOIN step19_as_result res ON b.s14_asrid = res.s19_asrid
-                      LEFT JOIN step18_as_cure_cart c ON b.s14_aiid = c.s18_aiid
-                      WHERE a.s13_asid IN ($asid_list)
-                      ORDER BY $order_by, b.s14_aiid ASC, c.s18_accid ASC";
-        } else {
-            $query = "SELECT a.*,
-                             b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.as_end_result,
-                             md.s15_model_name, pd.s16_poor,
-                             c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
-                      FROM step13_as a
-                      LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
-                      LEFT JOIN step15_as_model md ON b.s14_model = md.s15_amid
-                      LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
-                      LEFT JOIN step18_as_cure_cart c ON b.s14_aiid = c.s18_aiid
-                      WHERE a.s13_asid IN ($asid_list)
-                      ORDER BY a.s13_asid DESC, b.s14_aiid ASC, c.s18_accid ASC";
-        }
-
-        $result = mysql_query($query);
-        $grouped_list = array(); // asid별로 그룹화
-
-        if ($result && mysql_num_rows($result) > 0) {
-            while ($row = mysql_fetch_assoc($result)) {
-                $asid = $row['s13_asid'];
-                if (!isset($grouped_list[$asid])) {
-                    $grouped_list[$asid] = array(
-                        'as_info' => $row,
-                        'items' => array()
-                    );
-                }
-                if ($row['s14_aiid']) {
-                    $aiid = $row['s14_aiid'];
-
-                    // 모든 탭에서 cure_parts를 그룹화
-                    // 해당 aiid가 이미 존재하는지 확인
-                    $item_exists = false;
-                    foreach ($grouped_list[$asid]['items'] as &$item) {
-                        if ($item['s14_aiid'] === $aiid) {
-                            // 이미 존재하면 cure_parts에만 추가
-                            if ($row['s18_accid']) {
-                                $item['cure_parts'][] = array(
-                                    's18_accid' => $row['s18_accid'],
-                                    's18_uid' => $row['s18_uid'],
-                                    'cost_name' => $row['cost_name'],
-                                    's18_quantity' => $row['s18_quantity'],
-                                    'cost1' => $row['cost1']
-                                );
-                            }
-                            $item_exists = true;
-                            break;
-                        }
-                    }
-
-                    // 새로운 item인 경우
-                    if (!$item_exists) {
-                        $new_item = $row;
-                        $new_item['cure_parts'] = array();
+                // 모든 탭에서 cure_parts를 그룹화
+                // 해당 aiid가 이미 존재하는지 확인
+                $item_exists = false;
+                foreach ($grouped_list[$asid]['items'] as &$item) {
+                    if ($item['s14_aiid'] === $aiid) {
+                        // 이미 존재하면 cure_parts에만 추가
                         if ($row['s18_accid']) {
-                            $new_item['cure_parts'][] = array(
+                            $item['cure_parts'][] = array(
                                 's18_accid' => $row['s18_accid'],
                                 's18_uid' => $row['s18_uid'],
                                 'cost_name' => $row['cost_name'],
@@ -247,24 +221,36 @@ if (!$is_spare) {
                                 'cost1' => $row['cost1']
                             );
                         }
-                        $grouped_list[$asid]['items'][] = $new_item;
+                        $item_exists = true;
+                        break;
                     }
+                }
+
+                // 새로운 item인 경우
+                if (!$item_exists) {
+                    $new_item = $row;
+                    $new_item['cure_parts'] = array();
+                    if ($row['s18_accid']) {
+                        $new_item['cure_parts'][] = array(
+                            's18_accid' => $row['s18_accid'],
+                            's18_uid' => $row['s18_uid'],
+                            'cost_name' => $row['cost_name'],
+                            's18_quantity' => $row['s18_quantity'],
+                            'cost1' => $row['cost1']
+                        );
+                    }
+                    $grouped_list[$asid]['items'][] = $new_item;
                 }
             }
         }
+    }
 
-        // 순서 유지하면서 as_list 구성
-        foreach ($target_asids as $asid) {
-            if (isset($grouped_list[$asid])) {
-                $as_list[$asid] = $grouped_list[$asid];
-            }
+    // 순서 유지하면서 as_list 구성
+    foreach ($target_asids as $asid) {
+        if (isset($grouped_list[$asid])) {
+            $as_list[$asid] = $grouped_list[$asid];
         }
     }
-} else {
-    // Spare 탭: 데이터 조회 없음
-    $total_count = 0;
-    $total_pages = 0;
-    $as_list = array();
 }
 
 // 상태 레이블 함수
@@ -790,10 +776,6 @@ function getStatusColor($level)
                     echo $comp_row['cnt'] ?? 0;
                     ?>)
                 </button>
-                <button class="tab-btn <?php echo $current_tab === 'spare' ? 'active' : ''; ?>"
-                    onclick="location.href='as_requests.php?tab=spare'">
-                    Spare
-                </button>
             </div>
 
             <!-- 액션 버튼 (요청 탭에서만 표시) -->
@@ -825,23 +807,16 @@ function getStatusColor($level)
                 <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
             </form>
 
-            <?php if ($is_spare): ?>
-                <!-- Spare 탭 -->
+            <!-- 정보 텍스트 -->
+            <div class="info-text">
+                총 <?php echo $total_count; ?>개의 AS 요청 (페이지: <?php echo $page; ?>/<?php echo max(1, $total_pages); ?>)
+            </div>
+
+            <?php if (empty($as_list)): ?>
                 <div class="empty-state">
-                    <p>예약된 탭입니다.</p>
+                    <p>데이터가 없습니다.</p>
                 </div>
             <?php else: ?>
-
-                <!-- 정보 텍스트 -->
-                <div class="info-text">
-                    총 <?php echo $total_count; ?>개의 AS 요청 (페이지: <?php echo $page; ?>/<?php echo max(1, $total_pages); ?>)
-                </div>
-
-                <?php if (empty($as_list)): ?>
-                    <div class="empty-state">
-                        <p>데이터가 없습니다.</p>
-                    </div>
-                <?php else: ?>
 
                     <!-- 테이블 -->
 
@@ -1143,7 +1118,6 @@ function getStatusColor($level)
                         </div>
                     <?php endif; ?>
 
-                <?php endif; ?>
             <?php endif; ?>
 
         </div>

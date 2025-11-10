@@ -13,164 +13,120 @@ require_once 'mysql_compat.php';
 
 // 데이터베이스 연결
 $connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-if (!$connect) {
-    die('MySQL 연결 실패: ' . mysql_error());
-}
-if (!mysql_select_db('mic4u', $connect)) {
-    die('데이터베이스 선택 실패: ' . mysql_error());
-}
+mysql_select_db('mic4u', $connect);
 
 $user_name = $_SESSION['member_id'];
-$current_page = 'statistics';
+$current_page = 'as_statistics';
 
 // 탭 선택
-$tab = isset($_GET['tab']) ? $_GET['tab'] : 'overall';
-$current_tab = in_array($tab, ['overall', 'as', 'parts']) ? $tab : 'overall';
+$tab = isset($_GET['tab']) ? $_GET['tab'] : 'overview';
+$current_tab = in_array($tab, ['overview', 'as_analysis', 'sales_analysis']) ? $tab : 'overview';
 
-// 기간 검색
-$search_start_date = isset($_GET['search_start_date']) ? $_GET['search_start_date'] : '';
-$search_end_date = isset($_GET['search_end_date']) ? $_GET['search_end_date'] : '';
+// 기간 설정 (기본값: 오늘)
+$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d');
+$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
 
-// 통계 데이터 초기화
-$stats_data = array();
+// 통계 데이터 조회 함수
+function getStatistics($connect, $start_date, $end_date)
+{
+    // AS 통계
+    $as_query = "SELECT
+        COUNT(*) as total_as,
+        SUM(CASE WHEN s13_as_level NOT IN ('2','3','4','5') THEN 1 ELSE 0 END) as as_request,
+        SUM(CASE WHEN s13_as_level IN ('2','3','4') THEN 1 ELSE 0 END) as as_working,
+        SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as as_completed,
+        SUM(COALESCE(ex_total_cost, 0)) as total_as_cost
+        FROM step13_as
+        WHERE DATE(s13_as_in_date) BETWEEN '$start_date' AND '$end_date'";
 
-// 기간 필터 WHERE 조건
-$date_condition = '';
-if (!empty($search_start_date) && !empty($search_end_date)) {
-    $start_date = mysql_real_escape_string($search_start_date);
-    $end_date = mysql_real_escape_string($search_end_date);
-    $date_condition = "AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'";
-} elseif (!empty($search_start_date)) {
-    $start_date = mysql_real_escape_string($search_start_date);
-    $date_condition = "AND DATE(a.s13_as_out_date) >= '$start_date'";
-} elseif (!empty($search_end_date)) {
-    $end_date = mysql_real_escape_string($search_end_date);
-    $date_condition = "AND DATE(a.s13_as_out_date) <= '$end_date'";
+    $as_result = mysql_query($as_query);
+    $as_stats = mysql_fetch_assoc($as_result) ?? array();
+
+    // 자재 판매 통계
+    $sales_query = "SELECT
+        COUNT(*) as total_sales,
+        SUM(CASE WHEN s20_sell_level = '1' THEN 1 ELSE 0 END) as sales_request,
+        SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as sales_completed,
+        SUM(COALESCE(s20_total_cost, 0)) as total_sales_cost
+        FROM step20_sell
+        WHERE DATE(s20_sell_in_date) BETWEEN '$start_date' AND '$end_date'";
+
+    $sales_result = mysql_query($sales_query);
+    $sales_stats = mysql_fetch_assoc($sales_result) ?? array();
+
+    return array('as' => $as_stats, 'sales' => $sales_stats);
 }
 
-// 탭별 통계 데이터 조회
-switch ($current_tab) {
-    case 'overall':
-        // 종합 통계: AS 완료 + 자재 판매 고객별 통계
-        $as_query = "SELECT
-                        a.s13_meid,
-                        a.ex_company,
-                        COUNT(DISTINCT a.s13_asid) as as_count,
-                        COALESCE(SUM(c.s18_quantity), 0) as parts_count
-                    FROM step13_as a
-                    LEFT JOIN step14_as_item b ON a.s13_asid = b.s14_asid
-                    LEFT JOIN step18_as_cure_cart c ON b.s14_aiid = c.s18_aiid
-                    WHERE a.s13_as_level = '5' $date_condition
-                    GROUP BY a.s13_meid, a.ex_company
-                    ORDER BY as_count DESC";
+// 월별 AS 통계
+function getMonthlyASStats($connect)
+{
+    $query = "SELECT
+        DATE_FORMAT(s13_as_in_date, '%Y-%m') as month,
+        COUNT(*) as total,
+        SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as completed,
+        SUM(COALESCE(ex_total_cost, 0)) as total_cost
+        FROM step13_as
+        WHERE s13_as_in_date IS NOT NULL
+        GROUP BY DATE_FORMAT(s13_as_in_date, '%Y-%m')
+        ORDER BY month DESC
+        LIMIT 12";
 
-        $result = mysql_query($as_query);
-        if (!$result) {
-            die('AS 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($as_query));
-        }
-        if (mysql_num_rows($result) > 0) {
-            while ($row = mysql_fetch_assoc($result)) {
-                $stats_data[] = array(
-                    'company' => $row['ex_company'],
-                    'count' => (int)$row['as_count'],
-                    'type' => 'AS'
-                );
-            }
-        }
-
-        $parts_query = "SELECT
-                            a.s20_meid,
-                            a.ex_company,
-                            COUNT(DISTINCT a.s20_sellid) as sell_count
-                        FROM step20_sell a
-                        WHERE a.s20_sell_level = '2'
-                        GROUP BY a.s20_meid, a.ex_company
-                        ORDER BY sell_count DESC";
-
-        $result = mysql_query($parts_query);
-        if (!$result) {
-            die('자재 판매 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($parts_query));
-        }
-        if (mysql_num_rows($result) > 0) {
-            while ($row = mysql_fetch_assoc($result)) {
-                // 기존 회사가 있는지 확인
-                $found = false;
-                foreach ($stats_data as &$item) {
-                    if ($item['company'] === $row['ex_company']) {
-                        $item['parts_count'] = (int)$row['sell_count'];
-                        $found = true;
-                        break;
-                    }
-                }
-                if (!$found) {
-                    $stats_data[] = array(
-                        'company' => $row['ex_company'],
-                        'count' => 0,
-                        'parts_count' => (int)$row['sell_count'],
-                        'type' => 'PARTS'
-                    );
-                }
-            }
-        }
-
-        // 전체 sort
-        usort($stats_data, function($a, $b) {
-            $a_total = ($a['count'] ?? 0) + ($a['parts_count'] ?? 0);
-            $b_total = ($b['count'] ?? 0) + ($b['parts_count'] ?? 0);
-            return $b_total - $a_total;
-        });
-        break;
-
-    case 'as':
-        // AS 통계
-        $as_query = "SELECT
-                        a.s13_meid,
-                        a.ex_company,
-                        COUNT(DISTINCT a.s13_asid) as as_count
-                    FROM step13_as a
-                    WHERE a.s13_as_level = '5' $date_condition
-                    GROUP BY a.s13_meid, a.ex_company
-                    ORDER BY as_count DESC";
-
-        $result = mysql_query($as_query);
-        if (!$result) {
-            die('AS 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($as_query));
-        }
-        if (mysql_num_rows($result) > 0) {
-            while ($row = mysql_fetch_assoc($result)) {
-                $stats_data[] = array(
-                    'company' => $row['ex_company'],
-                    'count' => (int)$row['as_count']
-                );
-            }
-        }
-        break;
-
-    case 'parts':
-        // 자재 판매 통계
-        $parts_query = "SELECT
-                            a.s20_meid,
-                            a.ex_company,
-                            COUNT(DISTINCT a.s20_sellid) as sell_count
-                        FROM step20_sell a
-                        WHERE a.s20_sell_level = '2'
-                        GROUP BY a.s20_meid, a.ex_company
-                        ORDER BY sell_count DESC";
-
-        $result = mysql_query($parts_query);
-        if (!$result) {
-            die('자재 판매 쿼리 실패: ' . mysql_error() . '<br>Query: ' . htmlspecialchars($parts_query));
-        }
-        if (mysql_num_rows($result) > 0) {
-            while ($row = mysql_fetch_assoc($result)) {
-                $stats_data[] = array(
-                    'company' => $row['ex_company'],
-                    'count' => (int)$row['sell_count']
-                );
-            }
-        }
-        break;
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
 }
+
+// 월별 판매 통계
+function getMonthlySalesStats($connect)
+{
+    $query = "SELECT
+        DATE_FORMAT(s20_sell_in_date, '%Y-%m') as month,
+        COUNT(*) as total,
+        SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as completed,
+        SUM(COALESCE(s20_total_cost, 0)) as total_cost
+        FROM step20_sell
+        WHERE s20_sell_in_date IS NOT NULL
+        GROUP BY DATE_FORMAT(s20_sell_in_date, '%Y-%m')
+        ORDER BY month DESC
+        LIMIT 12";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
+// 고객별 AS 통계
+function getCustomerASStats($connect, $limit = 10)
+{
+    $query = "SELECT
+        a.ex_company,
+        COUNT(*) as total,
+        SUM(COALESCE(a.ex_total_cost, 0)) as total_cost,
+        SUM(CASE WHEN a.s13_as_level = '5' THEN 1 ELSE 0 END) as completed
+        FROM step13_as a
+        GROUP BY a.ex_company
+        ORDER BY total DESC
+        LIMIT $limit";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
+// 통계 데이터 조회
+$stats = getStatistics($connect, $start_date, $end_date);
+$monthly_as = getMonthlyASStats($connect);
+$monthly_sales = getMonthlySalesStats($connect);
+$customer_as = getCustomerASStats($connect);
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -192,7 +148,6 @@ switch ($current_tab) {
             color: #333;
         }
 
-        /* Header */
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -200,7 +155,6 @@ switch ($current_tab) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .header h1 {
@@ -213,10 +167,6 @@ switch ($current_tab) {
             align-items: center;
         }
 
-        .user-info {
-            font-size: 14px;
-        }
-
         .logout-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
@@ -224,7 +174,6 @@ switch ($current_tab) {
             border: 1px solid white;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
         }
 
         .logout-btn:hover {
@@ -232,10 +181,10 @@ switch ($current_tab) {
             color: #667eea;
         }
 
-        /* Navigation */
         .nav-bar {
             background: white;
             padding: 0;
+            border-bottom: 2px solid #ddd;
             display: flex;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
@@ -244,29 +193,42 @@ switch ($current_tab) {
             padding: 15px 25px;
             text-decoration: none;
             color: #666;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
+            font-size: 14px;
             font-weight: 500;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
         }
 
         .nav-item:hover {
-            background: #f5f6fa;
-            color: #333;
+            background: #f5f5f5;
+            color: #667eea;
         }
 
         .nav-item.active {
             color: #667eea;
             border-bottom-color: #667eea;
+            background: #f9f9ff;
         }
 
-        /* Main */
-        .main-container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
+        .container {
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
-        .tab-bar {
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .tabs {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
@@ -275,8 +237,8 @@ switch ($current_tab) {
 
         .tab-btn {
             padding: 12px 20px;
+            background: none;
             border: none;
-            background: white;
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
@@ -286,104 +248,117 @@ switch ($current_tab) {
         }
 
         .tab-btn:hover {
-            color: #333;
-            background: #f5f6fa;
+            color: #667eea;
         }
 
         .tab-btn.active {
             color: #667eea;
             border-bottom-color: #667eea;
+            background: #f9f9ff;
         }
 
-        .search-box {
+        .date-filter {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            flex-wrap: wrap;
-            align-items: center;
+            align-items: flex-end;
         }
 
-        .search-box input {
+        .date-filter input {
             padding: 8px 12px;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 13px;
+            border-radius: 5px;
+            font-size: 14px;
         }
 
-        .search-box button {
-            padding: 8px 16px;
+        .date-filter button {
+            padding: 8px 20px;
             background: #667eea;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 13px;
             font-weight: 500;
         }
 
-        .search-box button:hover {
+        .date-filter button:hover {
             background: #5568d3;
         }
 
-        .btn-reset {
-            padding: 8px 16px;
-            background: #ddd;
-            color: #333;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 13px;
-            display: inline-block;
-        }
-
-        .btn-reset:hover {
-            background: #ccc;
-        }
-
-        .stats-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-
-        .chart-container {
-            position: relative;
-            height: 400px;
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
             margin-bottom: 30px;
         }
 
-        .stats-table {
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h4 {
+            font-size: 13px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .table-section {
+            margin-top: 30px;
+        }
+
+        .table-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-bottom: 30px;
         }
 
-        .stats-table thead {
-            background: #f5f5f5;
-            border-bottom: 2px solid #ddd;
+        table thead {
+            background: #667eea;
+            color: white;
         }
 
-        .stats-table th {
+        table th {
             padding: 12px;
             text-align: left;
             font-weight: 600;
-            font-size: 13px;
         }
 
-        .stats-table td {
+        table td {
             padding: 10px 12px;
-            border-bottom: 1px solid #eee;
-            font-size: 13px;
+            border-bottom: 1px solid #ddd;
         }
 
-        .stats-table tbody tr:hover {
+        table tbody tr:hover {
             background: #f9f9f9;
+        }
+
+        .text-right {
+            text-align: right;
         }
 
         .empty-state {
@@ -391,30 +366,20 @@ switch ($current_tab) {
             padding: 40px;
             color: #999;
         }
-
-        .info-text {
-            margin-bottom: 15px;
-            padding: 10px;
-            background: #f0f3ff;
-            border-left: 3px solid #667eea;
-            border-radius: 4px;
-            font-size: 13px;
-            color: #333;
-        }
     </style>
 </head>
 
 <body>
-    <!-- Header -->
     <div class="header">
-        <h1>통계/분석 - AS 시스템</h1>
+        <h1>디지탈컴 AS 시스템</h1>
         <div class="header-right">
-            <span class="user-info"><?php echo htmlspecialchars($user_name); ?> 님</span>
-            <a href="logout.php" class="logout-btn">로그아웃</a>
+            <span><?php echo htmlspecialchars($user_name); ?>님</span>
+            <form method="POST" action="logout.php" style="margin: 0;">
+                <button type="submit" class="logout-btn">로그아웃</button>
+            </form>
         </div>
     </div>
 
-    <!-- Navigation -->
     <div class="nav-bar">
         <a href="dashboard.php" class="nav-item">대시보드</a>
         <a href="as_requests.php" class="nav-item">AS 작업</a>
@@ -422,191 +387,250 @@ switch ($current_tab) {
         <a href="parts.php" class="nav-item">자재 관리</a>
         <a href="members.php" class="nav-item">고객 관리</a>
         <a href="products.php" class="nav-item">제품 관리</a>
-        <a href="as_statistics.php" class="nav-item <?php echo $current_page === 'statistics' ? 'active' : ''; ?>">통계/분석</a>
+        <a href="as_statistics.php" class="nav-item <?php echo $current_page === 'as_statistics' ? 'active' : ''; ?>">통계/분석</a>
     </div>
 
-    <!-- Main Content -->
-    <div class="main-container">
-        <!-- Tab Bar -->
-        <div class="tab-bar">
-            <button class="tab-btn <?php echo $current_tab === 'overall' ? 'active' : ''; ?>"
-                onclick="location.href='as_statistics.php?tab=overall'">
-                종합 통계
-            </button>
-            <button class="tab-btn <?php echo $current_tab === 'as' ? 'active' : ''; ?>"
-                onclick="location.href='as_statistics.php?tab=as'">
-                AS 통계
-            </button>
-            <button class="tab-btn <?php echo $current_tab === 'parts' ? 'active' : ''; ?>"
-                onclick="location.href='as_statistics.php?tab=parts'">
-                자재 판매 통계
-            </button>
-        </div>
+    <div class="container">
+        <div class="content">
+            <h2>📊 통계/분석</h2>
 
-        <!-- Search Form -->
-        <form method="GET" class="search-box" id="search-form">
-            <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
-            <input type="date" name="search_start_date" placeholder="시작 날짜"
-                value="<?php echo htmlspecialchars($search_start_date); ?>">
-            <span style="color: #999;">~</span>
-            <input type="date" name="search_end_date" placeholder="종료 날짜"
-                value="<?php echo htmlspecialchars($search_end_date); ?>">
-            <button type="submit">검색</button>
-            <a href="as_statistics.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
-        </form>
-
-        <!-- Stats Content -->
-        <div class="stats-container">
-            <div class="info-text">
-                총 <?php echo count($stats_data); ?>개의 고객 데이터
+            <!-- 탭 -->
+            <div class="tabs">
+                <button class="tab-btn <?php echo $current_tab === 'overview' ? 'active' : ''; ?>"
+                    onclick="location.href='as_statistics.php?tab=overview'">개요</button>
+                <button class="tab-btn <?php echo $current_tab === 'as_analysis' ? 'active' : ''; ?>"
+                    onclick="location.href='as_statistics.php?tab=as_analysis'">AS 분석</button>
+                <button class="tab-btn <?php echo $current_tab === 'sales_analysis' ? 'active' : ''; ?>"
+                    onclick="location.href='as_statistics.php?tab=sales_analysis'">판매 분석</button>
             </div>
 
-            <?php if (empty($stats_data)): ?>
-                <div class="empty-state">
-                    <p>데이터가 없습니다.</p>
-                </div>
-            <?php else: ?>
-                <!-- Chart -->
-                <div class="chart-container">
-                    <canvas id="stats-chart"></canvas>
+            <!-- 기간 필터 -->
+            <form method="GET" class="date-filter">
+                <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
+                <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
+                <span>~</span>
+                <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
+                <button type="submit">조회</button>
+            </form>
+
+            <?php if ($current_tab === 'overview'): ?>
+                <!-- 개요 탭 -->
+                <h3 style="color: #667eea; margin-bottom: 20px; font-size: 16px;">📈 종합 통계</h3>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>전체 AS 요청</h4>
+                        <div class="number"><?php echo number_format($stats['as']['total_as'] ?? 0); ?></div>
+                        <div class="label">건</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>AS 요청 중</h4>
+                        <div class="number"><?php echo number_format($stats['as']['as_request'] ?? 0); ?></div>
+                        <div class="label">건</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>AS 진행 중</h4>
+                        <div class="number"><?php echo number_format($stats['as']['as_working'] ?? 0); ?></div>
+                        <div class="label">건</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>AS 완료</h4>
+                        <div class="number"><?php echo number_format($stats['as']['as_completed'] ?? 0); ?></div>
+                        <div class="label">건</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>AS 매출</h4>
+                        <div class="number"><?php echo number_format(intval($stats['as']['total_as_cost'] ?? 0)); ?></div>
+                        <div class="label">원</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>자재 판매</h4>
+                        <div class="number"><?php echo number_format($stats['sales']['total_sales'] ?? 0); ?></div>
+                        <div class="label">건</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>판매 완료</h4>
+                        <div class="number"><?php echo number_format($stats['sales']['sales_completed'] ?? 0); ?></div>
+                        <div class="label">건</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>판매 매출</h4>
+                        <div class="number"><?php echo number_format(intval($stats['sales']['total_sales_cost'] ?? 0)); ?></div>
+                        <div class="label">원</div>
+                    </div>
                 </div>
 
-                <!-- Table -->
-                <table class="stats-table">
-                    <thead>
-                        <tr>
-                            <th>고객명</th>
-                            <?php if ($current_tab === 'overall'): ?>
-                                <th style="text-align: right;">AS 건수</th>
-                                <th style="text-align: right;">자재판매 건수</th>
-                            <?php elseif ($current_tab === 'as'): ?>
-                                <th style="text-align: right;">AS 건수</th>
-                            <?php else: ?>
-                                <th style="text-align: right;">자재판매 건수</th>
-                            <?php endif; ?>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($stats_data as $item): ?>
+                <!-- 월별 통계 테이블 -->
+                <div class="table-section">
+                    <h3>월별 AS 현황</h3>
+                    <table>
+                        <thead>
                             <tr>
-                                <td><?php echo htmlspecialchars($item['company']); ?></td>
-                                <?php if ($current_tab === 'overall'): ?>
-                                    <td style="text-align: right;"><?php echo ($item['count'] ?? 0); ?>건</td>
-                                    <td style="text-align: right;"><?php echo ($item['parts_count'] ?? 0); ?>건</td>
-                                <?php elseif ($current_tab === 'as'): ?>
-                                    <td style="text-align: right;"><?php echo $item['count']; ?>건</td>
-                                <?php else: ?>
-                                    <td style="text-align: right;"><?php echo $item['count']; ?>건</td>
-                                <?php endif; ?>
+                                <th>월</th>
+                                <th class="text-right">전체</th>
+                                <th class="text-right">완료</th>
+                                <th class="text-right">매출</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($monthly_as as $row): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($row['month']); ?></td>
+                                    <td class="text-right"><?php echo number_format($row['total']); ?></td>
+                                    <td class="text-right"><?php echo number_format($row['completed']); ?></td>
+                                    <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-section">
+                    <h3>월별 판매 현황</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>월</th>
+                                <th class="text-right">전체</th>
+                                <th class="text-right">완료</th>
+                                <th class="text-right">매출</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($monthly_sales as $row): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($row['month']); ?></td>
+                                    <td class="text-right"><?php echo number_format($row['total']); ?></td>
+                                    <td class="text-right"><?php echo number_format($row['completed']); ?></td>
+                                    <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+            <?php elseif ($current_tab === 'as_analysis'): ?>
+                <!-- AS 분석 탭 -->
+                <h3 style="color: #667eea; margin-bottom: 20px; font-size: 16px;">🔧 AS 상세 분석</h3>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>전체 AS</h4>
+                        <div class="number"><?php echo number_format($stats['as']['total_as'] ?? 0); ?></div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>완료율</h4>
+                        <div class="number">
+                            <?php
+                            $total = intval($stats['as']['total_as'] ?? 0);
+                            $completed = intval($stats['as']['as_completed'] ?? 0);
+                            echo $total > 0 ? round(($completed / $total) * 100) : 0;
+                            ?>%
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>평균 비용</h4>
+                        <div class="number">
+                            <?php
+                            $total = intval($stats['as']['total_as'] ?? 0);
+                            $cost = intval($stats['as']['total_as_cost'] ?? 0);
+                            echo $total > 0 ? number_format(intval($cost / $total)) : 0;
+                            ?>
+                        </div>
+                        <div class="label">원</div>
+                    </div>
+                </div>
+
+                <div class="table-section">
+                    <h3>고객별 AS 현황 (상위 10)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>고객명</th>
+                                <th class="text-right">전체 AS</th>
+                                <th class="text-right">완료</th>
+                                <th class="text-right">총 비용</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($customer_as)): ?>
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: #999; padding: 30px;">데이터가 없습니다.</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($customer_as as $row): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($row['ex_company'] ?? '-'); ?></td>
+                                        <td class="text-right"><?php echo number_format($row['total']); ?></td>
+                                        <td class="text-right"><?php echo number_format($row['completed']); ?></td>
+                                        <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+            <?php elseif ($current_tab === 'sales_analysis'): ?>
+                <!-- 판매 분석 탭 -->
+                <h3 style="color: #667eea; margin-bottom: 20px; font-size: 16px;">🔋 판매 분석</h3>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>전체 판매</h4>
+                        <div class="number"><?php echo number_format($stats['sales']['total_sales'] ?? 0); ?></div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>완료율</h4>
+                        <div class="number">
+                            <?php
+                            $total = intval($stats['sales']['total_sales'] ?? 0);
+                            $completed = intval($stats['sales']['sales_completed'] ?? 0);
+                            echo $total > 0 ? round(($completed / $total) * 100) : 0;
+                            ?>%
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>평균 판매액</h4>
+                        <div class="number">
+                            <?php
+                            $total = intval($stats['sales']['total_sales'] ?? 0);
+                            $cost = intval($stats['sales']['total_sales_cost'] ?? 0);
+                            echo $total > 0 ? number_format(intval($cost / $total)) : 0;
+                            ?>
+                        </div>
+                        <div class="label">원</div>
+                    </div>
+                </div>
+
+                <div class="table-section">
+                    <h3>월별 판매 추이</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>월</th>
+                                <th class="text-right">전체</th>
+                                <th class="text-right">완료</th>
+                                <th class="text-right">총 매출</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($monthly_sales as $row): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($row['month']); ?></td>
+                                    <td class="text-right"><?php echo number_format($row['total']); ?></td>
+                                    <td class="text-right"><?php echo number_format($row['completed']); ?></td>
+                                    <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             <?php endif; ?>
+
         </div>
     </div>
 
-    <!-- Chart.js Library -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <script>
-        const statsData = <?php echo json_encode($stats_data); ?>;
-        const currentTab = '<?php echo $current_tab; ?>';
-
-        // Chart.js 설정
-        const ctx = document.getElementById('stats-chart')?.getContext('2d');
-        let chart = null;
-
-        function updateChart() {
-            if (!ctx) return;
-
-            // 라벨과 데이터 준비
-            const labels = statsData.map(item => item.company || '미등록');
-
-            let datasets = [];
-
-            if (currentTab === 'overall') {
-                // 종합 통계: 2개 데이터셋
-                const asData = statsData.map(item => item.count || 0);
-                const partsData = statsData.map(item => item.parts_count || 0);
-
-                datasets = [
-                    {
-                        label: 'AS 건수',
-                        data: asData,
-                        backgroundColor: '#3498db',
-                        borderColor: '#3498db',
-                        borderWidth: 1
-                    },
-                    {
-                        label: '자재판매 건수',
-                        data: partsData,
-                        backgroundColor: '#2ecc71',
-                        borderColor: '#2ecc71',
-                        borderWidth: 1
-                    }
-                ];
-            } else {
-                // AS 통계 또는 자재판매 통계: 1개 데이터셋
-                const data = statsData.map(item => item.count);
-                const colors = [
-                    '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
-                    '#1abc9c', '#34495e', '#e67e22', '#c0392b', '#16a085'
-                ];
-                const backgroundColors = data.map((_, i) => colors[i % colors.length]);
-
-                datasets = [{
-                    label: currentTab === 'as' ? 'AS 건수' : '자재판매 건수',
-                    data: data,
-                    backgroundColor: backgroundColors,
-                    borderColor: backgroundColors,
-                    borderWidth: 1,
-                    borderRadius: 5
-                }];
-            }
-
-            // 기존 차트 파괴
-            if (chart) {
-                chart.destroy();
-            }
-
-            // 새 차트 생성
-            chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',  // 수평 막대 차트
-                    plugins: {
-                        legend: {
-                            display: currentTab === 'overall',
-                            position: 'top'
-                        },
-                        title: {
-                            display: true,
-                            text: currentTab === 'overall' ? '종합 통계' : (currentTab === 'as' ? 'AS 통계' : '자재판매 통계')
-                        }
-                    },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // 초기 차트 생성
-        if (statsData.length > 0) {
-            updateChart();
-        }
-    </script>
 </body>
 
 </html>
