@@ -335,8 +335,8 @@ if (!empty($sellid_list)) {
 
         .date-filter-btn {
             padding: 8px 16px;
-            background: white;
-            color: #667eea;
+            background: white !important;
+            color: #667eea !important;
             border: 2px solid #667eea;
             border-radius: 5px;
             cursor: pointer;
@@ -346,12 +346,12 @@ if (!empty($sellid_list)) {
         }
 
         .date-filter-btn:hover {
-            background: #f0f4ff;
+            background: #f0f4ff !important;
         }
 
         .date-filter-btn.active {
-            background: #667eea;
-            color: white;
+            background: #667eea !important;
+            color: white !important;
         }
 
         .date-filter-controls {
