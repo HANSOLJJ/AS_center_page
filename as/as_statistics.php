@@ -99,15 +99,16 @@ function getMonthlySalesStats($connect)
     return $data;
 }
 
-// TOP3 수리 제품 (step14_as_item에서 s14_model별 count)
+// TOP3 수리 제품 (step14_as_item에서 s14_model별 count, step13_as s13_as_out_date 기준)
 function getTopRepairProducts($connect, $start_date, $end_date)
 {
     $query = "SELECT
-        s14_model,
+        b.s14_model,
         COUNT(*) as count
-        FROM step14_as_item
-        WHERE DATE(s14_as_item_in_date) BETWEEN '$start_date' AND '$end_date'
-        GROUP BY s14_model
+        FROM step14_as_item b
+        LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
+        WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'
+        GROUP BY b.s14_model
         ORDER BY count DESC
         LIMIT 3";
 
@@ -119,17 +120,18 @@ function getTopRepairProducts($connect, $start_date, $end_date)
     return $data;
 }
 
-// TOP3 수리 자재 (step18_cure_cart에서 s18_uid와 s18_quantity 고려)
+// TOP3 수리 자재 (step18_as_cure_cart에서 s18_uid와 s18_quantity 고려)
 function getTopRepairParts($connect, $start_date, $end_date)
 {
     $query = "SELECT
         c.cost_name,
-        SUM(s.s18_quantity) as total_qty,
+        SUM(c.s18_quantity) as total_qty,
         COUNT(*) as item_count
-        FROM step18_cure_cart s
-        LEFT JOIN step18_cost c ON s.s18_uid = c.s18_uid
-        WHERE DATE(s.s18_in_date) BETWEEN '$start_date' AND '$end_date'
-        GROUP BY s.s18_uid
+        FROM step18_as_cure_cart c
+        LEFT JOIN step14_as_item b ON c.s18_aiid = b.s14_aiid
+        LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
+        WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'
+        GROUP BY c.s18_uid
         ORDER BY total_qty DESC
         LIMIT 3";
 
@@ -141,17 +143,17 @@ function getTopRepairParts($connect, $start_date, $end_date)
     return $data;
 }
 
-// TOP3 판매 자재 (step21_sell_cart에서 s21_uid와 s21_quantity 고려)
+// TOP3 판매 자재 (step20_sell에서 판매 완료 기준, step21_sell_cart에서 수량 합산)
 function getTopSaleParts($connect, $start_date, $end_date)
 {
     $query = "SELECT
-        c.cost_name,
-        SUM(s.s21_quantity) as total_qty,
+        MAX(c.cost_name) as cost_name,
+        SUM(c.s21_quantity) as total_qty,
         COUNT(*) as item_count
-        FROM step21_sell_cart s
-        LEFT JOIN step21_sell_cart c ON s.s21_uid = c.s21_uid
-        WHERE DATE(s.s21_in_date) BETWEEN '$start_date' AND '$end_date'
-        GROUP BY s.s21_uid
+        FROM step21_sell_cart c
+        LEFT JOIN step20_sell s ON c.s21_sid = s.s20_sid
+        WHERE s.s20_sell_level = '2' AND DATE(s.s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'
+        GROUP BY c.s21_uid
         ORDER BY total_qty DESC
         LIMIT 3";
 
