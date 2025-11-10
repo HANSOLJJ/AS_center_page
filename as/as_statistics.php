@@ -168,15 +168,11 @@ function getTopSaleParts($connect, $start_date, $end_date)
     return $data;
 }
 
-// 매출 포맷팅 함수 (백만원 이상일 때만 만원 단위 표시)
+// 매출 포맷팅 함수 (모두 원으로 표시)
 function formatRevenue($cost)
 {
     $cost = intval($cost);
-    if ($cost >= 1000000) {
-        return '<div class="revenue-amount">' . number_format(intval($cost)) . '</div><div class="revenue-unit">만원</div>';
-    } else {
-        return '<div class="revenue-amount">' . number_format($cost) . '</div><div class="revenue-unit">원</div>';
-    }
+    return '<div class="revenue-amount">' . number_format($cost) . '</div><div class="revenue-unit">원</div>';
 }
 
 // 통계 데이터 조회
@@ -349,7 +345,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: 1fr 1.5fr 1.5fr 1fr;
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -392,7 +388,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
             background: #f9f9f9;
             padding: 15px;
             border-radius: 8px;
-            font-size: 13px;
+            font-size: 14px;
         }
 
         .top-list ol {
@@ -401,8 +397,9 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
         }
 
         .top-list li {
-            padding: 5px 0;
+            padding: 8px 0;
             color: #666;
+            line-height: 1.6;
         }
 
         .revenue-amount {
