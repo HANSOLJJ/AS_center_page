@@ -45,6 +45,21 @@ $search_phone = isset($_GET['search_phone']) ? trim($_GET['search_phone']) : (is
 $search_start_date = isset($_GET['search_start_date']) ? $_GET['search_start_date'] : (isset($_POST['search_start_date']) ? $_POST['search_start_date'] : '');
 $search_end_date = isset($_GET['search_end_date']) ? $_GET['search_end_date'] : (isset($_POST['search_end_date']) ? $_POST['search_end_date'] : '');
 
+// range에 따라 search_start_date, search_end_date 자동 설정
+if ($range === 'today') {
+    $search_start_date = $today;
+    $search_end_date = $today;
+} elseif ($range === 'week') {
+    $search_start_date = $week_start;
+    $search_end_date = $today;
+} elseif ($range === 'month') {
+    $search_start_date = $month_start;
+    $search_end_date = $today;
+} elseif ($range === 'year') {
+    $search_start_date = $year_start;
+    $search_end_date = $today;
+}
+
 // WHERE 조건 생성
 $where = "1=1";
 
@@ -741,10 +756,10 @@ if (!empty($sellid_list)) {
                     <input type="hidden" name="tab" value="request">
 
                     <div class="date-filter-buttons">
-                        <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setOrderDateRange('today', 'search-form-request')">오늘</button>
-                        <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setOrderDateRange('week', 'search-form-request')">금주</button>
-                        <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setOrderDateRange('month', 'search-form-request')">금월</button>
-                        <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setOrderDateRange('year', 'search-form-request')">금년</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setOrderDateRange('today', 'search-form-request'); document.getElementById('search-form-request').submit();">오늘</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setOrderDateRange('week', 'search-form-request'); document.getElementById('search-form-request').submit();">금주</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setOrderDateRange('month', 'search-form-request'); document.getElementById('search-form-request').submit();">금월</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setOrderDateRange('year', 'search-form-request'); document.getElementById('search-form-request').submit();">금년</button>
                     </div>
 
                     <div class="date-filter-controls">
@@ -987,10 +1002,10 @@ if (!empty($sellid_list)) {
                     <input type="hidden" name="tab" value="completed">
 
                     <div class="date-filter-buttons">
-                        <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setOrderDateRange('today', 'search-form-completed')">오늘</button>
-                        <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setOrderDateRange('week', 'search-form-completed')">금주</button>
-                        <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setOrderDateRange('month', 'search-form-completed')">금월</button>
-                        <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setOrderDateRange('year', 'search-form-completed')">금년</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setOrderDateRange('today', 'search-form-completed'); document.getElementById('search-form-completed').submit();">오늘</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setOrderDateRange('week', 'search-form-completed'); document.getElementById('search-form-completed').submit();">금주</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setOrderDateRange('month', 'search-form-completed'); document.getElementById('search-form-completed').submit();">금월</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setOrderDateRange('year', 'search-form-completed'); document.getElementById('search-form-completed').submit();">금년</button>
                     </div>
 
                     <div class="date-filter-controls">

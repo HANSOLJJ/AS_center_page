@@ -530,7 +530,8 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
         <a href="parts.php" class="nav-item">자재 관리</a>
         <a href="members.php" class="nav-item">고객 관리</a>
         <a href="products.php" class="nav-item">제품 관리</a>
-        <a href="as_statistics.php" class="nav-item <?php echo $current_page === 'as_statistics' ? 'active' : ''; ?>">통계/분석</a>
+        <a href="as_statistics.php"
+            class="nav-item <?php echo $current_page === 'as_statistics' ? 'active' : ''; ?>">통계/분석</a>
     </div>
 
     <div class="container">
@@ -552,10 +553,14 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                 <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
 
                 <div class="date-filter-buttons">
-                    <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setDateRange('today', this.form)">오늘</button>
-                    <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setDateRange('week', this.form)">금주</button>
-                    <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setDateRange('month', this.form)">금월</button>
-                    <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setDateRange('year', this.form)">금년</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>"
+                        onclick="setDateRange('today', this.form); this.form.submit();">오늘</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>"
+                        onclick="setDateRange('week', this.form); this.form.submit();">금주</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>"
+                        onclick="setDateRange('month', this.form); this.form.submit();">금월</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>"
+                        onclick="setDateRange('year', this.form); this.form.submit();">금년</button>
                 </div>
 
                 <div class="date-filter-controls">
@@ -563,42 +568,57 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     <span style="color: #999;">~</span>
                     <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
                     <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
-                    <button type="submit">조회</button>
+                    <button type="submit">검색</button>
                 </div>
             </form>
 
             <script>
-            function setDateRange(range, form) {
-                const today = new Date();
-                let startDate, endDate;
+                function setDateRange(range, form) {
+                    const today = new Date();
+                    let startDate, endDate;
 
-                const year = today.getFullYear();
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const day = String(today.getDate()).padStart(2, '0');
-                const todayStr = year + '-' + month + '-' + day;
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const todayStr = year + '-' + month + '-' + day;
 
-                if (range === 'today') {
-                    startDate = todayStr;
-                    endDate = todayStr;
-                } else if (range === 'week') {
-                    const dayOfWeek = today.getDay();
-                    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-                    const monday = new Date(today.setDate(diff));
-                    startDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
-                    endDate = todayStr;
-                } else if (range === 'month') {
-                    startDate = year + '-' + month + '-01';
-                    endDate = todayStr;
-                } else if (range === 'year') {
-                    startDate = year + '-01-01';
-                    endDate = todayStr;
+                    if (range === 'today') {
+                        startDate = todayStr;
+                        endDate = todayStr;
+                    } else if (range === 'week') {
+                        const dayOfWeek = today.getDay();
+                        const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                        const monday = new Date(today.setDate(diff));
+                        startDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
+                        endDate = todayStr;
+                    } else if (range === 'month') {
+                        startDate = year + '-' + month + '-01';
+                        endDate = todayStr;
+                    } else if (range === 'year') {
+                        startDate = year + '-01-01';
+                        endDate = todayStr;
+                    }
+
+                    form.start_date.value = startDate;
+                    form.end_date.value = endDate;
+                    form.range.value = range;
+                    // range 버튼 시 자동 submit하지 않음
                 }
 
-                form.start_date.value = startDate;
-                form.end_date.value = endDate;
-                form.range.value = range;
-                form.submit();
-            }
+                // form 제출 시 range 값이 설정되지 않은 경우 초기화
+                document.addEventListener('DOMContentLoaded', function() {
+                    const dateForm = document.querySelector('.date-filter');
+                    if (dateForm) {
+                        dateForm.addEventListener('submit', function(e) {
+                            // 사용자가 직접 입력한 날짜는 range를 초기화
+                            if (document.activeElement.name === 'start_date' ||
+                                document.activeElement.name === 'end_date' ||
+                                document.activeElement.type === 'submit') {
+                                dateForm.range.value = '';
+                            }
+                        });
+                    }
+                });
             </script>
 
             <?php if ($current_tab === 'overview'): ?>
@@ -619,7 +639,9 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_products as $idx => $product): ?>
-                                        <li><?php echo htmlspecialchars($product['cost_name']); ?> <span style="font-weight: bold; color: #2563eb;"><?php echo $product['count']; ?>건</span></li>
+                                        <li><?php echo htmlspecialchars($product['cost_name']); ?> <span
+                                                style="font-weight: bold; color: #2563eb;"><?php echo $product['count']; ?>건</span>
+                                        </li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_products) === 0): ?>
                                         <li>데이터 없음</li>
@@ -632,7 +654,9 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_parts as $idx => $part): ?>
-                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> <span style="font-weight: bold; color: #2563eb;"><?php echo $part['total_qty']; ?>개</span></li>
+                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> <span
+                                                style="font-weight: bold; color: #2563eb;"><?php echo $part['total_qty']; ?>개</span>
+                                        </li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_parts) === 0): ?>
                                         <li>데이터 없음</li>
@@ -661,7 +685,9 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_sale_parts as $idx => $part): ?>
-                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> <span style="font-weight: bold; color: #059669;"><?php echo $part['total_qty']; ?>개</span></li>
+                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> <span
+                                                style="font-weight: bold; color: #059669;"><?php echo $part['total_qty']; ?>개</span>
+                                        </li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_sale_parts) === 0): ?>
                                         <li>데이터 없음</li>
