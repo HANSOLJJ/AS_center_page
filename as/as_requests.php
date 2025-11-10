@@ -1186,6 +1186,9 @@ function getStatusColor($level)
                     <div class="pagination">
                         <?php
                         $search_params = '&tab=' . $current_tab;
+                        if (!empty($range)) {
+                            $search_params .= '&range=' . urlencode($range);
+                        }
                         if (!empty($search_start_date)) {
                             $search_params .= '&search_start_date=' . urlencode($search_start_date);
                         }

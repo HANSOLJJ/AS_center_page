@@ -952,6 +952,8 @@ if (!empty($sellid_list)) {
                     <div class="pagination">
                         <?php
                         $search_params = '&tab=request';
+                        if ($range)
+                            $search_params .= '&range=' . urlencode($range);
                         if ($search_start_date)
                             $search_params .= '&search_start_date=' . urlencode($search_start_date);
                         if ($search_end_date)
@@ -1159,6 +1161,8 @@ if (!empty($sellid_list)) {
                     <div class="pagination">
                         <?php
                         $search_params = '&tab=completed';
+                        if ($range)
+                            $search_params .= '&range=' . urlencode($range);
                         if ($search_start_date)
                             $search_params .= '&search_start_date=' . urlencode($search_start_date);
                         if ($search_end_date)
