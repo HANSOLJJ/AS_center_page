@@ -872,7 +872,7 @@ function getStatusColor($level)
                         value="<?php echo htmlspecialchars($search_customer); ?>">
                     <input type="text" name="search_phone" placeholder="전화번호"
                         value="<?php echo htmlspecialchars($search_phone); ?>">
-                    <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                    <input type="hidden" id="range-input" name="range" value="">
                     <button type="submit">검색</button>
                     <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
                 </div>
@@ -908,7 +908,7 @@ function getStatusColor($level)
 
                 form.search_start_date.value = startDate;
                 form.search_end_date.value = endDate;
-                form.range.value = range;
+                document.getElementById('range-input').value = range;
                 form.submit();
             }
             </script>

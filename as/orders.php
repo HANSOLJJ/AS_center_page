@@ -772,7 +772,7 @@ if (!empty($sellid_list)) {
                             value="<?php echo htmlspecialchars($search_customer); ?>">
                         <input type="text" name="search_phone" placeholder="전화번호"
                             value="<?php echo htmlspecialchars($search_phone); ?>">
-                        <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                        <input type="hidden" class="range-input" name="range" value="">
                         <button type="submit">검색</button>
                         <a href="orders.php?tab=request"
                             style="padding: 10px 20px; background: #95a5a6; color: white; border-radius: 5px; text-decoration: none;">초기화</a>
@@ -809,7 +809,7 @@ if (!empty($sellid_list)) {
 
                     form.search_start_date.value = startDate;
                     form.search_end_date.value = endDate;
-                    form.range.value = range;
+                    form.querySelector('.range-input').value = range;
                     form.submit();
                 }
                 </script>
@@ -1018,7 +1018,7 @@ if (!empty($sellid_list)) {
                             value="<?php echo htmlspecialchars($search_customer); ?>">
                         <input type="text" name="search_phone" placeholder="전화번호"
                             value="<?php echo htmlspecialchars($search_phone); ?>">
-                        <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                        <input type="hidden" class="range-input" name="range" value="">
                         <button type="submit">검색</button>
                         <a href="orders.php?tab=completed"
                             style="padding: 10px 20px; background: #95a5a6; color: white; border-radius: 5px; text-decoration: none;">초기화</a>

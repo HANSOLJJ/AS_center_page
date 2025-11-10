@@ -567,7 +567,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
                     <span style="color: #999;">~</span>
                     <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
-                    <input type="hidden" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                    <input type="hidden" id="range-input-stat" name="range" value="">
                     <button type="submit">검색</button>
                 </div>
             </form>
@@ -601,7 +601,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 
                     form.start_date.value = startDate;
                     form.end_date.value = endDate;
-                    form.range.value = range;
+                    document.getElementById('range-input-stat').value = range;
                     // range 버튼 시 자동 submit하지 않음
                 }
 
