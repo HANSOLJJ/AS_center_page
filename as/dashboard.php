@@ -27,6 +27,45 @@ if ($result && mysql_num_rows($result) > 0) {
 } else {
     $user = array();
 }
+
+// 이번 주의 시작일과 종료일 계산
+$today = new DateTime('now', new DateTimeZone('Asia/Seoul'));
+$week_start = clone $today;
+$week_start->modify('Monday this week');
+$week_start->setTime(0, 0, 0);
+
+$week_end = clone $today;
+$week_end->modify('Sunday this week');
+$week_end->setTime(23, 59, 59);
+
+$week_start_str = $week_start->format('Y-m-d H:i:s');
+$week_end_str = $week_end->format('Y-m-d H:i:s');
+
+// 금주 AS 작업 통계
+$as_query = "SELECT
+    SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as as_completed,
+    COUNT(*) as as_total
+    FROM step13_as
+    WHERE s13_as_in_date BETWEEN '$week_start_str' AND '$week_end_str'";
+
+$as_result = @mysql_query($as_query);
+$as_stats = ($as_result && is_object($as_result)) ? mysql_fetch_assoc($as_result) : array();
+$as_completed = intval($as_stats['as_completed'] ?? 0);
+$as_total = intval($as_stats['as_total'] ?? 0);
+$as_rate = $as_total > 0 ? round(($as_completed / $as_total) * 100) : 0;
+
+// 금주 자재 판매 통계
+$sales_query = "SELECT
+    SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as sales_completed,
+    COUNT(*) as sales_total
+    FROM step20_sell
+    WHERE s20_sell_in_date BETWEEN '$week_start_str' AND '$week_end_str'";
+
+$sales_result = @mysql_query($sales_query);
+$sales_stats = ($sales_result && is_object($sales_result)) ? mysql_fetch_assoc($sales_result) : array();
+$sales_completed = intval($sales_stats['sales_completed'] ?? 0);
+$sales_total = intval($sales_stats['sales_total'] ?? 0);
+$sales_rate = $sales_total > 0 ? round(($sales_completed / $sales_total) * 100) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -257,40 +296,22 @@ if ($result && mysql_num_rows($result) > 0) {
 
         <div class="stats-grid">
             <div class="stat-card">
-                <h4>전체 회원</h4>
-                <div class="number"><?php
-                $result = mysql_query("SELECT COUNT(*) as cnt FROM step3_member");
-                if ($result && mysql_num_rows($result) > 0) {
-                    $row = mysql_fetch_assoc($result);
-                    echo isset($row['cnt']) ? $row['cnt'] : 0;
-                } else {
-                    echo 0;
-                }
-                ?></div>
+                <h4>금주 진행 AS 작업수</h4>
+                <div class="number" style="font-size: 24px; color: #667eea;">
+                    <?php echo $as_completed; ?> / <?php echo $as_total; ?>
+                </div>
+                <div style="font-size: 12px; color: #999; margin-top: 8px;">
+                    완료율: <strong><?php echo $as_rate; ?>%</strong>
+                </div>
             </div>
             <div class="stat-card">
-                <h4>전체 소모품</h4>
-                <div class="number"><?php
-                $result = mysql_query("SELECT COUNT(*) as cnt FROM step6_order");
-                if ($result && mysql_num_rows($result) > 0) {
-                    $row = mysql_fetch_assoc($result);
-                    echo isset($row['cnt']) ? $row['cnt'] : 0;
-                } else {
-                    echo 0;
-                }
-                ?></div>
-            </div>
-            <div class="stat-card">
-                <h4>AS 작업</h4>
-                <div class="number"><?php
-                $result = mysql_query("SELECT COUNT(*) as cnt FROM step13_as");
-                if ($result && mysql_num_rows($result) > 0) {
-                    $row = mysql_fetch_assoc($result);
-                    echo isset($row['cnt']) ? $row['cnt'] : 0;
-                } else {
-                    echo 0;
-                }
-                ?></div>
+                <h4>금주 진행 자재 판매</h4>
+                <div class="number" style="font-size: 24px; color: #667eea;">
+                    <?php echo $sales_completed; ?> / <?php echo $sales_total; ?>
+                </div>
+                <div style="font-size: 12px; color: #999; margin-top: 8px;">
+                    완료율: <strong><?php echo $sales_rate; ?>%</strong>
+                </div>
             </div>
         </div>
 
