@@ -20,7 +20,7 @@ $current_page = 'as_requests';
 
 // 탭 선택
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'request';
-$current_tab = in_array($tab, ['request', 'working', 'completed', 'stats']) ? $tab : 'request';
+$current_tab = in_array($tab, ['request', 'working', 'completed']) ? $tab : 'request';
 
 // 페이지 처리
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
@@ -83,7 +83,6 @@ $delete_type = isset($_GET['delete_type']) ? $_GET['delete_type'] : '';
 
 // 탭별 WHERE 조건
 $where_conditions = array();
-$is_stats = false;
 
 switch ($current_tab) {
     case 'request':
@@ -98,16 +97,11 @@ switch ($current_tab) {
         $where_conditions[] = "a.s13_as_level = '5'";
         $tab_title = 'AS 완료';
         break;
-    case 'stats':
-        $is_stats = true;
-        $where_conditions[] = "a.s13_as_level = '5'";  // 완료된 AS만
-        $tab_title = '통계';
-        break;
 }
 
 // 기간 검색 (탭별로 다른 날짜 필드 사용)
-// 요청/작업: s13_as_in_date (접수일자), 완료/통계: s13_as_out_date (출고일)
-$date_field = ($current_tab == 'completed' || $current_tab == 'stats') ? 's13_as_out_date' : 's13_as_in_date';
+// 요청/작업: s13_as_in_date (접수일자), 완료: s13_as_out_date (출고일)
+$date_field = ($current_tab == 'completed') ? 's13_as_out_date' : 's13_as_in_date';
 
 if (!empty($search_start_date)) {
     $where_conditions[] = "DATE($date_field) >= '" . mysql_real_escape_string($search_start_date) . "'";
@@ -127,8 +121,8 @@ if (!empty($search_phone)) {
     $where_conditions[] = "a.ex_phone LIKE '%" . $phone_esc . "%'";
 }
 
-// 통계 탭이 아닌 경우에만 상세 데이터 쿼리 실행
-if (!$is_stats) {
+// DB 쿼리 실행
+{
     $where = implode(' AND ', $where_conditions);
 
     // 총 개수 조회
@@ -261,36 +255,6 @@ if (!$is_stats) {
             }
         }
     }
-} else {
-    // 통계 탭: 고객별 통계 데이터 조회
-    $where = implode(' AND ', $where_conditions);
-
-    // 고객별 record 수 통계
-    $stats_query = "SELECT
-                        a.s13_meid,
-                        a.ex_company,
-                        COUNT(DISTINCT a.s13_asid) as as_count
-                    FROM step13_as a
-                    WHERE $where
-                    GROUP BY a.s13_meid, a.ex_company
-                    ORDER BY as_count DESC";
-
-    $stats_result = @mysql_query($stats_query);
-    $stats_data = array();
-
-    if ($stats_result && mysql_num_rows($stats_result) > 0) {
-        while ($row = mysql_fetch_assoc($stats_result)) {
-            $stats_data[] = array(
-                'meid' => $row['s13_meid'],
-                'company' => $row['ex_company'],
-                'count' => (int)$row['as_count']
-            );
-        }
-    }
-
-    $total_count = count($stats_data);
-    $total_pages = 1;
-    $as_list = array();
 }
 
 // 상태 레이블 함수
@@ -816,10 +780,6 @@ function getStatusColor($level)
                     echo $comp_row['cnt'] ?? 0;
                     ?>)
                 </button>
-                <button class="tab-btn <?php echo $current_tab === 'stats' ? 'active' : ''; ?>"
-                    onclick="location.href='as_requests.php?tab=stats'">
-                    통계
-                </button>
             </div>
 
             <!-- 액션 버튼 (요청 탭에서만 표시) -->
@@ -844,146 +804,16 @@ function getStatusColor($level)
                     data-today="<?php echo (!empty($search_start_date) && $search_start_date === $search_end_date) ? 'on' : 'off'; ?>"
                     onclick="toggleTodayDate('search-form-tab', this)">오늘</button>
 
-                <!-- 통계 탭이 아닌 경우만 고객명, 전화번호 검색 표시 -->
-                <?php if ($current_tab !== 'stats'): ?>
                 <input type="text" name="search_customer" placeholder="고객명"
                     value="<?php echo htmlspecialchars($search_customer); ?>">
                 <input type="text" name="search_phone" placeholder="전화번호"
                     value="<?php echo htmlspecialchars($search_phone); ?>">
-                <?php endif; ?>
 
                 <button type="submit">검색</button>
                 <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
             </form>
 
-            <?php if ($is_stats): ?>
-                <!-- 통계 탭 -->
-                <div style="margin-bottom: 20px; padding: 20px; background: #f9f9f9; border-radius: 8px;">
-                    <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">AS 완료 통계</h3>
-
-                    <!-- 필터 옵션 -->
-                    <div style="margin-bottom: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #666;">기간 기준</label>
-                            <select id="period-basis" name="period_basis"
-                                style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
-                                <option value="month">월별</option>
-                                <option value="week">주간</option>
-                                <option value="day">일별</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Chart.js 그래프 -->
-                    <div style="position: relative; height: 400px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <canvas id="stats-chart"></canvas>
-                    </div>
-
-                    <!-- 통계 데이터 테이블 -->
-                    <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h4 style="margin-top: 0; margin-bottom: 15px; color: #333;">고객별 AS 완료 통계</h4>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
-                                    <th style="padding: 10px; text-align: left; font-weight: 600;">고객명</th>
-                                    <th style="padding: 10px; text-align: right; font-weight: 600;">AS 완료 건수</th>
-                                </tr>
-                            </thead>
-                            <tbody id="stats-table-body">
-                                <?php foreach ($stats_data as $stat): ?>
-                                <tr style="border-bottom: 1px solid #eee;">
-                                    <td style="padding: 10px;"><?php echo htmlspecialchars($stat['company']); ?></td>
-                                    <td style="padding: 10px; text-align: right; font-weight: 600;"><?php echo $stat['count']; ?>건</td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                        <?php if (empty($stats_data)): ?>
-                        <div style="text-align: center; padding: 20px; color: #999;">
-                            데이터가 없습니다.
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <!-- Chart.js 라이브러리 -->
-                <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-                <script>
-                // PHP에서 데이터 전달
-                const statsData = <?php echo json_encode($stats_data); ?>;
-
-                // Chart.js 설정
-                const ctx = document.getElementById('stats-chart').getContext('2d');
-                let chart = null;
-
-                function updateChart() {
-                    // 라벨과 데이터 준비
-                    const labels = statsData.map(item => item.company || '미등록');
-                    const data = statsData.map(item => item.count);
-
-                    // 색상 생성 (그라데이션)
-                    const colors = [
-                        '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
-                        '#1abc9c', '#34495e', '#e67e22', '#c0392b', '#16a085'
-                    ];
-                    const backgroundColors = data.map((_, i) => colors[i % colors.length]);
-
-                    // 기존 차트 파괴
-                    if (chart) {
-                        chart.destroy();
-                    }
-
-                    // 새 차트 생성
-                    chart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'AS 완료 건수',
-                                data: data,
-                                backgroundColor: backgroundColors,
-                                borderColor: backgroundColors,
-                                borderWidth: 1,
-                                borderRadius: 5
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            indexAxis: 'y',  // 수평 막대 차트
-                            plugins: {
-                                legend: {
-                                    display: true,
-                                    position: 'top'
-                                },
-                                title: {
-                                    display: true,
-                                    text: '고객별 AS 완료 통계'
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        stepSize: 1
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // 초기 차트 생성
-                updateChart();
-
-                // 기간 기준 변경 시 차트 업데이트
-                document.getElementById('period-basis').addEventListener('change', function() {
-                    // 향후 기간별 필터링 로직 추가 예정
-                    console.log('Selected period basis:', this.value);
-                });
-                </script>
-
-            <?php else: ?>
+            <?php
 
                 <!-- 정보 텍스트 -->
                 <div class="info-text">
@@ -1297,7 +1127,6 @@ function getStatusColor($level)
                     <?php endif; ?>
 
                 <?php endif; ?>
-            <?php endif; ?>
 
         </div>
     </div>
