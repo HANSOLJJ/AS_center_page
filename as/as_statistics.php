@@ -99,35 +99,15 @@ function getMonthlySalesStats($connect)
     return $data;
 }
 
-// TOP3 수리 제품 (AS)
+// TOP3 수리 제품 (step14_as_item에서 s14_model별 count)
 function getTopRepairProducts($connect, $start_date, $end_date)
 {
     $query = "SELECT
-        s8_product_name,
-        COUNT(*) as count
-        FROM step13_as
-        WHERE s13_as_level = '5' AND DATE(s13_as_out_date) BETWEEN '$start_date' AND '$end_date'
-        GROUP BY s8_product_name
-        ORDER BY count DESC
-        LIMIT 3";
-
-    $result = mysql_query($query);
-    $data = array();
-    while ($row = mysql_fetch_assoc($result)) {
-        $data[] = $row;
-    }
-    return $data;
-}
-
-// TOP3 수리 자재 (AS)
-function getTopRepairParts($connect, $start_date, $end_date)
-{
-    $query = "SELECT
-        s14_as_item_title,
+        s14_model,
         COUNT(*) as count
         FROM step14_as_item
         WHERE DATE(s14_as_item_in_date) BETWEEN '$start_date' AND '$end_date'
-        GROUP BY s14_as_item_title
+        GROUP BY s14_model
         ORDER BY count DESC
         LIMIT 3";
 
@@ -139,16 +119,40 @@ function getTopRepairParts($connect, $start_date, $end_date)
     return $data;
 }
 
-// TOP3 판매 자재 (판매)
+// TOP3 수리 자재 (step18_cure_cart에서 s18_uid와 s18_quantity 고려)
+function getTopRepairParts($connect, $start_date, $end_date)
+{
+    $query = "SELECT
+        c.cost_name,
+        SUM(s.s18_quantity) as total_qty,
+        COUNT(*) as item_count
+        FROM step18_cure_cart s
+        LEFT JOIN step18_cost c ON s.s18_uid = c.s18_uid
+        WHERE DATE(s.s18_in_date) BETWEEN '$start_date' AND '$end_date'
+        GROUP BY s.s18_uid
+        ORDER BY total_qty DESC
+        LIMIT 3";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
+// TOP3 판매 자재 (step21_sell_cart에서 s21_uid와 s21_quantity 고려)
 function getTopSaleParts($connect, $start_date, $end_date)
 {
     $query = "SELECT
-        s5_parts_name,
-        COUNT(*) as count
-        FROM step20_sell
-        WHERE s20_sell_level = '2' AND DATE(s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'
-        GROUP BY s5_parts_name
-        ORDER BY count DESC
+        c.cost_name,
+        SUM(s.s21_quantity) as total_qty,
+        COUNT(*) as item_count
+        FROM step21_sell_cart s
+        LEFT JOIN step21_sell_cart c ON s.s21_uid = c.s21_uid
+        WHERE DATE(s.s21_in_date) BETWEEN '$start_date' AND '$end_date'
+        GROUP BY s.s21_uid
+        ORDER BY total_qty DESC
         LIMIT 3";
 
     $result = mysql_query($query);
@@ -495,7 +499,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_products as $idx => $product): ?>
-                                        <li><?php echo htmlspecialchars($product['s8_product_name']); ?> (<?php echo $product['count']; ?>)</li>
+                                        <li><?php echo htmlspecialchars($product['s14_model']); ?> (<?php echo $product['count']; ?>)</li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_products) === 0): ?>
                                         <li>데이터 없음</li>
@@ -508,7 +512,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_parts as $idx => $part): ?>
-                                        <li><?php echo htmlspecialchars($part['s14_as_item_title']); ?> (<?php echo $part['count']; ?>)</li>
+                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> (<?php echo $part['total_qty']; ?>)</li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_parts) === 0): ?>
                                         <li>데이터 없음</li>
@@ -538,7 +542,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             <div class="top-list">
                                 <ol>
                                     <?php foreach ($top_sale_parts as $idx => $part): ?>
-                                        <li><?php echo htmlspecialchars($part['s5_parts_name']); ?> (<?php echo $part['count']; ?>)</li>
+                                        <li><?php echo htmlspecialchars($part['cost_name']); ?> (<?php echo $part['total_qty']; ?>)</li>
                                     <?php endforeach; ?>
                                     <?php if (count($top_sale_parts) === 0): ?>
                                         <li>데이터 없음</li>
