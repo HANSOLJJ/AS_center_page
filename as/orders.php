@@ -43,14 +43,14 @@ $where = "1=1";
 
 // 탭에 따른 상태 필터
 if ($tab == 'request') {
-    $where .= " AND s20_as_level != '2'";
+    $where .= " AND s20_sell_level != '2'";
 } elseif ($tab == 'completed') {
-    $where .= " AND s20_as_level = '2'";
+    $where .= " AND s20_sell_level = '2'";
 }
 
 // 기간 검색 (탭별로 다른 날짜 필드 사용)
-// 판매요청: s20_sell_in_date (접수일자), 판매완료: s20_as_out_date (완료일자)
-$date_field = ($tab == 'completed') ? 's20_as_out_date' : 's20_sell_in_date';
+// 판매요청: s20_sell_in_date (접수일자), 판매완료: s20_sell_out_date (완료일자)
+$date_field = ($tab == 'completed') ? 's20_sell_out_date' : 's20_sell_in_date';
 
 if (!empty($search_start_date)) {
     $where .= " AND DATE($date_field) >= '" . mysql_real_escape_string($search_start_date) . "'";
@@ -85,11 +85,11 @@ if (!$count_result) {
 // Step 1: 페이지네이션된 s20_sellid 목록 먼저 조회
 // 탭별로 다른 정렬 기준 사용: 판매요청은 접수일자, 판매완료는 완료일자
 $order_by = ($tab == 'completed')
-    ? "s20_as_out_date DESC, s20_sellid DESC"
+    ? "s20_sell_out_date DESC, s20_sellid DESC"
     : "s20_sell_in_date DESC, s20_sellid DESC";
 
 $id_result = @mysql_query("
-    SELECT s20_sellid, s20_sell_in_date, s20_as_out_date
+    SELECT s20_sellid, s20_sell_in_date, s20_sell_out_date
     FROM step20_sell
     WHERE $where
     GROUP BY s20_sellid
@@ -114,11 +114,11 @@ if (!empty($sellid_list)) {
     // Step 2: 해당 ID들의 모든 데이터와 카트 아이템 조회
     // 탭별로 다른 정렬 기준 사용: 판매요청은 접수일자, 판매완료는 완료일자
     $order_by_step2 = ($tab == 'completed')
-        ? "s20_as_out_date DESC, s20_sellid DESC, s21_accid ASC"
+        ? "s20_sell_out_date DESC, s20_sellid DESC, s21_accid ASC"
         : "s20_sell_in_date DESC, s20_sellid DESC, s21_accid ASC";
 
     $result = @mysql_query("
-        SELECT s20_sellid, s20_sell_in_date, s20_as_out_date, s20_as_in_no, s20_as_in_no2, ex_company, ex_tel, s20_as_level, s20_total_cost,
+        SELECT s20_sellid, s20_sell_in_date, s20_sell_out_date, s20_sell_out_no, s20_sell_out_no2, ex_company, ex_tel, s20_sell_level, s20_total_cost,
                s21_accid, s21_uid, p.s1_name, cost_name, s21_quantity, cost1
         FROM step20_sell
         LEFT JOIN step21_sell_cart ON s20_sellid = CAST(s21_sellid AS UNSIGNED)
@@ -673,6 +673,7 @@ if (!empty($sellid_list)) {
         <a href="parts.php" class="nav-item">자재 관리</a>
         <a href="members.php" class="nav-item">고객 관리</a>
         <a href="products.php" class="nav-item">제품 관리</a>
+        <a href="as_statistics.php" class="nav-item">통계/분석</a>
     </div>
 
     <div class="container">
@@ -973,8 +974,8 @@ if (!empty($sellid_list)) {
                             foreach ($sales_data as $sellid => $data) {
                                 $row = $data['info'];
                                 $items = $data['items'];
-                                // 판매완료 탭: 완료일자(s20_as_out_date) 기준, 접수일자(s20_sell_in_date) 부기
-                                $completion_date = $row['s20_as_out_date'] ? substr($row['s20_as_out_date'], 0, 10) : '-';
+                                // 판매완료 탭: 완료일자(s20_sell_out_date) 기준, 접수일자(s20_sell_in_date) 부기
+                                $completion_date = $row['s20_sell_out_date'] ? substr($row['s20_sell_out_date'], 0, 10) : '-';
                                 $receipt_date = $row['s20_sell_in_date'] ? substr($row['s20_sell_in_date'], 0, 10) : '-';
                                 $date_display = "<div style='line-height: 1.2;'>" . htmlspecialchars($completion_date) . "<br><span style='font-size: 10px; color: #999;'>(접수: " . htmlspecialchars($receipt_date) . ")</span></div>";
 

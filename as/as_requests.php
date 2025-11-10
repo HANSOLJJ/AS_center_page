@@ -736,6 +736,7 @@ function getStatusColor($level)
         <a href="parts.php" class="nav-item">자재 관리</a>
         <a href="members.php" class="nav-item">고객 관리</a>
         <a href="products.php" class="nav-item">제품 관리</a>
+        <a href="as_statistics.php" class="nav-item">통계/분석</a>
     </div>
 
     <div class="container">
