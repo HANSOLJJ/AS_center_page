@@ -319,6 +319,11 @@ if ($result && mysql_num_rows($result) > 0) {
                 <h3>🎤 제품 관리</h3>
                 <p>AS 제품 정보를 등록 및 수정합니다.</p>
             </a>
+
+            <a href="as_statistics.php" class="menu-card featured-card">
+                <h3>📊 통계/분석</h3>
+                <p>AS 및 판매 통계를 분석합니다.</p>
+            </a>
         </div>
     </div>
 </body>
