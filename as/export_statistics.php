@@ -45,102 +45,29 @@ if ($range === 'today') {
 
 // ===== 데이터 조회 함수들 =====
 
-// 종합 통계
-function getStatistics($connect, $start_date, $end_date)
+// 판매 데이터 조회 (기간 범위 내)
+function getSalesData($connect, $start_date, $end_date)
 {
-    $as_where = (!empty($start_date) && !empty($end_date))
-        ? "WHERE DATE(s13_as_in_date) BETWEEN '$start_date' AND '$end_date'"
-        : "";
+    $where_clause = (!empty($start_date) && !empty($end_date))
+        ? "WHERE s20_sell_level = '2' AND DATE(s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'"
+        : "WHERE s20_sell_level = '2'";
 
-    $as_query = "SELECT
-        COUNT(*) as total_as,
-        SUM(CASE WHEN s13_as_level NOT IN ('2','3','4','5') THEN 1 ELSE 0 END) as as_request,
-        SUM(CASE WHEN s13_as_level IN ('2','3','4') THEN 1 ELSE 0 END) as as_working,
-        SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as as_completed,
-        SUM(COALESCE(ex_total_cost, 0)) as total_as_cost
-        FROM step13_as
-        $as_where";
-
-    $as_result = mysql_query($as_query);
-    $as_stats = mysql_fetch_assoc($as_result) ?? array();
-
-    $sales_where = (!empty($start_date) && !empty($end_date))
-        ? "WHERE DATE(s20_sell_in_date) BETWEEN '$start_date' AND '$end_date'"
-        : "";
-
-    $sales_query = "SELECT
-        COUNT(*) as total_sales,
-        SUM(CASE WHEN s20_sell_level = '1' THEN 1 ELSE 0 END) as sales_request,
-        SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as sales_completed,
-        SUM(COALESCE(s20_total_cost, 0)) as total_sales_cost
+    $query = "SELECT
+        s20_sellid,
+        s20_sell_out_no,
+        DATE_FORMAT(s20_sell_in_date, '%y-%m-%d') as sell_date,
+        s20_sell_out_no as receipt_no,
+        ex_company,
+        ex_sec1 as form,
+        ex_address,
+        ex_tel,
+        ex_sms_no,
+        s20_tax_code,
+        s20_bankcheck_w,
+        s20_total_cost
         FROM step20_sell
-        $sales_where";
-
-    $sales_result = mysql_query($sales_query);
-    $sales_stats = mysql_fetch_assoc($sales_result) ?? array();
-
-    return array('as' => $as_stats, 'sales' => $sales_stats);
-}
-
-// 월별 AS 통계
-function getMonthlyASStats($connect)
-{
-    $query = "SELECT
-        DATE_FORMAT(s13_as_out_date, '%Y-%m') as month,
-        SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN s13_as_level = '5' THEN COALESCE(ex_total_cost, 0) ELSE 0 END) as total_cost
-        FROM step13_as
-        WHERE s13_as_level = '5' AND s13_as_out_date IS NOT NULL
-        GROUP BY DATE_FORMAT(s13_as_out_date, '%Y-%m')
-        ORDER BY month DESC
-        LIMIT 12";
-
-    $result = mysql_query($query);
-    $data = array();
-    while ($row = mysql_fetch_assoc($result)) {
-        $data[] = $row;
-    }
-    return $data;
-}
-
-// 월별 판매 통계
-function getMonthlySalesStats($connect)
-{
-    $query = "SELECT
-        DATE_FORMAT(s20_sell_out_date, '%Y-%m') as month,
-        SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN s20_sell_level = '2' THEN COALESCE(s20_total_cost, 0) ELSE 0 END) as total_cost
-        FROM step20_sell
-        WHERE s20_sell_level = '2' AND s20_sell_out_date IS NOT NULL
-        GROUP BY DATE_FORMAT(s20_sell_out_date, '%Y-%m')
-        ORDER BY month DESC
-        LIMIT 12";
-
-    $result = mysql_query($query);
-    $data = array();
-    while ($row = mysql_fetch_assoc($result)) {
-        $data[] = $row;
-    }
-    return $data;
-}
-
-// TOP3 수리 제품
-function getTopRepairProducts($connect, $start_date, $end_date)
-{
-    $where_clause = (!empty($start_date) && !empty($end_date))
-        ? "WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'"
-        : "WHERE a.s13_as_level = '5'";
-
-    $query = "SELECT
-        b.s14_model,
-        MAX(b.cost_name) as cost_name,
-        COUNT(*) as count
-        FROM step14_as_item b
-        LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
         $where_clause
-        GROUP BY b.s14_model
-        ORDER BY count DESC
-        LIMIT 3";
+        ORDER BY s20_sellid DESC";
 
     $result = mysql_query($query);
     $data = array();
@@ -150,25 +77,17 @@ function getTopRepairProducts($connect, $start_date, $end_date)
     return $data;
 }
 
-// TOP3 수리 자재
-function getTopRepairParts($connect, $start_date, $end_date)
+// 판매 자재 조회
+function getSalesCartData($connect, $sellid)
 {
-    $where_clause = (!empty($start_date) && !empty($end_date))
-        ? "WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'"
-        : "WHERE a.s13_as_level = '5'";
-
     $query = "SELECT
-        c.s18_uid,
-        c.cost_name,
-        SUM(c.s18_quantity) as total_qty,
-        COUNT(*) as item_count
-        FROM step18_as_cure_cart c
-        LEFT JOIN step14_as_item b ON c.s18_aiid = b.s14_aiid
-        LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
-        $where_clause
-        GROUP BY c.s18_uid, c.cost_name
-        ORDER BY total_qty DESC
-        LIMIT 3";
+        cost_name,
+        s21_quantity,
+        cost1,
+        cost2,
+        s21_sp_cost
+        FROM step21_sell_cart
+        WHERE s21_sellid = '$sellid'";
 
     $result = mysql_query($query);
     $data = array();
@@ -178,386 +97,247 @@ function getTopRepairParts($connect, $start_date, $end_date)
     return $data;
 }
 
-// TOP3 판매 자재
-function getTopSaleParts($connect, $start_date, $end_date)
+// 판매 총액 계산
+function calculateSalesTotal($connect, $sellid)
 {
-    $where_clause = (!empty($start_date) && !empty($end_date))
-        ? "WHERE s.s20_sell_level = '2' AND DATE(s.s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'"
-        : "WHERE s.s20_sell_level = '2'";
-
     $query = "SELECT
-        c.s21_uid,
-        c.cost_name,
-        SUM(c.s21_quantity) as total_qty,
-        COUNT(*) as item_count
-        FROM step21_sell_cart c
-        LEFT JOIN step20_sell s ON c.s21_sellid = s.s20_sellid
-        $where_clause
-        GROUP BY c.s21_uid, c.cost_name
-        ORDER BY total_qty DESC
-        LIMIT 3";
+        SUM(CASE
+            WHEN s21_sp_cost = '' THEN s21_quantity * cost1
+            ELSE s21_quantity * cost2
+        END) as total
+        FROM step21_sell_cart
+        WHERE s21_sellid = '$sellid'";
 
     $result = mysql_query($query);
-    $data = array();
-    while ($row = mysql_fetch_assoc($result)) {
-        $data[] = $row;
-    }
-    return $data;
-}
-
-// 상세 AS 목록
-function getDetailedASList($connect, $start_date, $end_date)
-{
-    $where_clause = (!empty($start_date) && !empty($end_date))
-        ? "WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'"
-        : "WHERE a.s13_as_level = '5'";
-
-    $query = "SELECT
-        a.s13_asid,
-        a.s13_as_out_no,
-        DATE_FORMAT(a.s13_as_in_date, '%Y-%m-%d') as request_date,
-        DATE_FORMAT(a.s13_as_out_date, '%Y-%m-%d') as complete_date,
-        a.ex_company,
-        a.ex_tel,
-        c.s14_model,
-        c.s14_poor,
-        COALESCE(a.ex_total_cost, 0) as total_cost
-        FROM step13_as a
-        LEFT JOIN step14_as_item c ON a.s13_asid = c.s14_asid
-        $where_clause
-        ORDER BY a.s13_as_out_date DESC
-        LIMIT 200";
-
-    $result = mysql_query($query);
-    $data = array();
-    while ($row = mysql_fetch_assoc($result)) {
-        $data[] = $row;
-    }
-    return $data;
-}
-
-// 상세 판매 목록
-function getDetailedSalesList($connect, $start_date, $end_date)
-{
-    $where_clause = (!empty($start_date) && !empty($end_date))
-        ? "WHERE s.s20_sell_level = '2' AND DATE(s.s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'"
-        : "WHERE s.s20_sell_level = '2'";
-
-    $query = "SELECT
-        s.s20_sellid,
-        s.s20_sell_out_no,
-        DATE_FORMAT(s.s20_sell_in_date, '%Y-%m-%d') as request_date,
-        DATE_FORMAT(s.s20_sell_out_date, '%Y-%m-%d') as complete_date,
-        s.ex_company,
-        s.ex_tel,
-        GROUP_CONCAT(c.cost_name, '(', c.s21_quantity, '개)' SEPARATOR ' | ') as items,
-        COALESCE(s.s20_total_cost, 0) as total_cost
-        FROM step20_sell s
-        LEFT JOIN step21_sell_cart c ON s.s20_sellid = c.s21_sellid
-        $where_clause
-        GROUP BY s.s20_sellid
-        ORDER BY s.s20_sell_out_date DESC
-        LIMIT 200";
-
-    $result = mysql_query($query);
-    $data = array();
-    while ($row = mysql_fetch_assoc($result)) {
-        $data[] = $row;
-    }
-    return $data;
+    $row = mysql_fetch_assoc($result);
+    return intval($row['total'] ?? 0);
 }
 
 // 데이터 조회
-$stats = getStatistics($connect, $start_date, $end_date);
-$monthly_as = getMonthlyASStats($connect);
-$monthly_sales = getMonthlySalesStats($connect);
-$top_products = getTopRepairProducts($connect, $start_date, $end_date);
-$top_parts = getTopRepairParts($connect, $start_date, $end_date);
-$top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
-$detail_as = getDetailedASList($connect, $start_date, $end_date);
-$detail_sales = getDetailedSalesList($connect, $start_date, $end_date);
+$sales_data = getSalesData($connect, $start_date, $end_date);
 
-// ===== EXCEL 파일 생성 (HTML 호환 포맷) =====
+// ===== XLSX 파일 생성 (OpenDocument Spreadsheet XML) =====
 
-$filename = 'AS_통계_' . date('Y-m-d_H-i-s') . '.xls';
+$filename = 'AS_판매내역_' . date('Y-m-d_H-i-s') . '.xlsx';
 
-// Excel 호환 HTML 헤더
-header("Content-Type: application/vnd.ms-excel; charset=utf-8");
-header("Content-Disposition: attachment; filename=" . iconv('utf-8', 'cp949', $filename));
-header("Content-Description: PHP Generated Data");
-?>
-<html xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<style>
-    .header-cell { font-weight: bold; background-color: #4472C4; color: white; text-align: center; border: 1px solid black; }
-    .data-cell { border: 1px solid #D3D3D3; padding: 5px; }
-    .section-title { font-weight: bold; background-color: #D9E1F2; border: 1px solid black; padding: 5px; }
-    .stat-header { font-weight: bold; background-color: #FFF2CC; border: 1px solid black; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-    tr { height: 25px; }
-    td { padding: 5px; }
-</style>
-</head>
-<body>
+// ZIP 확장자로 생성할 임시 폴더
+$temp_dir = '/tmp/xlsx_' . uniqid();
+@mkdir($temp_dir, 0777, true);
 
-<!-- Sheet 1: 요약 통계 -->
-<table>
-    <tr>
-        <td colspan="4" class="section-title">📊 통계 보고서 - 요약</td>
-    </tr>
-    <tr>
-        <td class="stat-header">기간</td>
-        <td colspan="3" class="data-cell">
-            <?php
-            if (empty($start_date) && empty($end_date)) {
-                echo "전체 기간";
-            } else {
-                echo htmlspecialchars($start_date) . " ~ " . htmlspecialchars($end_date);
-            }
-            ?>
-        </td>
-    </tr>
-    <tr>
-        <td class="stat-header">생성일</td>
-        <td colspan="3" class="data-cell"><?php echo date('Y-m-d H:i:s'); ?></td>
-    </tr>
-    <tr>
-        <td colspan="4" style="height: 10px;"></td>
-    </tr>
+// ===== [Content_Types].xml =====
+$content_types = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+</Types>';
+@mkdir($temp_dir . '/_rels', 0777, true);
+@mkdir($temp_dir . '/xl', 0777, true);
+@mkdir($temp_dir . '/xl/worksheets', 0777, true);
+@mkdir($temp_dir . '/docProps', 0777, true);
+file_put_contents($temp_dir . '/[Content_Types].xml', $content_types);
 
-    <!-- AS 통계 -->
-    <tr>
-        <td colspan="4" class="section-title">🔧 AS 통계</td>
-    </tr>
-    <tr>
-        <td class="header-cell">항목</td>
-        <td class="header-cell">건수</td>
-        <td class="header-cell">매출</td>
-        <td class="header-cell">비고</td>
-    </tr>
-    <tr>
-        <td class="data-cell">전체 AS</td>
-        <td class="data-cell" align="right"><?php echo number_format($stats['as']['total_as'] ?? 0); ?></td>
-        <td class="data-cell" align="right"><?php echo number_format(intval($stats['as']['total_as_cost'] ?? 0)); ?></td>
-        <td class="data-cell">요청 포함</td>
-    </tr>
-    <tr>
-        <td class="data-cell">AS 완료</td>
-        <td class="data-cell" align="right"><?php echo number_format($stats['as']['as_completed'] ?? 0); ?></td>
-        <td class="data-cell" align="right"><?php echo number_format(intval($stats['as']['total_as_cost'] ?? 0)); ?></td>
-        <td class="data-cell">최종 완료</td>
-    </tr>
-    <tr>
-        <td colspan="4" style="height: 10px;"></td>
-    </tr>
+// ===== .rels =====
+$rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+</Relationships>';
+file_put_contents($temp_dir . '/_rels/.rels', $rels);
 
-    <!-- 판매 통계 -->
-    <tr>
-        <td colspan="4" class="section-title">🔋 판매 통계</td>
-    </tr>
-    <tr>
-        <td class="header-cell">항목</td>
-        <td class="header-cell">건수</td>
-        <td class="header-cell">매출</td>
-        <td class="header-cell">비고</td>
-    </tr>
-    <tr>
-        <td class="data-cell">전체 판매</td>
-        <td class="data-cell" align="right"><?php echo number_format($stats['sales']['total_sales'] ?? 0); ?></td>
-        <td class="data-cell" align="right"><?php echo number_format(intval($stats['sales']['total_sales_cost'] ?? 0)); ?></td>
-        <td class="data-cell">요청 포함</td>
-    </tr>
-    <tr>
-        <td class="data-cell">판매 완료</td>
-        <td class="data-cell" align="right"><?php echo number_format($stats['sales']['sales_completed'] ?? 0); ?></td>
-        <td class="data-cell" align="right"><?php echo number_format(intval($stats['sales']['total_sales_cost'] ?? 0)); ?></td>
-        <td class="data-cell">입금 확인</td>
-    </tr>
-    <tr>
-        <td colspan="4" style="height: 10px;"></td>
-    </tr>
+// ===== workbook.xml.rels =====
+$workbook_rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>';
+@mkdir($temp_dir . '/xl/_rels', 0777, true);
+file_put_contents($temp_dir . '/xl/_rels/workbook.xml.rels', $workbook_rels);
 
-    <!-- TOP3 수리 제품 -->
-    <tr>
-        <td colspan="4" class="section-title">TOP3 수리 제품</td>
-    </tr>
-    <tr>
-        <td class="header-cell">순위</td>
-        <td class="header-cell">제품명</td>
-        <td class="header-cell">건수</td>
-        <td class="header-cell"></td>
-    </tr>
-    <?php
-    foreach ($top_products as $idx => $product) {
-        echo '<tr>';
-        echo '<td class="data-cell" align="center">' . ($idx + 1) . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($product['cost_name']) . '</td>';
-        echo '<td class="data-cell" align="right">' . $product['count'] . '</td>';
-        echo '<td class="data-cell"></td>';
-        echo '</tr>';
+// ===== styles.xml =====
+$styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="2">
+<font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>
+<font><bold val="1"/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+</fonts>
+<fills count="3">
+<fill><patternFill patternType="none"/></fill>
+<fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FF4472C4"/></patternFill></fill>
+</fills>
+<borders count="2">
+<border><left/><right/><top/><bottom/><diagonal/></border>
+<border><left style="thin"><color indexed="64"/></left><right style="thin"><color indexed="64"/></right><top style="thin"><color indexed="64"/></top><bottom style="thin"><color indexed="64"/></bottom><diagonal/></border>
+</borders>
+<cellStyleXfs count="1">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+</cellStyleXfs>
+<cellXfs count="3">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+</cellXfs>
+</styleSheet>';
+file_put_contents($temp_dir . '/xl/styles.xml', $styles);
+
+// ===== core.xml =====
+$core = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/officeDocument/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:title>AS 판매내역</dc:title>
+<dc:creator>AS System</dc:creator>
+<cp:lastModifiedBy>AS System</cp:lastModifiedBy>
+<dcterms:created xsi:type="dcterms:W3CDTF">' . date('Y-m-d\TH:i:s\Z') . '</dcterms:created>
+<dcterms:modified xsi:type="dcterms:W3CDTF">' . date('Y-m-d\TH:i:s\Z') . '</dcterms:modified>
+</cp:coreProperties>';
+file_put_contents($temp_dir . '/docProps/core.xml', $core);
+
+// ===== workbook.xml =====
+$workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets>
+<sheet name="판매내역" sheetId="1" r:id="rId2"/>
+</sheets>
+</workbook>';
+file_put_contents($temp_dir . '/xl/workbook.xml', $workbook);
+
+// ===== sheet1.xml (메인 데이터) =====
+$sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetData>';
+
+// 헤더 행
+$sheet .= '
+<row r="1">
+<c r="A1" s="1"><v>No</v></c>
+<c r="B1" s="1"><v>판매일</v></c>
+<c r="C1" s="1"><v>접수번호</v></c>
+<c r="D1" s="1"><v>업체명</v></c>
+<c r="E1" s="1"><v>형태</v></c>
+<c r="F1" s="1"><v>부품명 | 개수 | 가격</v></c>
+<c r="G1" s="1"><v>총 액</v></c>
+<c r="H1" s="1"><v>주소</v></c>
+<c r="I1" s="1"><v>연락처</v></c>
+<c r="J1" s="1"><v>세금계산서발행</v></c>
+<c r="K1" s="1"><v>결제방법</v></c>
+</row>';
+
+// 데이터 행
+$row_num = 2;
+$no = 1;
+foreach ($sales_data as $sale) {
+    $s1 = $no; // No
+    $s2 = $sale['sell_date']; // 판매일
+    $s3 = htmlspecialchars($sale['receipt_no']); // 접수번호
+    $s4 = htmlspecialchars($sale['ex_company']); // 업체명
+    $s5 = htmlspecialchars($sale['form']); // 형태
+
+    // 부품명 | 개수 | 가격
+    $cart_data = getSalesCartData($connect, $sale['s20_sellid']);
+    $parts_info = '';
+    foreach ($cart_data as $item) {
+        $cost = intval($item['s21_sp_cost']) == 0 ? intval($item['cost1']) : intval($item['cost2']);
+        $total_item_cost = intval($item['s21_quantity']) * $cost;
+        if (!empty($parts_info)) $parts_info .= ' | ';
+        $parts_info .= htmlspecialchars($item['cost_name']) . ' | ' . intval($item['s21_quantity']) . '개 | ' . number_format($total_item_cost);
     }
-    ?>
-    <tr>
-        <td colspan="4" style="height: 10px;"></td>
-    </tr>
 
-    <!-- TOP3 수리 자재 -->
-    <tr>
-        <td colspan="4" class="section-title">TOP3 수리 자재</td>
-    </tr>
-    <tr>
-        <td class="header-cell">순위</td>
-        <td class="header-cell">자재명</td>
-        <td class="header-cell">사용량</td>
-        <td class="header-cell"></td>
-    </tr>
-    <?php
-    foreach ($top_parts as $idx => $part) {
-        echo '<tr>';
-        echo '<td class="data-cell" align="center">' . ($idx + 1) . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($part['cost_name']) . '</td>';
-        echo '<td class="data-cell" align="right">' . $part['total_qty'] . '</td>';
-        echo '<td class="data-cell"></td>';
-        echo '</tr>';
+    // 총액
+    $s7 = calculateSalesTotal($connect, $sale['s20_sellid']);
+
+    $s8 = htmlspecialchars($sale['ex_address']); // 주소
+    $s9 = htmlspecialchars($sale['ex_tel'] . '(' . $sale['ex_sms_no'] . ')'); // 연락처
+
+    // 세금계산서
+    $s10 = $sale['s20_tax_code'] == '' ? '미발행' : '발행';
+
+    // 결제방법
+    $s11 = '3월 8일 이후 확인가능';
+    if ($sale['s20_bankcheck_w'] == 'center') {
+        $s11 = '센터 현금납부';
+    } elseif ($sale['s20_bankcheck_w'] == 'base') {
+        $s11 = '계좌이체';
     }
-    ?>
-    <tr>
-        <td colspan="4" style="height: 10px;"></td>
-    </tr>
 
-    <!-- TOP3 판매 자재 -->
-    <tr>
-        <td colspan="4" class="section-title">TOP3 판매 자재</td>
-    </tr>
-    <tr>
-        <td class="header-cell">순위</td>
-        <td class="header-cell">자재명</td>
-        <td class="header-cell">판매량</td>
-        <td class="header-cell"></td>
-    </tr>
-    <?php
-    foreach ($top_sale_parts as $idx => $part) {
-        echo '<tr>';
-        echo '<td class="data-cell" align="center">' . ($idx + 1) . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($part['cost_name']) . '</td>';
-        echo '<td class="data-cell" align="right">' . $part['total_qty'] . '</td>';
-        echo '<td class="data-cell"></td>';
-        echo '</tr>';
+    // XML 셀 작성 (이스케이프)
+    $sheet .= '
+<row r="' . $row_num . '">
+<c r="A' . $row_num . '"><v>' . $s1 . '</v></c>
+<c r="B' . $row_num . '"><v>' . $s2 . '</v></c>
+<c r="C' . $row_num . '"><v>' . $s3 . '</v></c>
+<c r="D' . $row_num . '"><v>' . $s4 . '</v></c>
+<c r="E' . $row_num . '"><v>' . $s5 . '</v></c>
+<c r="F' . $row_num . '"><v>' . $parts_info . '</v></c>
+<c r="G' . $row_num . '"><v>' . $s7 . '</v></c>
+<c r="H' . $row_num . '"><v>' . $s8 . '</v></c>
+<c r="I' . $row_num . '"><v>' . $s9 . '</v></c>
+<c r="J' . $row_num . '"><v>' . $s10 . '</v></c>
+<c r="K' . $row_num . '"><v>' . $s11 . '</v></c>
+</row>';
+
+    $row_num++;
+    $no++;
+}
+
+$sheet .= '
+</sheetData>
+<mergeCells count="0"/>
+<pageMargins left="0.7" top="0.75" right="0.7" bottom="0.75" header="0.3" footer="0.3"/>
+</worksheet>';
+
+file_put_contents($temp_dir . '/xl/worksheets/sheet1.xml', $sheet);
+
+// ===== ZIP 생성 =====
+function createZip($source_dir, $destination) {
+    $zip = new ZipArchive();
+    if ($zip->open($destination, ZipArchive::CREATE) !== true) {
+        return false;
     }
-    ?>
-</table>
 
-<!-- Sheet 2: 월별 AS 통계 -->
-<table>
-    <tr>
-        <td colspan="3" class="section-title">월별 AS 현황</td>
-    </tr>
-    <tr>
-        <td class="header-cell">월</td>
-        <td class="header-cell" align="right">완료건수</td>
-        <td class="header-cell" align="right">매출</td>
-    </tr>
-    <?php
-    foreach ($monthly_as as $row) {
-        echo '<tr>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['month']) . '</td>';
-        echo '<td class="data-cell" align="right">' . number_format($row['completed']) . '</td>';
-        echo '<td class="data-cell" align="right">' . number_format(intval($row['total_cost'])) . '</td>';
-        echo '</tr>';
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($source_dir),
+        RecursiveIteratorIterator::LEAVES_ONLY
+    );
+
+    foreach ($files as $file) {
+        if (!$file->isDir()) {
+            $file_path = $file->getRealPath();
+            $relative_path = substr($file_path, strlen($source_dir) + 1);
+            $zip->addFile($file_path, $relative_path);
+        }
     }
-    ?>
-</table>
 
-<!-- Sheet 3: 월별 판매 통계 -->
-<table>
-    <tr>
-        <td colspan="3" class="section-title">월별 판매 현황</td>
-    </tr>
-    <tr>
-        <td class="header-cell">월</td>
-        <td class="header-cell" align="right">완료건수</td>
-        <td class="header-cell" align="right">매출</td>
-    </tr>
-    <?php
-    foreach ($monthly_sales as $row) {
-        echo '<tr>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['month']) . '</td>';
-        echo '<td class="data-cell" align="right">' . number_format($row['completed']) . '</td>';
-        echo '<td class="data-cell" align="right">' . number_format(intval($row['total_cost'])) . '</td>';
-        echo '</tr>';
-    }
-    ?>
-</table>
+    $zip->close();
+    return true;
+}
 
-<!-- Sheet 4: 상세 AS 목록 -->
-<table>
-    <tr>
-        <td colspan="9" class="section-title">상세 AS 목록</td>
-    </tr>
-    <tr>
-        <td class="header-cell">완료번호</td>
-        <td class="header-cell">요청일</td>
-        <td class="header-cell">완료일</td>
-        <td class="header-cell">고객명</td>
-        <td class="header-cell">연락처</td>
-        <td class="header-cell">제품명</td>
-        <td class="header-cell">불량증상</td>
-        <td class="header-cell" align="right">금액</td>
-        <td class="header-cell"></td>
-    </tr>
-    <?php
-    foreach ($detail_as as $row) {
-        echo '<tr>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['s13_as_out_no'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['request_date'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['complete_date'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['ex_company'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['ex_tel'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['s14_model'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['s14_poor'] ?? '-') . '</td>';
-        echo '<td class="data-cell" align="right">' . number_format(intval($row['total_cost'])) . '</td>';
-        echo '<td class="data-cell"></td>';
-        echo '</tr>';
-    }
-    ?>
-</table>
+// XLSX 파일 생성 (ZIP 형식)
+$xlsx_file = $temp_dir . '/../' . $filename;
+createZip($temp_dir, $xlsx_file);
 
-<!-- Sheet 5: 상세 판매 목록 -->
-<table>
-    <tr>
-        <td colspan="8" class="section-title">상세 판매 목록</td>
-    </tr>
-    <tr>
-        <td class="header-cell">완료번호</td>
-        <td class="header-cell">요청일</td>
-        <td class="header-cell">완료일</td>
-        <td class="header-cell">고객명</td>
-        <td class="header-cell">연락처</td>
-        <td class="header-cell">판매자재</td>
-        <td class="header-cell" align="right">금액</td>
-        <td class="header-cell"></td>
-    </tr>
-    <?php
-    foreach ($detail_sales as $row) {
-        echo '<tr>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['s20_sell_out_no'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['request_date'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['complete_date'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['ex_company'] ?? '-') . '</td>';
-        echo '<td class="data-cell">' . htmlspecialchars($row['ex_tel'] ?? '-') . '</td>';
-        echo '<td class="data-cell" style="max-width: 150px;">' . htmlspecialchars($row['items'] ?? '-') . '</td>';
-        echo '<td class="data-cell" align="right">' . number_format(intval($row['total_cost'])) . '</td>';
-        echo '<td class="data-cell"></td>';
-        echo '</tr>';
-    }
-    ?>
-</table>
+// 다운로드 헤더
+header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+header('Content-Disposition: attachment; filename="' . $filename . '"');
+header('Content-Length: ' . filesize($xlsx_file));
+header('Cache-Control: max-age=0');
 
-</body>
-</html>
-<?php
+// 파일 전송
+readfile($xlsx_file);
+
+// 임시 파일 삭제
+@unlink($xlsx_file);
+array_walk_recursive(glob($temp_dir . '/*'), function($file) {
+    is_file($file) && @unlink($file);
+});
+@rmdir($temp_dir . '/xl/worksheets');
+@rmdir($temp_dir . '/xl/_rels');
+@rmdir($temp_dir . '/xl');
+@rmdir($temp_dir . '/_rels');
+@rmdir($temp_dir . '/docProps');
+@rmdir($temp_dir);
+
 mysql_close($connect);
 ?>
