@@ -51,13 +51,13 @@ if ($action === 'restore') {
 
         // 완료 탭으로 리다이렉트
         header('Location: as_requests.php?tab=completed&restored=1');
-    } else {
-        // working/request 탭에서의 이전: level을 2로만 변경
-        $reset_as_query = "UPDATE step13_as SET s13_as_level = '2' WHERE s13_asid = $asid";
+    } elseif ($current_tab === 'working') {
+        // working 탭에서의 이전: level을 1로 변경 (request로)
+        $reset_as_query = "UPDATE step13_as SET s13_as_level = '1' WHERE s13_asid = $asid";
         mysql_query($reset_as_query);
 
-        // working 탭으로 리다이렉트
-        header('Location: as_requests.php?tab=working&restored=1');
+        // request 탭으로 리다이렉트
+        header('Location: as_requests.php?tab=request&restored=1');
     }
     exit;
 }
