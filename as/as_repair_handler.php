@@ -21,11 +21,12 @@ $response = array('success' => false, 'message' => '');
 $action = isset($_POST['action']) ? $_POST['action'] : (isset($_GET['action']) ? $_GET['action'] : '');
 
 if ($action === 'restore') {
-    // 수리 작업 초기화 및 요청 탭으로 되돌리기
+    // working 탭에서의 restore: s13_as_level만 '1'로 변경
+    // completed 탭의 restore는 나중에 구현
     $itemid = isset($_GET['itemid']) ? intval($_GET['itemid']) : 0;
 
     if ($itemid <= 0) {
-        header('Location: as_requests.php?tab=request&error=invalid_itemid');
+        header('Location: as_requests.php?tab=working&error=invalid_itemid');
         exit;
     }
 
@@ -34,50 +35,19 @@ if ($action === 'restore') {
     $verify_result = @mysql_query($verify_query);
 
     if (!$verify_result || mysql_num_rows($verify_result) == 0) {
-        header('Location: as_requests.php?tab=request&error=item_not_found');
+        header('Location: as_requests.php?tab=working&error=item_not_found');
         exit;
     }
 
     $item_row = mysql_fetch_assoc($verify_result);
     $asid = intval($item_row['s14_asid']);
 
-    // ======================================
-    // 1. 이 아이템의 모든 자재 삭제
-    // ======================================
-    $delete_parts_query = "DELETE FROM step18_as_cure_cart WHERE s18_aiid = $itemid";
-    @mysql_query($delete_parts_query);
+    // s13_as_level을 '1'로만 변경
+    $reset_as_query = "UPDATE step13_as SET s13_as_level = '1' WHERE s13_asid = $asid";
+    @mysql_query($reset_as_query);
 
-    // ======================================
-    // 2. 아이템 정보 리셋 (수리 방법 제거)
-    // ======================================
-    $reset_item_query = "UPDATE step14_as_item SET as_end_result = NULL, s14_cart = 0 WHERE s14_aiid = $itemid";
-    @mysql_query($reset_item_query);
-
-    // ======================================
-    // 3. 해당 AS의 전체 cart 상태 확인
-    // ======================================
-    $check_cart_query = "SELECT COUNT(*) as cart_count FROM step18_as_cure_cart WHERE s18_asid = $asid";
-    $check_cart_result = @mysql_query($check_cart_query);
-    $cart_count = 0;
-    if ($check_cart_result) {
-        $cart_row = mysql_fetch_assoc($check_cart_result);
-        $cart_count = intval($cart_row['cart_count']);
-    }
-
-    // ======================================
-    // 4. cart가 완전히 비어있으면 AS 레코드 자체 삭제
-    // ======================================
-    if ($cart_count == 0) {
-        $delete_as_query = "DELETE FROM step13_as WHERE s13_asid = $asid";
-        @mysql_query($delete_as_query);
-    } else {
-        // cart가 아직 있으면 level을 1로 리셋
-        $reset_as_query = "UPDATE step13_as SET s13_as_level = '1' WHERE s13_asid = $asid";
-        @mysql_query($reset_as_query);
-    }
-
-    // 요청 탭으로 리다이렉트
-    header('Location: as_requests.php?tab=request&restored=1');
+    // 리다이렉트
+    header('Location: as_requests.php?tab=working&restored=1');
     exit;
 }
 
