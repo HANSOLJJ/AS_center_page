@@ -191,7 +191,7 @@ if (!empty($target_asids)) {
     if ($current_tab === 'working' || $current_tab === 'completed') {
         $order_by = ($current_tab === 'completed') ? "a.s13_as_out_date DESC" : "a.s13_asid DESC";
         $query = "SELECT a.*,
-                         b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.s14_cart,
+                         b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.s14_cart, b.as_end_result,
                          md.s15_model_name, pd.s16_poor,
                          res.s19_result,
                          c.s18_accid, c.s18_uid, c.cost_name, c.s18_quantity, c.cost1
