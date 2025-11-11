@@ -262,6 +262,10 @@ $sheet->getColumnDimension('K')->setWidth(15);
 $sheet->getColumnDimension('L')->setWidth(10);
 $sheet->getColumnDimension('M')->setWidth(15);
 
+// H, I 컬럼에 숫자 포맷 적용 (천 단위 쉼표)
+$sheet->getStyle('H2:H' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
+$sheet->getStyle('I2:I' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
+
 // 행 높이 설정
 $sheet->getRowDimension('1')->setRowHeight(25);
 
