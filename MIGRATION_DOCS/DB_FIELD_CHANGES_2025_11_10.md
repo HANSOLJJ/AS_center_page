@@ -5,7 +5,7 @@
 
 ---
 
-## 📋 변경 요약 (총 3개 Phase)
+## 📋 변경 요약 (총 4개 Phase)
 
 ### Phase 1: 문자 인코딩 통일 (2025-11-03) ✅
 | 대상 | 변경 | 영향 범위 |
@@ -38,6 +38,11 @@
 | step20_sell | s20_as_center | s20_sell_center | 테이블명과 필드명 일관성 |
 | step20_sell | s20_as_level | s20_sell_level | 테이블명과 필드명 일관성 |
 | step20_sell | s20_as_out_date | s20_sell_out_date | 테이블명과 필드명 일관성 |
+
+### Phase 4: 필드명 통일화 (2025-11-11) ✅
+| 테이블 | 이전 필드 | 이후 필드 | 변경 이유 |
+|--------|----------|----------|---------|
+| step13_as | ex_total_cost (삭제) | s13_total_cost (기존) | 필드명 일관성 확보 |
 
 ---
 
@@ -382,31 +387,7 @@ ALTER TABLE step20_sell CHANGE COLUMN s20_as_level s20_sell_level enum('1','2','
 ALTER TABLE step20_sell CHANGE COLUMN s20_as_out_date s20_sell_out_date datetime;
 ```
 
-### 4-4. PHP 코드 업데이트 (4개 파일)
-
-#### 1. receipt.php (영수증 출력)
-- Line 26-27: SELECT 쿼리에서 필드명 변경
-- Line 60-76: 날짜 처리에서 필드 참조 업데이트
-- Line 110: 센터명 조회 쿼리에서 필드명 변경
-- Line 462: 접수번호 출력에서 필드명 변경
-
-#### 2. order_payment.php (판매 완료/취소 처리)
-- Line 32-33, 39-54: 주석 및 변수명 업데이트
-- Line 44: COUNT 쿼리에서 필드명 변경
-- Line 62: UPDATE 쿼리에서 6개 필드명 변경
-- Line 93-101: 취소(cancel) 액션에서 필드명 변경
-
-#### 3. orders.php (판매 목록 조회/관리)
-- Line 46, 48: WHERE 조건에서 필드명 변경
-- Line 52-53: 날짜 필드 주석 및 조건문 변경
-- Line 88, 92: ORDER BY 절에서 필드명 변경
-- Line 117, 121: SELECT 쿼리에서 4개 필드명 변경
-- Line 976-977: 완료일자 출력에서 필드명 변경
-
-#### 4. order_handler.php (판매 신청 처리)
-- Line 164-165: INSERT 쿼리에서 2개 필드명 변경
-
-### 4-5. 검증 SQL
+### 4-4. 검증 SQL
 
 ```sql
 -- 변경 확인
@@ -647,73 +628,77 @@ docker exec as_mysql mysql -u mic4u_user -pchange_me mic4u -e "SELECT COUNT(*) F
 
 ---
 
-## 9️⃣ 필드명 통일화: ex_total_cost → s13_total_cost (2025-11-10)
+## 9️⃣ 필드명 통일화: ex_total_cost → s13_total_cost (2025-11-11)
 
 ### 9-1. 목적
 
-export_as_report.php에서 총 수리비로 사용되는 필드는 s13_total_cost이어야 함.
-- ex_total_cost: 개념적 증복
-- s13_total_cost: step13_as 테이블의 통일 필드명 규칙
+step13_as 테이블의 필드명 일관성 확보:
+- **ex_total_cost**: 이전 필드 (삭제)
+- **s13_total_cost**: step13_as 테이블의 표준 필드명 (기존 필드 유지)
 
-### 9-2. DB 뻤그레이션 SQL (데이터 마이그레이션)
+export_as_report.php, as_repair_handler.php 등에서 AS 수리 총비용을 조회할 때 s13_total_cost를 사용하여 일관성 유지.
 
+### 9-2. DB 마이그레이션 SQL
+
+#### Step 1: s13_total_cost 필드 존재 확인
 ```sql
--- Step 1: ex_total_cost 데이터를 s13_total_cost로 복사
-UPDATE step13_as SET s13_total_cost = ex_total_cost WHERE ex_total_cost IS NOT NULL;
-
--- Step 2: ex_total_cost 필드 삭제
-ALTER TABLE step13_as DROP COLUMN ex_total_cost;
-
--- Step 3: 데이터 검증
-SELECT COUNT(*) as total_records,
-       COUNT(CASE WHEN s13_total_cost IS NOT NULL AND s13_total_cost > 0 THEN 1 END) as with_cost
-FROM step13_as;
-
--- Step 4: 필드 목록 확인
+-- 필드 존재 확인
 DESCRIBE step13_as;
+-- s13_total_cost 필드가 존재해야 함 (없으면 생성)
+ALTER TABLE step13_as ADD COLUMN s13_total_cost INT DEFAULT 0;
 ```
 
-### 9-3. PHP 소스코드 수정
-
-**영향받는 4개 파일**:
-
-#### 1. as/as_repair_handler.php
-- Line 52-53: 주석 및 SELECT 등에서 ex_total_cost → s13_total_cost
-- Line 258-265: 되돌리 중 ex_total_cost 업데이트 로직 변경
-
-#### 2. as/as_requests.php
-- Line 1072: 주석 ex_total_cost → s13_total_cost
-- Line 1076: 변수 할당 ex_total_cost → s13_total_cost
-
-#### 3. as/as_statistics.php
-- Line 66: SELECT 보낸에서 COALESCE(ex_total_cost, 0) → COALESCE(s13_total_cost, 0)
-- Line 98: 되돌리 통계 솨쳺까넷에서 COALESCE(ex_total_cost, 0) → COALESCE(s13_total_cost, 0)
-
-#### 4. as/export_as_report.php
-- Line 80: SELECT 에서 ex_total_cost → s13_total_cost
-- Line 201, 236: M열 지나개에서 ex_total_cost → s13_total_cost
-
-### 9-4. 검증 SQL
-
+#### Step 2: 원본 Backup에서 ex_total_cost 데이터 추출 및 복사
 ```sql
--- 동메보난 도 확인
-DESCRIBE step13_as;
--- ex_total_cost는 따로나고 s13_total_cost가 있어야 함
+-- 원본 backup (E:\web_shadow\mic4u\database\migrations\mic4u41_utf8_fixed.sql)에서 
+-- ex_total_cost 데이터를 s13_asid 기준으로 추출하여 s13_total_cost에 적용
+-- 
+-- 추출 통계:
+-- - 원본 레코드: 32,936개
+-- - s13_asid 일치: 24,249개 (UPDATE 적용)
+-- - 0값: 1,994개 (UPDATE 대상이지만 0값이므로 스킵 가능)
+-- - 미일치: 6,693개 (ex_total_cost는 있지만 현재 DB에는 해당 s13_asid 없음)
+--
+-- 방법: sed/awk를 통해 원본 SQL에서 s13_asid, ex_total_cost 값을 추출 후
+--       UPDATE step13_as SET s13_total_cost = {ex_total_cost} WHERE s13_asid = {s13_asid};
+--
+-- 예시 UPDATE 명령 (부분):
+UPDATE step13_as SET s13_total_cost = 0 WHERE s13_asid = 1;
+UPDATE step13_as SET s13_total_cost = 15000 WHERE s13_asid = 2;
+UPDATE step13_as SET s13_total_cost = 38000 WHERE s13_asid = 3;
+-- ... (총 24,249개 UPDATE 문 적용)
+```
 
--- 데이터 샘플
-SELECT s13_asid, s13_total_cost 
-FROM step13_as 
-WHERE s13_total_cost IS NOT NULL AND s13_total_cost > 0
-LIMIT 10;
+#### Step 3: ex_total_cost 필드 삭제
+```sql
+-- 2025-11-11: 구식 필드 삭제 (데이터 복사 완료 후)
+ALTER TABLE step13_as DROP COLUMN ex_total_cost;
+```
 
+#### Step 4: 데이터 검증
+```sql
 -- 필드 목록 확인
-SHOW COLUMNS FROM step13_as WHERE Field IN ('s13_total_cost', 'ex_total_cost');
--- 지로 s13_total_cost만 나타나야 함
+DESCRIBE step13_as;
+-- ex_total_cost는 없어야 하고, s13_total_cost가 있어야 함
+
+-- 데이터 통계
+SELECT COUNT(*) as total_records,
+       COUNT(CASE WHEN s13_total_cost IS NOT NULL AND s13_total_cost > 0 THEN 1 END) as with_cost,
+       COUNT(CASE WHEN s13_total_cost = 0 THEN 1 END) as zero_cost,
+       SUM(s13_total_cost) as total_sum
+FROM step13_as;
+
+-- 데이터 샘플 확인
+SELECT s13_asid, s13_as_out_no, s13_total_cost
+FROM step13_as
+WHERE s13_total_cost IS NOT NULL AND s13_total_cost > 0
+ORDER BY s13_asid DESC
+LIMIT 20;
 ```
 
 ---
 
-**마지막 업데이트**: 2025-11-10
+**마지막 업데이트**: 2025-11-11
 **작성자**: Claude Code
-**상태**: ✅ 완료 (모든 변경사항 DB 및 PHP 코드에 반영됨)
+**상태**: ✅ 완료 (DB 필드 변경사항 기록)
 **버전**: Final v1.0
