@@ -250,10 +250,10 @@ while ($sale = mysql_fetch_assoc($result)) {
 // 열 너비 자동 조정
 $sheet->getColumnDimension('A')->setWidth(8);
 $sheet->getColumnDimension('B')->setWidth(12);
-$sheet->getColumnDimension('C')->setWidth(12);
+$sheet->getColumnDimension('C')->setWidth(18);
 $sheet->getColumnDimension('D')->setWidth(18);
 $sheet->getColumnDimension('E')->setWidth(12);
-$sheet->getColumnDimension('F')->setWidth(28);
+$sheet->getColumnDimension('F')->setWidth(35);
 $sheet->getColumnDimension('G')->setWidth(10);
 $sheet->getColumnDimension('H')->setWidth(12);
 $sheet->getColumnDimension('I')->setWidth(12);
