@@ -20,7 +20,7 @@ $current_page = 'as_statistics';
 
 // 탭 선택
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'overview';
-$current_tab = in_array($tab, ['overview', 'as_analysis', 'sales_analysis']) ? $tab : 'overview';
+$current_tab = in_array($tab, ['overview', 'monthly_report', 'as_analysis', 'sales_analysis']) ? $tab : 'overview';
 
 // 기간 설정 (기본값: 금월)
 $range = isset($_GET['range']) ? $_GET['range'] : 'month';
@@ -53,10 +53,10 @@ if ($range === 'today') {
 // 통계 데이터 조회 함수
 function getStatistics($connect, $start_date, $end_date)
 {
-    // AS 통계
+    // AS 통계 (완료 기준: s13_as_out_date)
     $as_where = (!empty($start_date) && !empty($end_date))
-        ? "WHERE DATE(s13_as_in_date) BETWEEN '$start_date' AND '$end_date'"
-        : "";
+        ? "WHERE s13_as_level = '5' AND DATE(s13_as_out_date) BETWEEN '$start_date' AND '$end_date'"
+        : "WHERE s13_as_level = '5'";
 
     $as_query = "SELECT
         COUNT(*) as total_as,
@@ -70,10 +70,10 @@ function getStatistics($connect, $start_date, $end_date)
     $as_result = mysql_query($as_query);
     $as_stats = mysql_fetch_assoc($as_result) ?? array();
 
-    // 자재 판매 통계
+    // 자재 판매 통계 (완료 기준: s20_sell_out_date)
     $sales_where = (!empty($start_date) && !empty($end_date))
-        ? "WHERE DATE(s20_sell_in_date) BETWEEN '$start_date' AND '$end_date'"
-        : "";
+        ? "WHERE s20_sell_level = '2' AND DATE(s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'"
+        : "WHERE s20_sell_level = '2'";
 
     $sales_query = "SELECT
         COUNT(*) as total_sales,
@@ -567,6 +567,8 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
             <div class="tabs">
                 <button class="tab-btn <?php echo $current_tab === 'overview' ? 'active' : ''; ?>"
                     onclick="location.href='as_statistics.php?tab=overview'">개요</button>
+                <button class="tab-btn <?php echo $current_tab === 'monthly_report' ? 'active' : ''; ?>"
+                    onclick="location.href='as_statistics.php?tab=monthly_report'">월간 리포트</button>
                 <button class="tab-btn <?php echo $current_tab === 'as_analysis' ? 'active' : ''; ?>"
                     onclick="location.href='as_statistics.php?tab=as_analysis'">AS 분석</button>
                 <button class="tab-btn <?php echo $current_tab === 'sales_analysis' ? 'active' : ''; ?>"
@@ -594,7 +596,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
                     <span style="color: #999;">~</span>
                     <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
-                    <input type="hidden" id="range-input-stat" name="range" value="">
+                    <input type="hidden" id="range-input-stat" name="range" value="<?php echo htmlspecialchars($range); ?>">
                     <button type="submit">검색</button>
                     <button type="button" onclick="downloadReport('export_as_report.php')"
                         style="margin-left: 10px; padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 AS 리포트</button>
@@ -608,7 +610,7 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                 function downloadReport(filename) {
                     const startDate = document.querySelector('input[name="start_date"]').value;
                     const endDate = document.querySelector('input[name="end_date"]').value;
-                    const range = document.getElementById('range-input-stat').value || 'month';
+                    const range = document.getElementById('range-input-stat').value;
 
                     const url = filename + '?start_date=' + encodeURIComponent(startDate) +
                                 '&end_date=' + encodeURIComponent(endDate) +
@@ -796,6 +798,68 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                                     <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
                                 </tr>
                             <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+            <?php elseif ($current_tab === 'monthly_report'): ?>
+                <!-- 월간 리포트 탭 -->
+                <h3 style="color: #667eea; margin-bottom: 20px; font-size: 16px;">📅 월간 리포트</h3>
+
+                <!-- 월별 AS 현황 -->
+                <div class="table-section">
+                    <h3>월별 AS 현황</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>월</th>
+                                <th class="text-right">완료</th>
+                                <th class="text-right">매출</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (count($monthly_as) > 0): ?>
+                                <?php foreach ($monthly_as as $row): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($row['month']); ?></td>
+                                        <td class="text-right"><?php echo number_format($row['completed']); ?></td>
+                                        <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="3" style="text-align: center; color: #999;">데이터 없음</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 월별 판매 현황 -->
+                <div class="table-section">
+                    <h3>월별 판매 현황</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>월</th>
+                                <th class="text-right">완료</th>
+                                <th class="text-right">매출</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (count($monthly_sales) > 0): ?>
+                                <?php foreach ($monthly_sales as $row): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($row['month']); ?></td>
+                                        <td class="text-right"><?php echo number_format($row['completed']); ?></td>
+                                        <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="3" style="text-align: center; color: #999;">데이터 없음</td>
+                                </tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
