@@ -253,18 +253,6 @@ if ($action === 'save_repair_step') {
                     }
                 }
             }
-
-            // ========================================
-            // s13_total_cost 계산 및 업데이트
-            // ========================================
-            $total_cost_query = "SELECT SUM(cost1 * s18_quantity) as total_cost FROM step18_as_cure_cart WHERE s18_asid = $asid";
-            $total_cost_result = @mysql_query($total_cost_query);
-            if ($total_cost_result) {
-                $cost_row = mysql_fetch_assoc($total_cost_result);
-                $total_cost = intval($cost_row['total_cost'] ?? 0);
-                $update_total_cost_query = "UPDATE step13_as SET s13_total_cost = $total_cost WHERE s13_asid = $asid";
-                @mysql_query($update_total_cost_query);
-            }
         } else {
             $response['message'] = '수리 방법 저장 중 오류가 발생했습니다: ' . mysql_error();
         }

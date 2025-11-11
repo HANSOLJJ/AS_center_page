@@ -537,8 +537,14 @@ if ($action === 'completeAS') {
     // s13_as_out_no2: "yymmddSSS" 형식
     $new_out_no2 = $date_part . $seq_str;
 
-    // AS 완료 처리: s13_as_out_date, s13_bank_check에 현재 시간, s13_as_level을 5로, s13_bankcheck_w에 'center' 설정, s13_as_out_no/s13_as_out_no2 생성
-    $update_query = "UPDATE step13_as SET s13_as_out_date = '$now', s13_bank_check = '$now', s13_as_level = '5', s13_bankcheck_w = 'center', s13_as_out_no = '$new_out_no', s13_as_out_no2 = '$new_out_no2' WHERE s13_asid = $asid";
+    // s13_total_cost 계산 (step18_as_cure_cart의 합계)
+    $cost_query = "SELECT COALESCE(SUM(cost1 * s18_quantity), 0) as total_cost FROM step18_as_cure_cart WHERE s18_asid = $asid";
+    $cost_result = @mysql_query($cost_query);
+    $cost_row = @mysql_fetch_assoc($cost_result);
+    $total_cost = intval($cost_row['total_cost'] ?? 0);
+
+    // AS 완료 처리: s13_as_out_date, s13_bank_check에 현재 시간, s13_as_level을 5로, s13_bankcheck_w에 'center' 설정, s13_as_out_no/s13_as_out_no2 생성, s13_total_cost 계산
+    $update_query = "UPDATE step13_as SET s13_as_out_date = '$now', s13_bank_check = '$now', s13_as_level = '5', s13_bankcheck_w = 'center', s13_as_out_no = '$new_out_no', s13_as_out_no2 = '$new_out_no2', s13_total_cost = $total_cost WHERE s13_asid = $asid";
 
     if (@mysql_query($update_query)) {
         $response['success'] = true;
