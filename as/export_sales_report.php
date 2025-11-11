@@ -22,7 +22,6 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 // MySQL 호환성 레이어 로드
 require_once 'mysql_compat.php';
@@ -71,11 +70,14 @@ if (!empty($start_date) && !empty($end_date)) {
 
 $query = "SELECT
     s20_sellid,
-    DATE_FORMAT(s20_sell_out_date, '%Y-%m-%d') as sell_out_date,
+    s20_sell_out_no,
+    s20_sell_out_no2,
+    DATE_FORMAT(s20_sell_in_date, '%Y-%m-%d %H:%i') as sell_in_date,
+    DATE_FORMAT(s20_sell_out_date, '%Y-%m-%d %H:%i') as sell_out_date,
     ex_company,
-    ex_sec1,
-    ex_adress,
+    ex_tel,
     s20_total_cost,
+    s20_sell_level,
     s20_tax_code,
     s20_bankcheck_w
 FROM step20_sell
@@ -95,16 +97,20 @@ $sheet->setTitle('판매 리포트');
 
 // 헤더 작성
 $headers = array(
-    'No',
-    '판매일',
+    '판매ID',
+    '판매번호',
+    '판매번호2',
+    '접수일시',
+    '완료일시',
     '업체명',
-    '형태',
+    '전화번호',
     '자재명',
     '수량',
-    '총액',
-    '주소',
+    '단가',
+    '합계',
     '세금계산서',
-    '결제방법'
+    '입금확인',
+    '상태'
 );
 
 $col = 'A';
@@ -120,162 +126,101 @@ $headerStyle = [
     'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
 ];
-$sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+$sheet->getStyle('A1:N1')->applyFromArray($headerStyle);
 
 // 데이터 행 작성
 $row = 2;
 $row_count = 0;
-$no_counter = 0;
 
 while ($sale = mysql_fetch_assoc($result)) {
     $sellid = $sale['s20_sellid'];
-    $no_counter++;
 
     // 판매 자재 조회
     $cart_query = "SELECT
         s21_accid,
         cost_name,
-        s21_quantity
+        s21_quantity,
+        cost1
         FROM step21_sell_cart
         WHERE s21_sellid = '" . mysql_real_escape_string($sellid) . "'
         ORDER BY s21_accid ASC";
 
     $cart_result = mysql_query($cart_query);
 
-    // 결제 방법 변환 (receipt.php 로직 참고)
-    $payment_method = '3월 8일 이후 확인가능';
-    if ($sale['s20_bankcheck_w'] === 'center') {
-        $payment_method = '센터 현금납부';
-    } elseif ($sale['s20_bankcheck_w'] === 'base') {
-        $payment_method = '계좌이체';
-    }
-
-    // 세금계산서 발행 여부
-    $tax_invoice = $sale['s20_tax_code'] ? '발행' : '미발행';
-
     if (!$cart_result || mysql_num_rows($cart_result) === 0) {
         // 자재가 없으면 마스터 정보만 출력
-        $sheet->setCellValue('A' . $row, $no_counter);
-        $sheet->setCellValue('B' . $row, $sale['sell_out_date'] ?? '');
-        $sheet->setCellValue('C' . $row, $sale['ex_company'] ?? '');
-        $sheet->setCellValue('D' . $row, $sale['ex_sec1'] ?? '');
-        $sheet->setCellValue('E' . $row, '');
-        $sheet->setCellValue('F' . $row, '');
-        $sheet->setCellValue('G' . $row, $sale['s20_total_cost'] ?? '');
-        $sheet->setCellValue('H' . $row, $sale['ex_adress'] ?? '');
-        $sheet->setCellValue('I' . $row, $tax_invoice);
-        $sheet->setCellValue('J' . $row, $payment_method);
+        $sheet->setCellValue('A' . $row, $sale['s20_sellid'] ?? '');
+        $sheet->setCellValue('B' . $row, $sale['s20_sell_out_no'] ?? '');
+        $sheet->setCellValue('C' . $row, $sale['s20_sell_out_no2'] ?? '');
+        $sheet->setCellValue('D' . $row, $sale['sell_in_date'] ?? '');
+        $sheet->setCellValue('E' . $row, $sale['sell_out_date'] ?? '');
+        $sheet->setCellValue('F' . $row, $sale['ex_company'] ?? '');
+        $sheet->setCellValue('G' . $row, $sale['ex_tel'] ?? '');
+        $sheet->setCellValue('H' . $row, '');
+        $sheet->setCellValue('I' . $row, '');
+        $sheet->setCellValue('J' . $row, '');
+        $sheet->setCellValue('K' . $row, $sale['s20_total_cost'] ?? '');
+        $sheet->setCellValue('L' . $row, $sale['s20_tax_code'] ? '발행' : '미발행');
+        $sheet->setCellValue('M' . $row, $sale['s20_bankcheck_w'] ?? '');
+        $sheet->setCellValue('N' . $row, $sale['s20_sell_level'] == '2' ? '완료' : '대기');
 
         // 데이터 셀 스타일
         $dataStyle = [
-            'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
+            'alignment' => ['horizontal' => 'left', 'vertical' => 'center', 'wrapText' => true],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ];
-        $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray($dataStyle);
+        $sheet->getStyle('A' . $row . ':N' . $row)->applyFromArray($dataStyle);
 
         $row++;
         $row_count++;
     } else {
         // 자재별로 줄 작성
         $is_first = true;
-        $cart_rows = array();
         while ($cart = mysql_fetch_assoc($cart_result)) {
-            $cart_rows[] = $cart;
-        }
-
-        $num_carts = count($cart_rows);
-        $start_row = $row;
-
-        foreach ($cart_rows as $idx => $cart) {
-            $sheet->setCellValue('A' . $row, $is_first ? $no_counter : '');
-            $sheet->setCellValue('B' . $row, $is_first ? ($sale['sell_out_date'] ?? '') : '');
-            $sheet->setCellValue('C' . $row, $is_first ? ($sale['ex_company'] ?? '') : '');
-            $sheet->setCellValue('D' . $row, $is_first ? ($sale['ex_sec1'] ?? '') : '');
-            $sheet->setCellValue('E' . $row, $cart['cost_name'] ?? '');
-            $sheet->setCellValue('F' . $row, $cart['s21_quantity'] ?? '');
-            $sheet->setCellValue('G' . $row, $is_first ? ($sale['s20_total_cost'] ?? '') : '');
-            $sheet->setCellValue('H' . $row, $is_first ? ($sale['ex_adress'] ?? '') : '');
-            $sheet->setCellValue('I' . $row, $is_first ? $tax_invoice : '');
-            $sheet->setCellValue('J' . $row, $is_first ? $payment_method : '');
+            $sheet->setCellValue('A' . $row, $is_first ? ($sale['s20_sellid'] ?? '') : '');
+            $sheet->setCellValue('B' . $row, $is_first ? ($sale['s20_sell_out_no'] ?? '') : '');
+            $sheet->setCellValue('C' . $row, $is_first ? ($sale['s20_sell_out_no2'] ?? '') : '');
+            $sheet->setCellValue('D' . $row, $is_first ? ($sale['sell_in_date'] ?? '') : '');
+            $sheet->setCellValue('E' . $row, $is_first ? ($sale['sell_out_date'] ?? '') : '');
+            $sheet->setCellValue('F' . $row, $is_first ? ($sale['ex_company'] ?? '') : '');
+            $sheet->setCellValue('G' . $row, $is_first ? ($sale['ex_tel'] ?? '') : '');
+            $sheet->setCellValue('H' . $row, $cart['cost_name'] ?? '');
+            $sheet->setCellValue('I' . $row, $cart['s21_quantity'] ?? '');
+            $sheet->setCellValue('J' . $row, $cart['cost1'] ?? '');
+            $sheet->setCellValue('K' . $row, $is_first ? ($sale['s20_total_cost'] ?? '') : '');
+            $sheet->setCellValue('L' . $row, $is_first ? ($sale['s20_tax_code'] ? '발행' : '미발행') : '');
+            $sheet->setCellValue('M' . $row, $is_first ? ($sale['s20_bankcheck_w'] ?? '') : '');
+            $sheet->setCellValue('N' . $row, $is_first ? ($sale['s20_sell_level'] == '2' ? '완료' : '대기') : '');
 
             // 데이터 셀 스타일
             $dataStyle = [
-                'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
+                'alignment' => ['horizontal' => 'left', 'vertical' => 'center', 'wrapText' => true],
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
             ];
-            $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray($dataStyle);
+            $sheet->getStyle('A' . $row . ':N' . $row)->applyFromArray($dataStyle);
 
             $is_first = false;
             $row++;
             $row_count++;
         }
-
-        // 여러 자재가 있으면 merge 처리 (A, B, C, D, G, H, I, J 열)
-        if ($num_carts > 1) {
-            $end_row = $row - 1;
-            
-            // A열 (No) merge
-            $sheet->mergeCells('A' . $start_row . ':A' . $end_row);
-            $sheet->getStyle('A' . $start_row . ':A' . $end_row)->getAlignment()
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-            
-            // B열 (판매일) merge
-            $sheet->mergeCells('B' . $start_row . ':B' . $end_row);
-            $sheet->getStyle('B' . $start_row . ':B' . $end_row)->getAlignment()
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-            
-            // C열 (업체명) merge
-            $sheet->mergeCells('C' . $start_row . ':C' . $end_row);
-            $sheet->getStyle('C' . $start_row . ':C' . $end_row)->getAlignment()
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-            
-            // D열 (형태) merge
-            $sheet->mergeCells('D' . $start_row . ':D' . $end_row);
-            $sheet->getStyle('D' . $start_row . ':D' . $end_row)->getAlignment()
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-            
-            // G열 (총액) merge
-            $sheet->mergeCells('G' . $start_row . ':G' . $end_row);
-            $sheet->getStyle('G' . $start_row . ':G' . $end_row)->getAlignment()
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-            
-            // H열 (주소) merge
-            $sheet->mergeCells('H' . $start_row . ':H' . $end_row);
-            $sheet->getStyle('H' . $start_row . ':H' . $end_row)->getAlignment()
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-            
-            // I열 (세금계산서) merge
-            $sheet->mergeCells('I' . $start_row . ':I' . $end_row);
-            $sheet->getStyle('I' . $start_row . ':I' . $end_row)->getAlignment()
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-            
-            // J열 (결제방법) merge
-            $sheet->mergeCells('J' . $start_row . ':J' . $end_row);
-            $sheet->getStyle('J' . $start_row . ':J' . $end_row)->getAlignment()
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-        }
     }
 }
 
 // 열 너비 자동 조정
-$sheet->getColumnDimension('A')->setWidth(8);
-$sheet->getColumnDimension('B')->setWidth(12);
-$sheet->getColumnDimension('C')->setWidth(20);
-$sheet->getColumnDimension('D')->setWidth(15);
-$sheet->getColumnDimension('E')->setWidth(20);
-$sheet->getColumnDimension('F')->setWidth(10);
+$sheet->getColumnDimension('A')->setWidth(12);
+$sheet->getColumnDimension('B')->setWidth(15);
+$sheet->getColumnDimension('C')->setWidth(15);
+$sheet->getColumnDimension('D')->setWidth(18);
+$sheet->getColumnDimension('E')->setWidth(18);
+$sheet->getColumnDimension('F')->setWidth(20);
 $sheet->getColumnDimension('G')->setWidth(15);
-$sheet->getColumnDimension('H')->setWidth(25);
-$sheet->getColumnDimension('I')->setWidth(12);
-$sheet->getColumnDimension('J')->setWidth(18);
+$sheet->getColumnDimension('H')->setWidth(20);
+$sheet->getColumnDimension('I')->setWidth(10);
+$sheet->getColumnDimension('J')->setWidth(12);
+$sheet->getColumnDimension('K')->setWidth(15);
+$sheet->getColumnDimension('L')->setWidth(12);
+$sheet->getColumnDimension('M')->setWidth(12);
+$sheet->getColumnDimension('N')->setWidth(10);
 
 // 행 높이 설정
 $sheet->getRowDimension('1')->setRowHeight(25);
