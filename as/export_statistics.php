@@ -217,13 +217,12 @@ function getDetailedASList($connect, $start_date, $end_date)
         a.s13_as_out_no,
         DATE_FORMAT(a.s13_as_in_date, '%Y-%m-%d') as request_date,
         DATE_FORMAT(a.s13_as_out_date, '%Y-%m-%d') as complete_date,
-        b.ex_company,
-        b.ex_tel,
+        a.ex_company,
+        a.ex_tel,
         c.s14_model,
         c.s14_poor,
         COALESCE(a.ex_total_cost, 0) as total_cost
         FROM step13_as a
-        LEFT JOIN step11_member b ON a.s13_mid = b.ex_mid
         LEFT JOIN step14_as_item c ON a.s13_asid = c.s14_asid
         $where_clause
         ORDER BY a.s13_as_out_date DESC
@@ -249,12 +248,11 @@ function getDetailedSalesList($connect, $start_date, $end_date)
         s.s20_sell_out_no,
         DATE_FORMAT(s.s20_sell_in_date, '%Y-%m-%d') as request_date,
         DATE_FORMAT(s.s20_sell_out_date, '%Y-%m-%d') as complete_date,
-        m.ex_company,
-        m.ex_tel,
+        s.ex_company,
+        s.ex_tel,
         GROUP_CONCAT(c.cost_name, '(', c.s21_quantity, '개)' SEPARATOR ' | ') as items,
         COALESCE(s.s20_total_cost, 0) as total_cost
         FROM step20_sell s
-        LEFT JOIN step11_member m ON s.s20_meid = m.ex_mid
         LEFT JOIN step21_sell_cart c ON s.s20_sellid = c.s21_sellid
         $where_clause
         GROUP BY s.s20_sellid
