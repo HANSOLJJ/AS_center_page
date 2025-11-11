@@ -173,14 +173,14 @@ while ($as = mysql_fetch_assoc($result)) {
 
     // AS 사용 부품 조회
     $parts_query = "SELECT
-        s18_aiid,
-        s18_accid,
+        s14_aiid,
+        s14_accid,
         cost_name,
-        s18_quantity,
+        s14_quantity,
         cost1
-        FROM step18_as_item
-        WHERE s18_aiid IN (SELECT s14_aiid FROM step14_as_item WHERE s14_asid = '" . mysql_real_escape_string($asid) . "')
-        ORDER BY s18_accid ASC";
+        FROM step14_as_item
+        WHERE s14_asid = '" . mysql_real_escape_string($asid) . "'
+        ORDER BY s14_accid ASC";
     
     $parts_result = mysql_query($parts_query);
     $parts_count = $parts_result ? mysql_num_rows($parts_result) : 0;
@@ -218,8 +218,8 @@ while ($as = mysql_fetch_assoc($result)) {
         $is_first = true;
         while ($part = mysql_fetch_assoc($parts_result)) {
             // 부품별 가격 계산 (수량 * 단가)
-            $part_price = (isset($part['s18_quantity']) && isset($part['cost1']))
-                ? ($part['s18_quantity'] * $part['cost1'])
+            $part_price = (isset($part['s14_quantity']) && isset($part['cost1']))
+                ? ($part['s14_quantity'] * $part['cost1'])
                 : 0;
 
             $sheet->setCellValue('A' . $row, $is_first ? $no : '');
@@ -232,7 +232,7 @@ while ($as = mysql_fetch_assoc($result)) {
             $sheet->setCellValue('H' . $row, $is_first ? $product_name : '');
             $sheet->setCellValue('I' . $row, $is_first ? $end_result : '');
             $sheet->setCellValue('J' . $row, $part['cost_name'] ?? '');
-            $sheet->setCellValue('K' . $row, (isset($part['s18_quantity']) ? $part['s18_quantity'] . '개' : ''));
+            $sheet->setCellValue('K' . $row, (isset($part['s14_quantity']) ? $part['s14_quantity'] . '개' : ''));
             $sheet->setCellValue('L' . $row, (int)$part_price);
             $sheet->setCellValue('M' . $row, $is_first ? ($as['s13_total_cost'] ?? '') : '');
             $sheet->setCellValue('N' . $row, $is_first ? $payment_method : '');
