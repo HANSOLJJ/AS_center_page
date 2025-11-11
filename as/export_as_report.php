@@ -5,7 +5,8 @@
  * as_statistics.php에서 호출되는 AS 완료 데이터 리포트 생성 파일
  * PhpSpreadsheet 라이브러리를 사용하여 XLSX 형식으로 내보냄
  * 날짜 범위 필터링 지원 (GET 파라미터: start_date, end_date, range)
- * 자재별 자동 줄 분리 (하나의 AS에 여러 자재가 있을 경우)
+ * 부품별 자동 줄 분리 (하나의 AS에 여러 부품이 있을 경우)
+ * 셀 merge를 통한 명확한 구조 제시
  */
 
 session_start();
@@ -61,25 +62,29 @@ if ($range === 'today') {
 // AS 완료 데이터 조회
 $where_clause = '';
 if (!empty($start_date) && !empty($end_date)) {
-    $where_clause = " WHERE a.s13_as_level = '5'
-                    AND DATE(a.s13_as_out_date) BETWEEN '" . mysql_real_escape_string($start_date) . "'
+    $where_clause = " WHERE s13_as_level = '5'
+                    AND DATE(s13_as_out_date) BETWEEN '" . mysql_real_escape_string($start_date) . "'
                     AND '" . mysql_real_escape_string($end_date) . "'";
 } else {
-    $where_clause = " WHERE a.s13_as_level = '5'";
+    $where_clause = " WHERE s13_as_level = '5'";
 }
 
 $query = "SELECT
-    a.s13_asid,
-    DATE_FORMAT(a.s13_as_out_date, '%Y-%m-%d') as as_out_date,
-    a.ex_company,
-    a.ex_sec1,
-    a.ex_address,
-    a.s13_bankcheck_w,
-    a.s20_tax_code,
-    a.ex_total_cost
-FROM step13_as a
+    s13_asid,
+    DATE_FORMAT(s13_as_in_date, '%Y-%m-%d') as as_in_date,
+    s13_as_in_how,
+    s13_as_out_no,
+    ex_company,
+    ex_sec1,
+    DATE_FORMAT(s13_as_out_date, '%Y-%m-%d') as as_out_date,
+    s13_as_end_result,
+    s13_total_cost,
+    s13_bankcheck_w,
+    COALESCE(ex_tel, '') as ex_tel,
+    s13_tax_code
+FROM step13_as
 $where_clause
-ORDER BY a.s13_asid DESC";
+ORDER BY s13_asid DESC";
 
 $result = mysql_query($query);
 
@@ -95,15 +100,21 @@ $sheet->setTitle('AS 리포트');
 // 헤더 작성
 $headers = array(
     'No',
-    '판매일',
+    '입고일',
+    '수탁방법',
+    '접수번호',
     '업체명',
     '형태',
-    '자재명',
+    '완료일',
+    '제품명',
+    '처리내역',
+    '사용 부품',
     '수량',
-    '총액',
-    '주소',
-    '세금계산서',
-    '결제방법'
+    '가격',
+    '총 수리비',
+    '결제방법',
+    '연락처',
+    '세금계산서'
 );
 
 $col = 'A';
@@ -119,144 +130,184 @@ $headerStyle = [
     'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
 ];
-$sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+$sheet->getStyle('A1:P1')->applyFromArray($headerStyle);
 
 // 데이터 행 작성
 $row = 2;
-$row_count = 0;
-$no = 1;
+$no = 0;
 
 while ($as = mysql_fetch_assoc($result)) {
+    $no++;
     $asid = $as['s13_asid'];
-    $as_out_date = $as['as_out_date'] ?? '';
-    $ex_company = $as['ex_company'] ?? '';
-    $ex_sec1 = $as['ex_sec1'] ?? '';
-    $ex_address = $as['ex_address'] ?? '';
-    $ex_total_cost = $as['ex_total_cost'] ?? '';
-    
-    // 세금계산서 여부
-    $tax_code = isset($as['s20_tax_code']) && $as['s20_tax_code'] ? '발행' : '미발행';
-    
-    // 결제방법
-    $payment_method = '확인중';
-    if (isset($as['s13_bankcheck_w'])) {
-        if ($as['s13_bankcheck_w'] === 'center') {
-            $payment_method = '센터 현금';
-        } elseif ($as['s13_bankcheck_w'] === 'base') {
-            $payment_method = '계좌이체';
-        }
+
+    // 결제방법 로직
+    $payment_method = '';
+    if ($as['s13_bankcheck_w'] === 'center') {
+        $payment_method = '센터 현금납부';
+    } elseif ($as['s13_bankcheck_w'] === 'base') {
+        $payment_method = '계좌이체';
+    } else {
+        $payment_method = '3월 8일 이후 확인가능';
     }
-    
-    // AS 자재 조회
+
+    // 세금계산서 표기
+    $tax_display = $as['s13_tax_code'] ? '발행' : '미발행';
+
+    // AS 제품명 조회
     $item_query = "SELECT
         s14_aiid,
-        cost_name,
-        s14_cart
+        cost_name
         FROM step14_as_item
         WHERE s14_asid = '" . mysql_real_escape_string($asid) . "'
-        ORDER BY s14_aiid ASC";
+        ORDER BY s14_aiid ASC
+        LIMIT 1";
     
     $item_result = mysql_query($item_query);
+    $product_name = '';
+    if ($item_result && mysql_num_rows($item_result) > 0) {
+        $item = mysql_fetch_assoc($item_result);
+        $product_name = $item['cost_name'] ?? '';
+    }
+
+    // AS 사용 부품 조회
+    $parts_query = "SELECT
+        s18_aiid,
+        s18_accid,
+        cost_name,
+        s18_quantity,
+        cost1
+        FROM step18_as_item
+        WHERE s18_aiid IN (SELECT s14_aiid FROM step14_as_item WHERE s14_asid = '" . mysql_real_escape_string($asid) . "')
+        ORDER BY s18_accid ASC";
     
-    if (!$item_result || mysql_num_rows($item_result) === 0) {
-        // 자재가 없으면 마스터 정보만 출력
+    $parts_result = mysql_query($parts_query);
+    $parts_count = $parts_result ? mysql_num_rows($parts_result) : 0;
+
+    if ($parts_count === 0) {
+        // 부품이 없으면 마스터 정보만 출력
         $sheet->setCellValue('A' . $row, $no);
-        $sheet->setCellValue('B' . $row, $as_out_date);
-        $sheet->setCellValue('C' . $row, $ex_company);
-        $sheet->setCellValue('D' . $row, $ex_sec1);
-        $sheet->setCellValue('E' . $row, '');
-        $sheet->setCellValue('F' . $row, '');
-        $sheet->setCellValue('G' . $row, $ex_total_cost);
-        $sheet->setCellValue('H' . $row, $ex_address);
-        $sheet->setCellValue('I' . $row, $tax_code);
-        $sheet->setCellValue('J' . $row, $payment_method);
-        
+        $sheet->setCellValue('B' . $row, $as['as_in_date']);
+        $sheet->setCellValue('C' . $row, $as['s13_as_in_how'] ?? '');
+        $sheet->setCellValue('D' . $row, $as['s13_as_out_no'] ?? '');
+        $sheet->setCellValue('E' . $row, $as['ex_company'] ?? '');
+        $sheet->setCellValue('F' . $row, $as['ex_sec1'] ?? '');
+        $sheet->setCellValue('G' . $row, $as['as_out_date']);
+        $sheet->setCellValue('H' . $row, $product_name);
+        $sheet->setCellValue('I' . $row, $as['s13_as_end_result'] ?? '');
+        $sheet->setCellValue('J' . $row, '');
+        $sheet->setCellValue('K' . $row, '');
+        $sheet->setCellValue('L' . $row, '');
+        $sheet->setCellValue('M' . $row, $as['s13_total_cost'] ?? '');
+        $sheet->setCellValue('N' . $row, $payment_method);
+        $sheet->setCellValue('O' . $row, $as['ex_tel']);
+        $sheet->setCellValue('P' . $row, $tax_display);
+
         // 데이터 셀 스타일
         $dataStyle = [
             'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ];
-        $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray($dataStyle);
-        
+        $sheet->getStyle('A' . $row . ':P' . $row)->applyFromArray($dataStyle);
+
         $row++;
-        $no++;
     } else {
-        // 자재별로 줄 작성
+        // 부품별로 줄 작성
+        $start_row = $row;
         $is_first = true;
-        $item_row_start = $row;
-        
-        while ($item = mysql_fetch_assoc($item_result)) {
-            if ($is_first) {
-                $sheet->setCellValue('A' . $row, $no);
-                $sheet->setCellValue('B' . $row, $as_out_date);
-                $sheet->setCellValue('C' . $row, $ex_company);
-                $sheet->setCellValue('D' . $row, $ex_sec1);
-            }
-            
-            $sheet->setCellValue('E' . $row, $item['cost_name'] ?? '');
-            $sheet->setCellValue('F' . $row, $item['s14_cart'] ?? '');
-            
-            if ($is_first) {
-                $sheet->setCellValue('G' . $row, $ex_total_cost);
-                $sheet->setCellValue('H' . $row, $ex_address);
-                $sheet->setCellValue('I' . $row, $tax_code);
-                $sheet->setCellValue('J' . $row, $payment_method);
-            }
-            
-            $row++;
+        while ($part = mysql_fetch_assoc($parts_result)) {
+            // 부품별 가격 계산 (수량 * 단가)
+            $part_price = (isset($part['s18_quantity']) && isset($part['cost1']))
+                ? ($part['s18_quantity'] * $part['cost1'])
+                : 0;
+
+            $sheet->setCellValue('A' . $row, $is_first ? $no : '');
+            $sheet->setCellValue('B' . $row, $is_first ? $as['as_in_date'] : '');
+            $sheet->setCellValue('C' . $row, $is_first ? ($as['s13_as_in_how'] ?? '') : '');
+            $sheet->setCellValue('D' . $row, $is_first ? ($as['s13_as_out_no'] ?? '') : '');
+            $sheet->setCellValue('E' . $row, $is_first ? ($as['ex_company'] ?? '') : '');
+            $sheet->setCellValue('F' . $row, $is_first ? ($as['ex_sec1'] ?? '') : '');
+            $sheet->setCellValue('G' . $row, $is_first ? $as['as_out_date'] : '');
+            $sheet->setCellValue('H' . $row, $is_first ? $product_name : '');
+            $sheet->setCellValue('I' . $row, $is_first ? ($as['s13_as_end_result'] ?? '') : '');
+            $sheet->setCellValue('J' . $row, $part['cost_name'] ?? '');
+            $sheet->setCellValue('K' . $row, (isset($part['s18_quantity']) ? $part['s18_quantity'] . '개' : ''));
+            $sheet->setCellValue('L' . $row, (int)$part_price);
+            $sheet->setCellValue('M' . $row, $is_first ? ($as['s13_total_cost'] ?? '') : '');
+            $sheet->setCellValue('N' . $row, $is_first ? $payment_method : '');
+            $sheet->setCellValue('O' . $row, $is_first ? $as['ex_tel'] : '');
+            $sheet->setCellValue('P' . $row, $is_first ? $tax_display : '');
+
+            // 데이터 셀 스타일 적용
+            $sheet->getStyle('A' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('B' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('C' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('D' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('E' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('F' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('G' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('H' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('I' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('J' . $row)->applyFromArray(['alignment' => ['horizontal' => 'left', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('K' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('L' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('M' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('N' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('O' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+            $sheet->getStyle('P' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+
             $is_first = false;
+            $row++;
         }
-        
-        // Merge cells for non-item columns
-        if ($row - 1 > $item_row_start) {
-            // Merge A column (No)
-            $sheet->mergeCells('A' . $item_row_start . ':A' . ($row - 1));
-            // Merge B column (판매일)
-            $sheet->mergeCells('B' . $item_row_start . ':B' . ($row - 1));
-            // Merge C column (업체명)
-            $sheet->mergeCells('C' . $item_row_start . ':C' . ($row - 1));
-            // Merge D column (형태)
-            $sheet->mergeCells('D' . $item_row_start . ':D' . ($row - 1));
-            // Merge G column (총액)
-            $sheet->mergeCells('G' . $item_row_start . ':G' . ($row - 1));
-            // Merge H column (주소)
-            $sheet->mergeCells('H' . $item_row_start . ':H' . ($row - 1));
-            // Merge I column (세금계산서)
-            $sheet->mergeCells('I' . $item_row_start . ':I' . ($row - 1));
-            // Merge J column (결제방법)
-            $sheet->mergeCells('J' . $item_row_start . ':J' . ($row - 1));
+
+        // 셀 merge (A, B, C, D, E, F, G, H, I, M, N, O, P 컬럼)
+        if ($parts_count > 1) {
+            $end_row = $row - 1;
+            $sheet->mergeCells('A' . $start_row . ':A' . $end_row);
+            $sheet->mergeCells('B' . $start_row . ':B' . $end_row);
+            $sheet->mergeCells('C' . $start_row . ':C' . $end_row);
+            $sheet->mergeCells('D' . $start_row . ':D' . $end_row);
+            $sheet->mergeCells('E' . $start_row . ':E' . $end_row);
+            $sheet->mergeCells('F' . $start_row . ':F' . $end_row);
+            $sheet->mergeCells('G' . $start_row . ':G' . $end_row);
+            $sheet->mergeCells('H' . $start_row . ':H' . $end_row);
+            $sheet->mergeCells('I' . $start_row . ':I' . $end_row);
+            $sheet->mergeCells('M' . $start_row . ':M' . $end_row);
+            $sheet->mergeCells('N' . $start_row . ':N' . $end_row);
+            $sheet->mergeCells('O' . $start_row . ':O' . $end_row);
+            $sheet->mergeCells('P' . $start_row . ':P' . $end_row);
         }
-        
-        // Apply styles to all rows for this AS
-        for ($i = $item_row_start; $i < $row; $i++) {
-            $dataStyle = [
-                'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
-                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
-            ];
-            $sheet->getStyle('A' . $i . ':J' . $i)->applyFromArray($dataStyle);
-        }
-        
-        $no++;
     }
 }
 
 // 열 너비 자동 조정
 $sheet->getColumnDimension('A')->setWidth(8);
-$sheet->getColumnDimension('B')->setWidth(15);
-$sheet->getColumnDimension('C')->setWidth(20);
-$sheet->getColumnDimension('D')->setWidth(12);
-$sheet->getColumnDimension('E')->setWidth(20);
-$sheet->getColumnDimension('F')->setWidth(10);
-$sheet->getColumnDimension('G')->setWidth(15);
+$sheet->getColumnDimension('B')->setWidth(12);
+$sheet->getColumnDimension('C')->setWidth(12);
+$sheet->getColumnDimension('D')->setWidth(15);
+$sheet->getColumnDimension('E')->setWidth(18);
+$sheet->getColumnDimension('F')->setWidth(12);
+$sheet->getColumnDimension('G')->setWidth(12);
 $sheet->getColumnDimension('H')->setWidth(25);
-$sheet->getColumnDimension('I')->setWidth(12);
-$sheet->getColumnDimension('J')->setWidth(15);
+$sheet->getColumnDimension('I')->setWidth(20);
+$sheet->getColumnDimension('J')->setWidth(25);
+$sheet->getColumnDimension('K')->setWidth(10);
+$sheet->getColumnDimension('L')->setWidth(12);
+$sheet->getColumnDimension('M')->setWidth(12);
+$sheet->getColumnDimension('N')->setWidth(15);
+$sheet->getColumnDimension('O')->setWidth(15);
+$sheet->getColumnDimension('P')->setWidth(10);
+
+// L 컬럼(가격)에 숫자 포맷 적용 (천 단위 쉼표)
+$sheet->getStyle('L2:L' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
+
+// M 컬럼(총 수리비)에 숫자 포맷 적용 (천 단위 쉼표)
+$sheet->getStyle('M2:M' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
 
 // 행 높이 설정
 $sheet->getRowDimension('1')->setRowHeight(25);
 
 // 파일명 생성
-$filename = 'AS_Report_' . date('Ymd_His') . '.xlsx';
+$filename = 'AS_Report_' . date('YmdHis') . '.xlsx';
 
 // 헤더 설정
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
