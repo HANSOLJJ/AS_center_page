@@ -1108,38 +1108,44 @@ function getStatusColor($level)
                                     </strong>
                                 </td>
 
-                                <!-- 관리 섹션 -->
+                                <!-- 관리 섹션: 첫 번째 셀 (완료/이전/보기 버튼) -->
                                 <?php if ($current_tab === 'working'): ?>
+                                    <!-- working 탭: 완료 버튼 -->
                                     <td rowspan="<?php echo $rowspan; ?>">
                                         <button onclick="completeAS(<?php echo $as_info['s13_asid']; ?>)"
                                             class="action-btn view">완료</button>
                                     </td>
                                 <?php elseif ($current_tab === 'completed'): ?>
+                                    <!-- completed 탭: 이전 버튼 -->
                                     <td rowspan="<?php echo $rowspan; ?>">
                                         <a href="as_repair_handler.php?action=restore&itemid=<?php echo $items[0]['s14_aiid']; ?>&tab=completed"
                                             class="action-btn edit"
-                                            onclick="return confirm('수리 작업을 초기화하고 요청 탭으로 되돌리시겠습니까?');">이전</a>
+                                            onclick="return confirm('수리 작업을 초기화하시겠습니까?');">이전</a>
                                     </td>
-
                                 <?php else: ?>
+                                    <!-- request 탭 또는 기타 -->
+                                    <td rowspan="<?php echo $rowspan; ?>"></td>
                                 <?php endif; ?>
+
                                 <?php if ($item_count > 0): ?>
                                     <?php if ($current_tab === 'request'): ?>
-                                        <!-- AS작업 (수리 버튼 right align) - 비working 탭 -->
+                                        <!-- request 탭: 수리 작업 등록 -->
                                         <td style="text-align: right; padding-right: 8px;">
                                             <button onclick="repairItem(<?php echo $items[0]['s14_aiid']; ?>)" class="action-btn"
                                                 style="font-size: 11px; padding: 5px 8px; background: #f39c12;">수리 작업 등록</button>
                                         </td>
                                     <?php elseif ($current_tab === 'completed'): ?>
+                                        <!-- completed 탭: 보기 -->
                                         <td rowspan="<?php echo $rowspan; ?>">
                                             <a href="as_request_view.php?id=<?php echo intval($as_info['s13_asid'] ?? 0); ?>"
                                                 class="action-btn view" target="_blank">보기</a>
                                         </td>
-                                    <?php else: ?>
+                                    <?php elseif ($current_tab === 'working'): ?>
+                                        <!-- working 탭: 이전 버튼 -->
                                         <td rowspan="<?php echo $rowspan; ?>">
                                             <a href="as_repair_handler.php?action=restore&itemid=<?php echo $items[0]['s14_aiid']; ?>&tab=working"
                                                 class="action-btn edit"
-                                                onclick="return confirm('수리 작업을 초기화하고 요청 탭으로 되돌리시겠습니까?');">이전</a>
+                                                onclick="return confirm('수리 작업을 초기화하시겠습니까?');">이전</a>
                                         </td>
                                     <?php endif; ?>
                                     <?php if ($current_tab === 'request'): ?>
