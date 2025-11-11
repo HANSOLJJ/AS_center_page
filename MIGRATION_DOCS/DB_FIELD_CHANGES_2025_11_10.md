@@ -655,11 +655,22 @@ export_as_report.php에서 총 수리비로 사용되는 필드는 s13_total_cos
 - ex_total_cost: 개념적 증복
 - s13_total_cost: step13_as 테이블의 통일 필드명 규칙
 
-### 9-2. DB 뻤그레이션 SQL
+### 9-2. DB 뻤그레이션 SQL (데이터 마이그레이션)
 
 ```sql
--- 2025-11-10: step13_as 테이블에서 ex_total_cost 필드를 s13_total_cost로 이름 변경
-ALTER TABLE step13_as CHANGE COLUMN ex_total_cost s13_total_cost INT(11) DEFAULT 0;
+-- Step 1: ex_total_cost 데이터를 s13_total_cost로 복사
+UPDATE step13_as SET s13_total_cost = ex_total_cost WHERE ex_total_cost IS NOT NULL;
+
+-- Step 2: ex_total_cost 필드 삭제
+ALTER TABLE step13_as DROP COLUMN ex_total_cost;
+
+-- Step 3: 데이터 검증
+SELECT COUNT(*) as total_records,
+       COUNT(CASE WHEN s13_total_cost IS NOT NULL AND s13_total_cost > 0 THEN 1 END) as with_cost
+FROM step13_as;
+
+-- Step 4: 필드 목록 확인
+DESCRIBE step13_as;
 ```
 
 ### 9-3. PHP 소스코드 수정
