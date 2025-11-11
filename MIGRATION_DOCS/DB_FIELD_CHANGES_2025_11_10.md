@@ -647,50 +647,57 @@ docker exec as_mysql mysql -u mic4u_user -pchange_me mic4u -e "SELECT COUNT(*) F
 
 ---
 
-## 9️⃣ 불필요 필드 삭제 (2025-11-10)
+## 9️⃣ 필드명 통일화: ex_total_cost → s13_total_cost (2025-11-10)
 
-### 9-1. s13_total_cost 필드 삭제
+### 9-1. 목적
 
-**목적**: ex_total_cost로 통일되었으므로 중복된 필드 제거
+export_as_report.php에서 총 수리비로 사용되는 필드는 s13_total_cost이어야 함.
+- ex_total_cost: 개념적 증복
+- s13_total_cost: step13_as 테이블의 통일 필드명 규칙
+
+### 9-2. DB 뻤그레이션 SQL
 
 ```sql
--- 2025-11-10: step13_as 테이블에서 s13_total_cost 필드 삭제
-ALTER TABLE step13_as DROP COLUMN s13_total_cost;
+-- 2025-11-10: step13_as 테이블에서 ex_total_cost 필드를 s13_total_cost로 이름 변경
+ALTER TABLE step13_as CHANGE COLUMN ex_total_cost s13_total_cost INT(11) DEFAULT 0;
 ```
 
-**영향받는 PHP 파일**:
-- `as/as_request_view.php` - SELECT 쿼리에서 필드 제거, 변수 초기화 제거
-- `as/export_as_report.php` - SELECT 쿼리에서 필드 제거 (이미 ex_total_cost 사용 중)
+### 9-3. PHP 소스코드 수정
 
-**변경 내용**:
+**영향받는 4개 파일**:
 
-#### 1. as_request_view.php
-- Line 20: SELECT 쿼리에서 s13_total_cost 제거
-- Line 36: $my_s13_total_cost 변수 할당 제거
+#### 1. as/as_repair_handler.php
+- Line 52-53: 주석 및 SELECT 등에서 ex_total_cost → s13_total_cost
+- Line 258-265: 되돌리 중 ex_total_cost 업데이트 로직 변경
 
-#### 2. export_as_report.php  
-- Line 80: SELECT 쿼리에서 s13_total_cost 제거
+#### 2. as/as_requests.php
+- Line 1072: 주석 ex_total_cost → s13_total_cost
+- Line 1076: 변수 할당 ex_total_cost → s13_total_cost
 
-**이유**: 
-- s13_total_cost와 ex_total_cost가 중복되어 관리 복잡성 증가
-- export_as_report.php에서 M열(총 수리비)은 ex_total_cost만 사용
-- as_request_view.php는 $my_s13_total_cost 변수가 현재 파일 내에서 사용되지 않음
-- 최신 AS 시스템에서는 ex_total_cost만 필요
+#### 3. as/as_statistics.php
+- Line 66: SELECT 보낸에서 COALESCE(ex_total_cost, 0) → COALESCE(s13_total_cost, 0)
+- Line 98: 되돌리 통계 솨쳺까넷에서 COALESCE(ex_total_cost, 0) → COALESCE(s13_total_cost, 0)
 
-**검증 SQL**:
+#### 4. as/export_as_report.php
+- Line 80: SELECT 에서 ex_total_cost → s13_total_cost
+- Line 201, 236: M열 지나개에서 ex_total_cost → s13_total_cost
+
+### 9-4. 검증 SQL
+
 ```sql
--- 삭제 전 백업
+-- 동메보난 도 확인
+DESCRIBE step13_as;
+-- ex_total_cost는 따로나고 s13_total_cost가 있어야 함
+
+-- 데이터 샘플
 SELECT s13_asid, s13_total_cost 
 FROM step13_as 
-WHERE s13_total_cost IS NOT NULL AND s13_total_cost != ''
+WHERE s13_total_cost IS NOT NULL AND s13_total_cost > 0
 LIMIT 10;
 
--- 삭제 후 확인
-DESCRIBE step13_as;
--- s13_total_cost가 없어야 함
-
 -- 필드 목록 확인
-SHOW COLUMNS FROM step13_as WHERE Field LIKE 's13_%';
+SHOW COLUMNS FROM step13_as WHERE Field IN ('s13_total_cost', 'ex_total_cost');
+-- 지로 s13_total_cost만 나타나야 함
 ```
 
 ---

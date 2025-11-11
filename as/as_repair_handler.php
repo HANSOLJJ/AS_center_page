@@ -49,8 +49,8 @@ if ($action === 'restore') {
     $reset_item_query = "UPDATE step14_as_item SET as_end_result = NULL, s14_cart = 0 WHERE s14_aiid = $itemid";
     @mysql_query($reset_item_query);
 
-    // 3. step13_as의 s13_as_level을 '1'(요청)로, ex_total_cost를 0으로 설정
-    $reset_as_query = "UPDATE step13_as SET s13_as_level = '1', ex_total_cost = 0 WHERE s13_asid = $asid";
+    // 3. step13_as의 s13_as_level을 '1'(요청)로, s13_total_cost를 0으로 설정
+    $reset_as_query = "UPDATE step13_as SET s13_as_level = '1', s13_total_cost = 0 WHERE s13_asid = $asid";
     @mysql_query($reset_as_query);
 
     // 리다이렉트
@@ -255,14 +255,14 @@ if ($action === 'save_repair_step') {
             }
 
             // ========================================
-            // ex_total_cost 계산 및 업데이트
+            // s13_total_cost 계산 및 업데이트
             // ========================================
             $total_cost_query = "SELECT SUM(cost1 * s18_quantity) as total_cost FROM step18_as_cure_cart WHERE s18_asid = $asid";
             $total_cost_result = @mysql_query($total_cost_query);
             if ($total_cost_result) {
                 $cost_row = mysql_fetch_assoc($total_cost_result);
                 $total_cost = intval($cost_row['total_cost'] ?? 0);
-                $update_total_cost_query = "UPDATE step13_as SET ex_total_cost = $total_cost WHERE s13_asid = $asid";
+                $update_total_cost_query = "UPDATE step13_as SET s13_total_cost = $total_cost WHERE s13_asid = $asid";
                 @mysql_query($update_total_cost_query);
             }
         } else {

@@ -1069,11 +1069,11 @@ function getStatusColor($level)
                                         -
                                     <?php endif; ?>
                                 </td>
-                                <!-- 총액 (step13_as.ex_total_cost) -->
+                                <!-- 총액 (step13_as.s13_total_cost) -->
                                 <td rowspan="<?php echo $rowspan; ?>" style="text-align: center; vertical-align: middle;">
                                     <strong style="color: #000; font-size: 14px; font-weight: 600;">
                                         <?php
-                                        $total = intval($as_info['ex_total_cost'] ?? 0);
+                                        $total = intval($as_info['s13_total_cost'] ?? 0);
                                         echo $total > 0 ? number_format($total) . '원' : '-';
                                         ?>
                                     </strong>

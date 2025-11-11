@@ -63,7 +63,7 @@ function getStatistics($connect, $start_date, $end_date)
         SUM(CASE WHEN s13_as_level NOT IN ('2','3','4','5') THEN 1 ELSE 0 END) as as_request,
         SUM(CASE WHEN s13_as_level IN ('2','3','4') THEN 1 ELSE 0 END) as as_working,
         SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as as_completed,
-        SUM(COALESCE(ex_total_cost, 0)) as total_as_cost
+        SUM(COALESCE(s13_total_cost, 0)) as total_as_cost
         FROM step13_as
         $as_where";
 
@@ -95,7 +95,7 @@ function getMonthlyASStats($connect)
     $query = "SELECT
         DATE_FORMAT(s13_as_out_date, '%Y-%m') as month,
         SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN s13_as_level = '5' THEN COALESCE(ex_total_cost, 0) ELSE 0 END) as total_cost
+        SUM(CASE WHEN s13_as_level = '5' THEN COALESCE(s13_total_cost, 0) ELSE 0 END) as total_cost
         FROM step13_as
         WHERE s13_as_level = '5' AND s13_as_out_date IS NOT NULL
         GROUP BY DATE_FORMAT(s13_as_out_date, '%Y-%m')
