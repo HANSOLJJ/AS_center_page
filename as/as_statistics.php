@@ -596,9 +596,9 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
                     <input type="hidden" id="range-input-stat" name="range" value="">
                     <button type="submit">검색</button>
-                    <button type="button" onclick="downloadReport('export_xlsx_as_report.php')"
+                    <button type="button" onclick="downloadReport('export_as_report.php')"
                         style="margin-left: 10px; padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 AS 리포트</button>
-                    <button type="button" onclick="downloadReport('export_xlsx_sales_report.php')"
+                    <button type="button" onclick="downloadReport('export_sales_report.php')"
                         style="margin-left: 5px; padding: 8px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 판매 리포트</button>
                 </div>
             </form>

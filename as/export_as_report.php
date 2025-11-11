@@ -1,4 +1,12 @@
 <?php
+/**
+ * AS 리포트 XLSX 내보내기
+ *
+ * as_statistics.php에서 호출되는 AS 완료 데이터 리포트 생성 파일
+ * PhpSpreadsheet 라이브러리를 사용하여 XLSX 형식으로 내보냄
+ * 날짜 범위 필터링 지원 (GET 파라미터: start_date, end_date, range)
+ */
+
 session_start();
 
 // 로그인 확인
@@ -12,9 +20,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Borders;
 
 // MySQL 호환성 레이어 로드
 require_once 'mysql_compat.php';
