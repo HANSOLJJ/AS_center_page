@@ -83,7 +83,7 @@ $query = "SELECT
     s13_tax_code
 FROM step13_as
 $where_clause
-ORDER BY s13_asid DESC";
+ORDER BY s13_as_out_date DESC";
 
 $result = mysql_query($query);
 

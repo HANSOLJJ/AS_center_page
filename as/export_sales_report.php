@@ -82,7 +82,7 @@ $query = "SELECT
     s20_bankcheck_w
 FROM step20_sell
 $where_clause
-ORDER BY s20_sellid DESC";
+ORDER BY s20_sell_out_date DESC";
 
 $result = mysql_query($query);
 
