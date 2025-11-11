@@ -205,25 +205,24 @@ $workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 file_put_contents($temp_dir . '/xl/workbook.xml', $workbook);
 
 // ===== sheet1.xml (메인 데이터) =====
-$sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<sheetData>';
+$sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n";
+$sheet .= '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' . "\n";
+$sheet .= '<sheetData>' . "\n";
 
 // 헤더 행
-$sheet .= '
-<row r="1">
-<c r="A1" s="1"><v>No</v></c>
-<c r="B1" s="1"><v>판매일</v></c>
-<c r="C1" s="1"><v>접수번호</v></c>
-<c r="D1" s="1"><v>업체명</v></c>
-<c r="E1" s="1"><v>형태</v></c>
-<c r="F1" s="1"><v>부품명 | 개수 | 가격</v></c>
-<c r="G1" s="1"><v>총 액</v></c>
-<c r="H1" s="1"><v>주소</v></c>
-<c r="I1" s="1"><v>연락처</v></c>
-<c r="J1" s="1"><v>세금계산서발행</v></c>
-<c r="K1" s="1"><v>결제방법</v></c>
-</row>';
+$sheet .= '<row r="1">' . "\n";
+$sheet .= '  <c r="A1" s="1"><v>No</v></c>' . "\n";
+$sheet .= '  <c r="B1" s="1"><v>판매일</v></c>' . "\n";
+$sheet .= '  <c r="C1" s="1"><v>접수번호</v></c>' . "\n";
+$sheet .= '  <c r="D1" s="1"><v>업체명</v></c>' . "\n";
+$sheet .= '  <c r="E1" s="1"><v>형태</v></c>' . "\n";
+$sheet .= '  <c r="F1" s="1"><v>부품명 | 개수 | 가격</v></c>' . "\n";
+$sheet .= '  <c r="G1" s="1"><v>총 액</v></c>' . "\n";
+$sheet .= '  <c r="H1" s="1"><v>주소</v></c>' . "\n";
+$sheet .= '  <c r="I1" s="1"><v>연락처</v></c>' . "\n";
+$sheet .= '  <c r="J1" s="1"><v>세금계산서발행</v></c>' . "\n";
+$sheet .= '  <c r="K1" s="1"><v>결제방법</v></c>' . "\n";
+$sheet .= '</row>' . "\n";
 
 // 데이터 행
 $row_num = 2;
@@ -231,9 +230,9 @@ $no = 1;
 foreach ($sales_data as $sale) {
     $s1 = $no; // No
     $s2 = $sale['sell_date']; // 판매일
-    $s3 = htmlspecialchars($sale['receipt_no']); // 접수번호
-    $s4 = htmlspecialchars($sale['ex_company']); // 업체명
-    $s5 = htmlspecialchars($sale['form']); // 형태
+    $s3 = htmlspecialchars($sale['receipt_no'], ENT_XML1, 'UTF-8'); // 접수번호
+    $s4 = htmlspecialchars($sale['ex_company'], ENT_XML1, 'UTF-8'); // 업체명
+    $s5 = htmlspecialchars($sale['form'], ENT_XML1, 'UTF-8'); // 형태
 
     // 부품명 | 개수 | 가격
     $cart_data = getSalesCartData($connect, $sale['s20_sellid']);
@@ -242,14 +241,15 @@ foreach ($sales_data as $sale) {
         $cost = intval($item['s21_sp_cost']) == 0 ? intval($item['cost1']) : intval($item['cost2']);
         $total_item_cost = intval($item['s21_quantity']) * $cost;
         if (!empty($parts_info)) $parts_info .= ' | ';
-        $parts_info .= htmlspecialchars($item['cost_name']) . ' | ' . intval($item['s21_quantity']) . '개 | ' . number_format($total_item_cost);
+        $parts_info .= htmlspecialchars($item['cost_name'], ENT_XML1, 'UTF-8') . ' | ' . intval($item['s21_quantity']) . '개 | ' . number_format($total_item_cost);
     }
+    $parts_info = htmlspecialchars($parts_info, ENT_XML1, 'UTF-8');
 
     // 총액
     $s7 = calculateSalesTotal($connect, $sale['s20_sellid']);
 
-    $s8 = htmlspecialchars($sale['ex_address']); // 주소
-    $s9 = htmlspecialchars($sale['ex_tel'] . '(' . $sale['ex_sms_no'] . ')'); // 연락처
+    $s8 = htmlspecialchars($sale['ex_address'], ENT_XML1, 'UTF-8'); // 주소
+    $s9 = htmlspecialchars($sale['ex_tel'] . '(' . $sale['ex_sms_no'] . ')', ENT_XML1, 'UTF-8'); // 연락처
 
     // 세금계산서
     $s10 = $sale['s20_tax_code'] == '' ? '미발행' : '발행';
@@ -263,30 +263,28 @@ foreach ($sales_data as $sale) {
     }
 
     // XML 셀 작성 (이스케이프)
-    $sheet .= '
-<row r="' . $row_num . '">
-<c r="A' . $row_num . '"><v>' . $s1 . '</v></c>
-<c r="B' . $row_num . '"><v>' . $s2 . '</v></c>
-<c r="C' . $row_num . '"><v>' . $s3 . '</v></c>
-<c r="D' . $row_num . '"><v>' . $s4 . '</v></c>
-<c r="E' . $row_num . '"><v>' . $s5 . '</v></c>
-<c r="F' . $row_num . '"><v>' . $parts_info . '</v></c>
-<c r="G' . $row_num . '"><v>' . $s7 . '</v></c>
-<c r="H' . $row_num . '"><v>' . $s8 . '</v></c>
-<c r="I' . $row_num . '"><v>' . $s9 . '</v></c>
-<c r="J' . $row_num . '"><v>' . $s10 . '</v></c>
-<c r="K' . $row_num . '"><v>' . $s11 . '</v></c>
-</row>';
+    $sheet .= '<row r="' . $row_num . '">' . "\n";
+    $sheet .= '  <c r="A' . $row_num . '"><v>' . $s1 . '</v></c>' . "\n";
+    $sheet .= '  <c r="B' . $row_num . '"><v>' . $s2 . '</v></c>' . "\n";
+    $sheet .= '  <c r="C' . $row_num . '"><v>' . $s3 . '</v></c>' . "\n";
+    $sheet .= '  <c r="D' . $row_num . '"><v>' . $s4 . '</v></c>' . "\n";
+    $sheet .= '  <c r="E' . $row_num . '"><v>' . $s5 . '</v></c>' . "\n";
+    $sheet .= '  <c r="F' . $row_num . '"><v>' . $parts_info . '</v></c>' . "\n";
+    $sheet .= '  <c r="G' . $row_num . '"><v>' . $s7 . '</v></c>' . "\n";
+    $sheet .= '  <c r="H' . $row_num . '"><v>' . $s8 . '</v></c>' . "\n";
+    $sheet .= '  <c r="I' . $row_num . '"><v>' . $s9 . '</v></c>' . "\n";
+    $sheet .= '  <c r="J' . $row_num . '"><v>' . $s10 . '</v></c>' . "\n";
+    $sheet .= '  <c r="K' . $row_num . '"><v>' . $s11 . '</v></c>' . "\n";
+    $sheet .= '</row>' . "\n";
 
     $row_num++;
     $no++;
 }
 
-$sheet .= '
-</sheetData>
-<mergeCells count="0"/>
-<pageMargins left="0.7" top="0.75" right="0.7" bottom="0.75" header="0.3" footer="0.3"/>
-</worksheet>';
+$sheet .= '</sheetData>' . "\n";
+$sheet .= '<mergeCells count="0"/>' . "\n";
+$sheet .= '<pageMargins left="0.7" top="0.75" right="0.7" bottom="0.75" header="0.3" footer="0.3"/>' . "\n";
+$sheet .= '</worksheet>';
 
 file_put_contents($temp_dir . '/xl/worksheets/sheet1.xml', $sheet);
 
