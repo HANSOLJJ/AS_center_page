@@ -198,7 +198,7 @@ while ($as = mysql_fetch_assoc($result)) {
         $sheet->setCellValue('J' . $row, '');
         $sheet->setCellValue('K' . $row, '');
         $sheet->setCellValue('L' . $row, '');
-        $sheet->setCellValue('M' . $row, $as['s13_total_cost'] ?? '');
+        $sheet->setCellValue('M' . $row, isset($as['s13_total_cost']) ? (int)$as['s13_total_cost'] : '');
         $sheet->setCellValue('N' . $row, $payment_method);
         $sheet->setCellValue('O' . $row, $as['ex_tel']);
         $sheet->setCellValue('P' . $row, $tax_display);
@@ -233,7 +233,7 @@ while ($as = mysql_fetch_assoc($result)) {
             $sheet->setCellValue('J' . $row, $part['cost_name'] ?? '');
             $sheet->setCellValue('K' . $row, (isset($part['s18_quantity']) ? $part['s18_quantity'] . '개' : ''));
             $sheet->setCellValue('L' . $row, (int)$part_price);
-            $sheet->setCellValue('M' . $row, $is_first ? ($as['s13_total_cost'] ?? '') : '');
+            $sheet->setCellValue('M' . $row, $is_first ? (isset($as['s13_total_cost']) ? (int)$as['s13_total_cost'] : '') : '');
             $sheet->setCellValue('N' . $row, $is_first ? $payment_method : '');
             $sheet->setCellValue('O' . $row, $is_first ? $as['ex_tel'] : '');
             $sheet->setCellValue('P' . $row, $is_first ? $tax_display : '');
