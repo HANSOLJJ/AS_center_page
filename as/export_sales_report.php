@@ -74,7 +74,7 @@ $query = "SELECT
     DATE_FORMAT(s20_sell_out_date, '%Y-%m-%d %H:%i') as sell_out_date,
     ex_company,
     ex_sec1,
-    ex_adress,
+    COALESCE(ex_address, '') as ex_address,
     s20_total_cost,
     s20_tax_code,
     s20_bankcheck_w
@@ -162,7 +162,7 @@ while ($sale = mysql_fetch_assoc($result)) {
         $sheet->setCellValue('E' . $row, '');
         $sheet->setCellValue('F' . $row, '');
         $sheet->setCellValue('G' . $row, $sale['s20_total_cost'] ?? '');
-        $sheet->setCellValue('H' . $row, $sale['ex_adress'] ?? '');
+        $sheet->setCellValue('H' . $row, $sale['ex_address'] ?? '');
         $sheet->setCellValue('I' . $row, $sale['s20_tax_code'] ? '발행' : '미발행');
         $sheet->setCellValue('J' . $row, $payment_method);
 
@@ -187,7 +187,7 @@ while ($sale = mysql_fetch_assoc($result)) {
             $sheet->setCellValue('E' . $row, $cart['cost_name'] ?? '');
             $sheet->setCellValue('F' . $row, $cart['s21_quantity'] ?? '');
             $sheet->setCellValue('G' . $row, $is_first ? ($sale['s20_total_cost'] ?? '') : '');
-            $sheet->setCellValue('H' . $row, $is_first ? ($sale['ex_adress'] ?? '') : '');
+            $sheet->setCellValue('H' . $row, $is_first ? ($sale['ex_address'] ?? '') : '');
             $sheet->setCellValue('I' . $row, $is_first ? ($sale['s20_tax_code'] ? '발행' : '미발행') : '');
             $sheet->setCellValue('J' . $row, $is_first ? $payment_method : '');
 
