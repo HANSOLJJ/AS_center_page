@@ -22,6 +22,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 // MySQL 호환성 레이어 로드
 require_once 'mysql_compat.php';
@@ -134,15 +135,14 @@ while ($as = mysql_fetch_assoc($result)) {
     $cart_query = "SELECT
         s22_accid,
         cost_name,
-        s22_quantity,
-        cost1
+        s22_quantity
         FROM step22_as_cart
         WHERE s22_asid = '" . mysql_real_escape_string($asid) . "'
         ORDER BY s22_accid ASC";
 
     $cart_result = mysql_query($cart_query);
 
-    // 결제 방법 변환
+    // 결제 방법 변환 (receipt.php 로직 참고)
     $payment_method = '3월 8일 이후 확인가능';
     if ($as['s13_bankcheck_w'] === 'center') {
         $payment_method = '센터 현금납부';
@@ -184,6 +184,7 @@ while ($as = mysql_fetch_assoc($result)) {
         }
 
         $num_carts = count($cart_rows);
+        $start_row = $row;
 
         foreach ($cart_rows as $idx => $cart) {
             $sheet->setCellValue('A' . $row, $is_first ? $no_counter : '');
@@ -207,6 +208,59 @@ while ($as = mysql_fetch_assoc($result)) {
             $is_first = false;
             $row++;
             $row_count++;
+        }
+
+        // 여러 자재가 있으면 merge 처리 (A, B, C, D, G, H, I, J 열)
+        if ($num_carts > 1) {
+            $end_row = $row - 1;
+            
+            // A열 (No) merge
+            $sheet->mergeCells('A' . $start_row . ':A' . $end_row);
+            $sheet->getStyle('A' . $start_row . ':A' . $end_row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            
+            // B열 (완료일) merge
+            $sheet->mergeCells('B' . $start_row . ':B' . $end_row);
+            $sheet->getStyle('B' . $start_row . ':B' . $end_row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            
+            // C열 (업체명) merge
+            $sheet->mergeCells('C' . $start_row . ':C' . $end_row);
+            $sheet->getStyle('C' . $start_row . ':C' . $end_row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            
+            // D열 (형태) merge
+            $sheet->mergeCells('D' . $start_row . ':D' . $end_row);
+            $sheet->getStyle('D' . $start_row . ':D' . $end_row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            
+            // G열 (총액) merge
+            $sheet->mergeCells('G' . $start_row . ':G' . $end_row);
+            $sheet->getStyle('G' . $start_row . ':G' . $end_row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            
+            // H열 (주소) merge
+            $sheet->mergeCells('H' . $start_row . ':H' . $end_row);
+            $sheet->getStyle('H' . $start_row . ':H' . $end_row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            
+            // I열 (세금계산서) merge
+            $sheet->mergeCells('I' . $start_row . ':I' . $end_row);
+            $sheet->getStyle('I' . $start_row . ':I' . $end_row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            
+            // J열 (결제방법) merge
+            $sheet->mergeCells('J' . $start_row . ':J' . $end_row);
+            $sheet->getStyle('J' . $start_row . ':J' . $end_row)->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
         }
     }
 }
