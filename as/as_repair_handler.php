@@ -21,12 +21,11 @@ $response = array('success' => false, 'message' => '');
 $action = isset($_POST['action']) ? $_POST['action'] : (isset($_GET['action']) ? $_GET['action'] : '');
 
 if ($action === 'restore') {
-    // working 탭에서의 restore: s13_as_level만 '1'로 변경
-    // completed 탭의 restore는 나중에 구현
     $itemid = isset($_GET['itemid']) ? intval($_GET['itemid']) : 0;
+    $current_tab = isset($_GET['tab']) ? $_GET['tab'] : 'working';
 
     if ($itemid <= 0) {
-        header('Location: as_requests.php?tab=working&error=invalid_itemid');
+        header('Location: as_requests.php?tab=' . $current_tab . '&error=invalid_itemid');
         exit;
     }
 
@@ -35,19 +34,39 @@ if ($action === 'restore') {
     $verify_result = @mysql_query($verify_query);
 
     if (!$verify_result || mysql_num_rows($verify_result) == 0) {
-        header('Location: as_requests.php?tab=working&error=item_not_found');
+        header('Location: as_requests.php?tab=' . $current_tab . '&error=item_not_found');
         exit;
     }
 
     $item_row = mysql_fetch_assoc($verify_result);
     $asid = intval($item_row['s14_asid']);
 
-    // s13_as_level을 '1'로만 변경
-    $reset_as_query = "UPDATE step13_as SET s13_as_level = '1' WHERE s13_asid = $asid";
-    @mysql_query($reset_as_query);
+    // ======================================
+    // 탭별 처리
+    // ======================================
+    if ($current_tab === 'completed') {
+        // 완료 탭에서의 이전: 완료 관련 필드 초기화 + level을 2로 변경
+        $reset_as_query = "UPDATE step13_as
+                          SET s13_as_level = '2',
+                              s13_as_out_date = NULL,
+                              s13_bank_check = NULL,
+                              s13_bankcheck_w = NULL,
+                              s13_total_cost = NULL,
+                              s13_as_out_no = NULL,
+                              s13_as_out_no2 = NULL
+                          WHERE s13_asid = $asid";
+        @mysql_query($reset_as_query);
 
-    // 리다이렉트
-    header('Location: as_requests.php?tab=working&restored=1');
+        // 완료 탭으로 리다이렉트
+        header('Location: as_requests.php?tab=completed&restored=1');
+    } else {
+        // working 탭에서의 이전: level을 2로만 변경
+        $reset_as_query = "UPDATE step13_as SET s13_as_level = '2' WHERE s13_asid = $asid";
+        @mysql_query($reset_as_query);
+
+        // working 탭으로 리다이렉트
+        header('Location: as_requests.php?tab=working&restored=1');
+    }
     exit;
 }
 
