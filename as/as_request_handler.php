@@ -526,10 +526,10 @@ if ($action === 'completeAS') {
     $date_part = date('ymd'); // yymmdd 형식
 
     // 같은 날짜의 이전 레코드 개수 + 1 = 순번
-    $count_query = "SELECT COUNT(*) as cnt FROM step13_as WHERE DATE(s13_as_out_date) = DATE('$now') AND s13_asid <= $asid";
+    $count_query = "SELECT COUNT(*) as cnt FROM step13_as WHERE DATE(s13_as_out_date) = DATE('$now') AND s13_as_out_no IS NOT NULL";
     $count_result = @mysql_query($count_query);
     $count_row = @mysql_fetch_assoc($count_result);
-    $seq = intval($count_row['cnt']);
+    $seq = intval($count_row['cnt']) + 1;
     $seq_str = str_pad($seq, 3, '0', STR_PAD_LEFT);
 
     // s13_as_out_no: "NOyymmdd-SSS" 형식
