@@ -1137,7 +1137,7 @@ function getStatusColor($level)
                                         </td>
                                     <?php else: ?>
                                         <td rowspan="<?php echo $rowspan; ?>">
-                                            <a href="as_repair_handler.php?action=restore&itemid=<?php echo $items[0]['s14_aiid']; ?>"
+                                            <a href="as_repair_handler.php?action=restore&itemid=<?php echo $items[0]['s14_aiid']; ?>&tab=working"
                                                 class="action-btn edit"
                                                 onclick="return confirm('수리 작업을 초기화하고 요청 탭으로 되돌리시겠습니까?');">이전</a>
                                         </td>
