@@ -65,6 +65,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete') {
         // s14_aiid 기준 삭제 (해당 아이템만)
         $delete_itemid = intval($_GET['itemid']);
 
+        // 먼저 s13_asid 조회
+        $get_asid_query = "SELECT s14_asid FROM step14_as_item WHERE s14_aiid = $delete_itemid";
+        $get_asid_result = @mysql_query($get_asid_query);
+        $asid = 0;
+        if ($get_asid_result && mysql_num_rows($get_asid_result) > 0) {
+            $asid_row = mysql_fetch_assoc($get_asid_result);
+            $asid = intval($asid_row['s14_asid']);
+        }
+
         // step18_as_cure_cart에서 먼저 삭제 (외래키 제약 고려)
         $delete_cure_query = "DELETE FROM step18_as_cure_cart WHERE s18_aiid = $delete_itemid";
         @mysql_query($delete_cure_query);
@@ -72,6 +81,26 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete') {
         // step14_as_item 삭제
         $delete_query = "DELETE FROM step14_as_item WHERE s14_aiid = $delete_itemid";
         @mysql_query($delete_query);
+
+        // ======================================
+        // 해당 AS의 남은 제품이 있는지 확인
+        // ======================================
+        if ($asid > 0) {
+            $check_items_query = "SELECT COUNT(*) as item_count FROM step14_as_item WHERE s14_asid = $asid";
+            $check_items_result = @mysql_query($check_items_query);
+            $item_count = 0;
+            if ($check_items_result) {
+                $item_row = mysql_fetch_assoc($check_items_result);
+                $item_count = intval($item_row['item_count']);
+            }
+
+            // 제품이 더 이상 없으면 step13_as 레코드 삭제
+            if ($item_count == 0) {
+                $delete_as_query = "DELETE FROM step13_as WHERE s13_asid = $asid";
+                @mysql_query($delete_as_query);
+            }
+        }
+
         $delete_type = 'item';
     } elseif (isset($_GET['asid']) && intval($_GET['asid']) > 0) {
         // s13_asid 기준 삭제 (AS 요청 전체)
