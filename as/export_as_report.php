@@ -73,7 +73,7 @@ $query = "SELECT
     s13_asid,
     DATE_FORMAT(s13_as_out_date, '%Y-%m-%d') as as_out_date,
     ex_company,
-    ex_category,
+    ex_sec1,
     ex_adress,
     s13_total_cost,
     s13_tax_code,
@@ -158,7 +158,7 @@ while ($as = mysql_fetch_assoc($result)) {
         $sheet->setCellValue('A' . $row, $no_counter);
         $sheet->setCellValue('B' . $row, $as['as_out_date'] ?? '');
         $sheet->setCellValue('C' . $row, $as['ex_company'] ?? '');
-        $sheet->setCellValue('D' . $row, $as['ex_category'] ?? '');
+        $sheet->setCellValue('D' . $row, $as['ex_sec1'] ?? '');
         $sheet->setCellValue('E' . $row, '');
         $sheet->setCellValue('F' . $row, '');
         $sheet->setCellValue('G' . $row, $as['s13_total_cost'] ?? '');
@@ -190,7 +190,7 @@ while ($as = mysql_fetch_assoc($result)) {
             $sheet->setCellValue('A' . $row, $is_first ? $no_counter : '');
             $sheet->setCellValue('B' . $row, $is_first ? ($as['as_out_date'] ?? '') : '');
             $sheet->setCellValue('C' . $row, $is_first ? ($as['ex_company'] ?? '') : '');
-            $sheet->setCellValue('D' . $row, $is_first ? ($as['ex_category'] ?? '') : '');
+            $sheet->setCellValue('D' . $row, $is_first ? ($as['ex_sec1'] ?? '') : '');
             $sheet->setCellValue('E' . $row, $cart['cost_name'] ?? '');
             $sheet->setCellValue('F' . $row, $cart['s22_quantity'] ?? '');
             $sheet->setCellValue('G' . $row, $is_first ? ($as['s13_total_cost'] ?? '') : '');

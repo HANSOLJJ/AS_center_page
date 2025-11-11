@@ -73,7 +73,7 @@ $query = "SELECT
     s20_sellid,
     DATE_FORMAT(s20_sell_out_date, '%Y-%m-%d') as sell_out_date,
     ex_company,
-    ex_category,
+    ex_sec1,
     ex_adress,
     s20_total_cost,
     s20_tax_code,
@@ -158,7 +158,7 @@ while ($sale = mysql_fetch_assoc($result)) {
         $sheet->setCellValue('A' . $row, $no_counter);
         $sheet->setCellValue('B' . $row, $sale['sell_out_date'] ?? '');
         $sheet->setCellValue('C' . $row, $sale['ex_company'] ?? '');
-        $sheet->setCellValue('D' . $row, $sale['ex_category'] ?? '');
+        $sheet->setCellValue('D' . $row, $sale['ex_sec1'] ?? '');
         $sheet->setCellValue('E' . $row, '');
         $sheet->setCellValue('F' . $row, '');
         $sheet->setCellValue('G' . $row, $sale['s20_total_cost'] ?? '');
@@ -190,7 +190,7 @@ while ($sale = mysql_fetch_assoc($result)) {
             $sheet->setCellValue('A' . $row, $is_first ? $no_counter : '');
             $sheet->setCellValue('B' . $row, $is_first ? ($sale['sell_out_date'] ?? '') : '');
             $sheet->setCellValue('C' . $row, $is_first ? ($sale['ex_company'] ?? '') : '');
-            $sheet->setCellValue('D' . $row, $is_first ? ($sale['ex_category'] ?? '') : '');
+            $sheet->setCellValue('D' . $row, $is_first ? ($sale['ex_sec1'] ?? '') : '');
             $sheet->setCellValue('E' . $row, $cart['cost_name'] ?? '');
             $sheet->setCellValue('F' . $row, $cart['s21_quantity'] ?? '');
             $sheet->setCellValue('G' . $row, $is_first ? ($sale['s20_total_cost'] ?? '') : '');
