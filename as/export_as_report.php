@@ -34,7 +34,7 @@ mysql_select_db('mic4u', $connect);
 // 날짜 범위 파라미터
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
-$range = isset($_GET['range']) ? $_GET['range'] : 'month';
+$range = isset($_GET['range']) ? $_GET['range'] : '';
 
 // 기간 설정
 $today = date('Y-m-d');
@@ -59,36 +59,59 @@ if ($range === 'today') {
     $end_date = '';
 }
 
-// AS 완료 데이터 조회
+// AS 완료 데이터 조회 (JOIN으로 한 번에 모든 데이터 가져오기)
 $where_clause = '';
 if (!empty($start_date) && !empty($end_date)) {
-    $where_clause = " WHERE s13_as_level = '5'
-                    AND DATE(s13_as_out_date) BETWEEN '" . mysql_real_escape_string($start_date) . "'
+    $where_clause = " AND DATE(a.s13_as_out_date) BETWEEN '" . mysql_real_escape_string($start_date) . "'
                     AND '" . mysql_real_escape_string($end_date) . "'";
-} else {
-    $where_clause = " WHERE s13_as_level = '5'";
 }
 
+// 모든 데이터를 한 번에 JOIN으로 조회 (N+1 쿼리 문제 해결)
 $query = "SELECT
-    s13_asid,
-    DATE_FORMAT(s13_as_in_date, '%Y-%m-%d') as as_in_date,
-    s13_as_in_how,
-    s13_as_out_no,
-    ex_company,
-    ex_sec1,
-    DATE_FORMAT(s13_as_out_date, '%Y-%m-%d') as as_out_date,
-    step13_total_cost,
-    s13_bankcheck_w,
-    COALESCE(ex_tel, '') as ex_tel,
-    s13_tax_code
-FROM step13_as
+    a.s13_asid,
+    DATE_FORMAT(a.s13_as_in_date, '%Y-%m-%d') as as_in_date,
+    a.s13_as_in_how,
+    a.s13_as_out_no,
+    a.ex_company,
+    a.ex_sec1,
+    DATE_FORMAT(a.s13_as_out_date, '%Y-%m-%d') as as_out_date,
+    a.s13_total_cost,
+    a.s13_bankcheck_w,
+    COALESCE(a.ex_tel, '') as ex_tel,
+    a.s13_tax_code,
+    i.s14_aiid,
+    i.cost_name as item_cost_name,
+    i.as_end_result,
+    c.s18_accid,
+    c.cost_name as part_cost_name,
+    c.s18_quantity,
+    c.cost1
+FROM step13_as a
+LEFT JOIN step14_as_item i ON a.s13_asid = i.s14_asid
+LEFT JOIN step18_as_cure_cart c ON i.s14_aiid = c.s18_aiid
+WHERE a.s13_as_level = '5'
 $where_clause
-ORDER BY s13_as_out_date DESC";
+ORDER BY a.s13_asid, i.s14_aiid, c.s18_accid";
 
 $result = mysql_query($query);
 
 if (!$result) {
     die("오류: " . mysql_error());
+}
+
+// 메모리에 모든 데이터 로드 및 구조화
+$data_array = array();
+while ($row = mysql_fetch_assoc($result)) {
+    $asid = $row['s13_asid'];
+    if (!isset($data_array[$asid])) {
+        $data_array[$asid] = array(
+            'master' => $row,
+            'parts' => array()
+        );
+    }
+    if (!empty($row['s18_accid'])) {
+        $data_array[$asid]['parts'][] = $row;
+    }
 }
 
 // 스프레드시트 생성
@@ -99,12 +122,12 @@ $sheet->setTitle('AS 리포트');
 // 헤더 작성
 $headers = array(
     'No',
-    '입고일',
+    '완료일',
     '수탁방법',
     '접수번호',
     '업체명',
     '형태',
-    '완료일',
+    '입고일',
     '제품명',
     '처리내역',
     '사용 부품',
@@ -131,13 +154,15 @@ $headerStyle = [
 ];
 $sheet->getStyle('A1:P1')->applyFromArray($headerStyle);
 
-// 데이터 행 작성
+// 데이터 행 작성 (미리 로드된 배열 사용)
 $row = 2;
 $no = 0;
 
-while ($as = mysql_fetch_assoc($result)) {
+foreach ($data_array as $asid => $data) {
     $no++;
-    $asid = $as['s13_asid'];
+    $as = $data['master'];
+    $parts = $data['parts'];
+    $parts_count = count($parts);
 
     // 결제방법 로직
     $payment_method = '';
@@ -152,58 +177,30 @@ while ($as = mysql_fetch_assoc($result)) {
     // 세금계산서 표기
     $tax_display = $as['s13_tax_code'] ? '발행' : '미발행';
 
-    // AS 제품명 및 처리내역 조회
-    $item_query = "SELECT
-        s14_aiid,
-        cost_name,
-        as_end_result
-        FROM step14_as_item
-        WHERE s14_asid = '" . mysql_real_escape_string($asid) . "'
-        ORDER BY s14_aiid ASC
-        LIMIT 1";
-    
-    $item_result = mysql_query($item_query);
-    $product_name = '';
-    $end_result = '';
-    if ($item_result && mysql_num_rows($item_result) > 0) {
-        $item = mysql_fetch_assoc($item_result);
-        $product_name = $item['cost_name'] ?? '';
-        $end_result = $item['as_end_result'] ?? '';
-    }
-
-    // AS 사용 부품 조회
-    $parts_query = "SELECT
-        s18_aiid,
-        cost_name,
-        s18_quantity,
-        cost1
-        FROM step18_as_cure_cart
-        WHERE s18_aiid IN (SELECT s14_aiid FROM step14_as_item WHERE s14_asid = '" . mysql_real_escape_string($asid) . "')
-        ORDER BY s18_aiid ASC";
-    
-    $parts_result = mysql_query($parts_query);
-    $parts_count = $parts_result ? mysql_num_rows($parts_result) : 0;
+    // 제품명과 처리내역은 이미 로드됨
+    $product_name = $as['item_cost_name'] ?? '';
+    $end_result = $as['as_end_result'] ?? '';
 
     if ($parts_count === 0) {
         // 부품이 없으면 마스터 정보만 출력
         $sheet->setCellValue('A' . $row, $no);
-        $sheet->setCellValue('B' . $row, $as['as_in_date']);
+        $sheet->setCellValue('B' . $row, $as['as_out_date']);
         $sheet->setCellValue('C' . $row, $as['s13_as_in_how'] ?? '');
         $sheet->setCellValue('D' . $row, $as['s13_as_out_no'] ?? '');
         $sheet->setCellValue('E' . $row, $as['ex_company'] ?? '');
         $sheet->setCellValue('F' . $row, $as['ex_sec1'] ?? '');
-        $sheet->setCellValue('G' . $row, $as['as_out_date']);
+        $sheet->setCellValue('G' . $row, $as['as_in_date']);
         $sheet->setCellValue('H' . $row, $product_name);
         $sheet->setCellValue('I' . $row, $end_result);
         $sheet->setCellValue('J' . $row, '');
         $sheet->setCellValue('K' . $row, '');
         $sheet->setCellValue('L' . $row, '');
-        $sheet->setCellValue('M' . $row, isset($as['step13_total_cost']) ? (int)$as['step13_total_cost'] : '');
+        $sheet->setCellValue('M' . $row, isset($as['s13_total_cost']) ? (int) $as['s13_total_cost'] : '');
         $sheet->setCellValue('N' . $row, $payment_method);
         $sheet->setCellValue('O' . $row, $as['ex_tel']);
         $sheet->setCellValue('P' . $row, $tax_display);
 
-        // 데이터 셀 스타일
+        // 데이터 셀 스타일 (범위 기반 적용)
         $dataStyle = [
             'alignment' => ['horizontal' => 'center', 'vertical' => 'center', 'wrapText' => true],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
@@ -215,54 +212,52 @@ while ($as = mysql_fetch_assoc($result)) {
         // 부품별로 줄 작성
         $start_row = $row;
         $is_first = true;
-        while ($part = mysql_fetch_assoc($parts_result)) {
+        foreach ($parts as $part) {
             // 부품별 가격 계산 (수량 * 단가)
             $part_price = (isset($part['s18_quantity']) && isset($part['cost1']))
                 ? ($part['s18_quantity'] * $part['cost1'])
                 : 0;
 
             $sheet->setCellValue('A' . $row, $is_first ? $no : '');
-            $sheet->setCellValue('B' . $row, $is_first ? $as['as_in_date'] : '');
+            $sheet->setCellValue('B' . $row, $is_first ? $as['as_out_date'] : '');
             $sheet->setCellValue('C' . $row, $is_first ? ($as['s13_as_in_how'] ?? '') : '');
             $sheet->setCellValue('D' . $row, $is_first ? ($as['s13_as_out_no'] ?? '') : '');
             $sheet->setCellValue('E' . $row, $is_first ? ($as['ex_company'] ?? '') : '');
             $sheet->setCellValue('F' . $row, $is_first ? ($as['ex_sec1'] ?? '') : '');
-            $sheet->setCellValue('G' . $row, $is_first ? $as['as_out_date'] : '');
+            $sheet->setCellValue('G' . $row, $is_first ? $as['as_in_date'] : '');
             $sheet->setCellValue('H' . $row, $is_first ? $product_name : '');
             $sheet->setCellValue('I' . $row, $is_first ? $end_result : '');
-            $sheet->setCellValue('J' . $row, $part['cost_name'] ?? '');
+            $sheet->setCellValue('J' . $row, $part['part_cost_name'] ?? '');
             $sheet->setCellValue('K' . $row, (isset($part['s18_quantity']) ? $part['s18_quantity'] . '개' : ''));
-            $sheet->setCellValue('L' . $row, (int)$part_price);
-            $sheet->setCellValue('M' . $row, $is_first ? (isset($as['step13_total_cost']) ? (int)$as['step13_total_cost'] : '') : '');
+            $sheet->setCellValue('L' . $row, (int) $part_price);
+            $sheet->setCellValue('M' . $row, $is_first ? (isset($as['s13_total_cost']) ? (int) $as['s13_total_cost'] : '') : '');
             $sheet->setCellValue('N' . $row, $is_first ? $payment_method : '');
             $sheet->setCellValue('O' . $row, $is_first ? $as['ex_tel'] : '');
             $sheet->setCellValue('P' . $row, $is_first ? $tax_display : '');
-
-            // 데이터 셀 스타일 적용
-            $sheet->getStyle('A' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('B' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('C' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('D' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('E' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('F' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('G' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('H' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('I' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('J' . $row)->applyFromArray(['alignment' => ['horizontal' => 'left', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('K' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('L' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('M' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('N' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('O' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-            $sheet->getStyle('P' . $row)->applyFromArray(['alignment' => ['horizontal' => 'center', 'vertical' => 'center'], 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
 
             $is_first = false;
             $row++;
         }
 
+        // 범위 기반 스타일 적용 (루프 후 한 번에 처리) - 최적화
+        $end_row = $row - 1;
+        $centerStyle = [
+            'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+        ];
+        $leftStyle = [
+            'alignment' => ['horizontal' => 'left', 'vertical' => 'center'],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+        ];
+
+        // 전체 범위에 center 정렬 적용
+        $sheet->getStyle('A' . $start_row . ':P' . $end_row)->applyFromArray($centerStyle);
+
+        // J 컬럼만 left 정렬로 덮어씌우기
+        $sheet->getStyle('J' . $start_row . ':J' . $end_row)->applyFromArray($leftStyle);
+
         // 셀 merge (A, B, C, D, E, F, G, H, I, M, N, O, P 컬럼)
         if ($parts_count > 1) {
-            $end_row = $row - 1;
             $sheet->mergeCells('A' . $start_row . ':A' . $end_row);
             $sheet->mergeCells('B' . $start_row . ':B' . $end_row);
             $sheet->mergeCells('C' . $start_row . ':C' . $end_row);
@@ -285,18 +280,18 @@ $sheet->getColumnDimension('A')->setWidth(8);
 $sheet->getColumnDimension('B')->setWidth(12);
 $sheet->getColumnDimension('C')->setWidth(12);
 $sheet->getColumnDimension('D')->setWidth(15);
-$sheet->getColumnDimension('E')->setWidth(18);
+$sheet->getColumnDimension('E')->setWidth(30);
 $sheet->getColumnDimension('F')->setWidth(12);
 $sheet->getColumnDimension('G')->setWidth(12);
-$sheet->getColumnDimension('H')->setWidth(25);
-$sheet->getColumnDimension('I')->setWidth(20);
-$sheet->getColumnDimension('J')->setWidth(25);
+$sheet->getColumnDimension('H')->setWidth(20);
+$sheet->getColumnDimension('I')->setWidth(15);
+$sheet->getColumnDimension('J')->setWidth(44);
 $sheet->getColumnDimension('K')->setWidth(10);
 $sheet->getColumnDimension('L')->setWidth(12);
 $sheet->getColumnDimension('M')->setWidth(12);
 $sheet->getColumnDimension('N')->setWidth(15);
 $sheet->getColumnDimension('O')->setWidth(15);
-$sheet->getColumnDimension('P')->setWidth(10);
+$sheet->getColumnDimension('P')->setWidth(15);
 
 // L 컬럼(가격)에 숫자 포맷 적용 (천 단위 쉼표)
 $sheet->getStyle('L2:L' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
