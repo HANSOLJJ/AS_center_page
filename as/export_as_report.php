@@ -215,11 +215,13 @@ while ($as = mysql_fetch_assoc($result)) {
         // 부품별로 줄 작성
         $start_row = $row;
         $is_first = true;
+        $total_repair_cost = 0; // 총 수리비 합산용
         while ($part = mysql_fetch_assoc($parts_result)) {
             // 부품별 가격 계산 (수량 * 단가)
             $part_price = (isset($part['s18_quantity']) && isset($part['cost1']))
                 ? ($part['s18_quantity'] * $part['cost1'])
                 : 0;
+            $total_repair_cost += $part_price; // 총액에 누적
 
             $sheet->setCellValue('A' . $row, $is_first ? $no : '');
             $sheet->setCellValue('B' . $row, $is_first ? $as['as_in_date'] : '');
@@ -233,7 +235,7 @@ while ($as = mysql_fetch_assoc($result)) {
             $sheet->setCellValue('J' . $row, $part['cost_name'] ?? '');
             $sheet->setCellValue('K' . $row, (isset($part['s18_quantity']) ? $part['s18_quantity'] . '개' : ''));
             $sheet->setCellValue('L' . $row, (int)$part_price);
-            $sheet->setCellValue('M' . $row, $is_first ? (isset($as['s13_total_cost']) ? (int)$as['s13_total_cost'] : '') : '');
+            $sheet->setCellValue('M' . $row, ''); // 루프 후 첫 줄에만 총액 입력
             $sheet->setCellValue('N' . $row, $is_first ? $payment_method : '');
             $sheet->setCellValue('O' . $row, $is_first ? $as['ex_tel'] : '');
             $sheet->setCellValue('P' . $row, $is_first ? $tax_display : '');
@@ -259,6 +261,9 @@ while ($as = mysql_fetch_assoc($result)) {
             $is_first = false;
             $row++;
         }
+
+        // 루프 후 첫 줄의 M 셀에 합산된 총 수리비 입력
+        $sheet->setCellValue('M' . $start_row, (int)$total_repair_cost);
 
         // 셀 merge (A, B, C, D, E, F, G, H, I, M, N, O, P 컬럼)
         if ($parts_count > 1) {
