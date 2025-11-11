@@ -17,7 +17,7 @@ if ($number <= 0) {
 }
 
 ##### 선택한 게시물의 입력값을 뽑아낸다.
-$query = "SELECT s13_asid, s13_as_center, s13_as_in_date, s13_as_in_how, s13_as_out_no, s13_meid, s13_dex_no, s13_total_cost, s13_sms1, s13_sms2, s13_bank_check, s13_tax_code, s13_dex_send, s13_dex_send_name, s13_as_out_date, s13_as_name2, ex_tel, ex_sms_no, ex_sec1, ex_sec2, ex_company, ex_man, ex_address, ex_address_no, ex_company_no, s13_bankcheck_w FROM step13_as WHERE s13_asid = $number";
+$query = "SELECT s13_asid, s13_as_center, s13_as_in_date, s13_as_in_how, s13_as_out_no, s13_meid, s13_dex_no, s13_sms1, s13_sms2, s13_bank_check, s13_tax_code, s13_dex_send, s13_dex_send_name, s13_as_out_date, s13_as_name2, ex_tel, ex_sms_no, ex_sec1, ex_sec2, ex_company, ex_man, ex_address, ex_address_no, ex_company_no, s13_bankcheck_w FROM step13_as WHERE s13_asid = $number";
 $result = mysql_query($query);
 if (!$result) {
     error("QUERY_ERROR");
@@ -33,7 +33,6 @@ $my_s13_as_in_how = $row->s13_as_in_how;
 $my_s13_as_out_no = $row->s13_as_out_no;
 $my_s13_meid = $row->s13_meid;
 $my_s13_dex_no = $row->s13_dex_no;
-$my_s13_total_cost = $row->s13_total_cost;
 $my_s13_sms1 = $row->s13_sms1;
 $my_s13_sms2 = $row->s13_sms2;
 $my_s13_bank_check = $row->s13_bank_check;

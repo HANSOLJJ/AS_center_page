@@ -77,7 +77,6 @@ $query = "SELECT
     ex_company,
     ex_sec1,
     DATE_FORMAT(s13_as_out_date, '%Y-%m-%d') as as_out_date,
-    s13_total_cost,
     ex_total_cost,
     s13_bankcheck_w,
     COALESCE(ex_tel, '') as ex_tel,
