@@ -214,78 +214,45 @@ $workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 file_put_contents($temp_dir . '/xl/workbook.xml', $workbook);
 
 // ===== sheet1.xml (메인 데이터) =====
-// SimpleXML로 생성하여 자동 이스케이핑
-$xmlWriter = new XMLWriter();
-$xmlWriter->openMemory();
-$xmlWriter->setIndent(false);
-$xmlWriter->startDocument('1.0', 'UTF-8', 'yes');
-$xmlWriter->startElement('worksheet');
-$xmlWriter->writeAttribute('xmlns', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
-$xmlWriter->startElement('sheetData');
+// 안전한 수동 XML 생성 (proper escaping)
+$sheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>' . "\n";
+$sheet_xml .= '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' . "\n";
+$sheet_xml .= '<sheetData>' . "\n";
+
+// Helper 함수
+function xmlEncode($str) {
+    return htmlspecialchars($str, ENT_XML1, 'UTF-8');
+}
 
 // 헤더 행
-$xmlWriter->startElement('row');
-$xmlWriter->writeAttribute('r', '1');
+$sheet_xml .= '<row r="1">' . "\n";
 $headers = array('No', '판매일', '접수번호', '업체명', '형태', '부품명 | 개수 | 가격', '총 액', '주소', '연락처', '세금계산서발행', '결제방법');
-$col_letter = 'A';
-foreach ($headers as $header) {
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', $col_letter . '1');
-    $xmlWriter->writeAttribute('s', '1');
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($header);
-    $xmlWriter->endElement(); // v
-    $xmlWriter->endElement(); // c
-    $col_letter++;
+$col_letters = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K');
+foreach ($headers as $idx => $header) {
+    $sheet_xml .= '<c r="' . $col_letters[$idx] . '1" s="1"><v>' . xmlEncode($header) . '</v></c>' . "\n";
 }
-$xmlWriter->endElement(); // row
+$sheet_xml .= '</row>' . "\n";
 
 // 데이터 행
 $row_num = 2;
 $no = 1;
 foreach ($sales_data as $sale) {
-    $xmlWriter->startElement('row');
-    $xmlWriter->writeAttribute('r', $row_num);
+    $sheet_xml .= '<row r="' . $row_num . '">' . "\n";
 
     // No
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'A' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($no);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="A' . $row_num . '"><v>' . $no . '</v></c>' . "\n";
 
     // 판매일
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'B' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($sale['sell_date']);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="B' . $row_num . '"><v>' . xmlEncode($sale['sell_date']) . '</v></c>' . "\n";
 
     // 접수번호
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'C' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($sale['receipt_no']);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="C' . $row_num . '"><v>' . xmlEncode($sale['receipt_no']) . '</v></c>' . "\n";
 
     // 업체명
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'D' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($sale['ex_company']);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="D' . $row_num . '"><v>' . xmlEncode($sale['ex_company']) . '</v></c>' . "\n";
 
     // 형태
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'E' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($sale['form']);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="E' . $row_num . '"><v>' . xmlEncode($sale['form']) . '</v></c>' . "\n";
 
     // 부품명 | 개수 | 가격
     $cart_data = getSalesCartData($connect, $sale['s20_sellid']);
@@ -296,46 +263,21 @@ foreach ($sales_data as $sale) {
         if (!empty($parts_info)) $parts_info .= ' | ';
         $parts_info .= $item['cost_name'] . ' | ' . intval($item['s21_quantity']) . '개 | ' . number_format($total_item_cost);
     }
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'F' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($parts_info);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="F' . $row_num . '"><v>' . xmlEncode($parts_info) . '</v></c>' . "\n";
 
     // 총액
     $s7 = calculateSalesTotal($connect, $sale['s20_sellid']);
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'G' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($s7);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="G' . $row_num . '"><v>' . $s7 . '</v></c>' . "\n";
 
     // 주소
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'H' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($sale['ex_address']);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="H' . $row_num . '"><v>' . xmlEncode($sale['ex_address']) . '</v></c>' . "\n";
 
     // 연락처
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'I' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($sale['ex_tel'] . '(' . $sale['ex_sms_no'] . ')');
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="I' . $row_num . '"><v>' . xmlEncode($sale['ex_tel'] . '(' . $sale['ex_sms_no'] . ')') . '</v></c>' . "\n";
 
     // 세금계산서
     $s10 = $sale['s20_tax_code'] == '' ? '미발행' : '발행';
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'J' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($s10);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="J' . $row_num . '"><v>' . xmlEncode($s10) . '</v></c>' . "\n";
 
     // 결제방법
     $s11 = '3월 8일 이후 확인가능';
@@ -344,35 +286,19 @@ foreach ($sales_data as $sale) {
     } elseif ($sale['s20_bankcheck_w'] == 'base') {
         $s11 = '계좌이체';
     }
-    $xmlWriter->startElement('c');
-    $xmlWriter->writeAttribute('r', 'K' . $row_num);
-    $xmlWriter->startElement('v');
-    $xmlWriter->text($s11);
-    $xmlWriter->endElement();
-    $xmlWriter->endElement();
+    $sheet_xml .= '<c r="K' . $row_num . '"><v>' . xmlEncode($s11) . '</v></c>' . "\n";
 
-    $xmlWriter->endElement(); // row
+    $sheet_xml .= '</row>' . "\n";
 
     $row_num++;
     $no++;
 }
 
-$xmlWriter->endElement(); // sheetData
-$xmlWriter->startElement('mergeCells');
-$xmlWriter->writeAttribute('count', '0');
-$xmlWriter->endElement();
-$xmlWriter->startElement('pageMargins');
-$xmlWriter->writeAttribute('left', '0.7');
-$xmlWriter->writeAttribute('top', '0.75');
-$xmlWriter->writeAttribute('right', '0.7');
-$xmlWriter->writeAttribute('bottom', '0.75');
-$xmlWriter->writeAttribute('header', '0.3');
-$xmlWriter->writeAttribute('footer', '0.3');
-$xmlWriter->endElement();
-$xmlWriter->endElement(); // worksheet
-$xmlWriter->endDocument();
+$sheet_xml .= '</sheetData>' . "\n";
+$sheet_xml .= '<mergeCells count="0"/>' . "\n";
+$sheet_xml .= '<pageMargins left="0.7" top="0.75" right="0.7" bottom="0.75" header="0.3" footer="0.3"/>' . "\n";
+$sheet_xml .= '</worksheet>';
 
-$sheet_xml = $xmlWriter->outputMemory(true);
 file_put_contents($temp_dir . '/xl/worksheets/sheet1.xml', $sheet_xml);
 
 // ===== ZIP 생성 =====
