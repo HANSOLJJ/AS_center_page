@@ -169,7 +169,7 @@ while ($sale = mysql_fetch_assoc($result)) {
         $sheet->setCellValue('F' . $row, '');
         $sheet->setCellValue('G' . $row, '');
         $sheet->setCellValue('H' . $row, '');
-        $sheet->setCellValue('I' . $row, isset($sale['s20_total_cost']) ? number_format($sale['s20_total_cost']) : '');
+        $sheet->setCellValue('I' . $row, isset($sale['s20_total_cost']) ? (int)$sale['s20_total_cost'] : '');
         $sheet->setCellValue('J' . $row, $sale['ex_address'] ?? '');
         $sheet->setCellValue('K' . $row, $sale['ex_tel'] ?? '');
         $sheet->setCellValue('L' . $row, $sale['s20_tax_code'] ? '발행' : '미발행');
@@ -201,8 +201,8 @@ while ($sale = mysql_fetch_assoc($result)) {
             $sheet->setCellValue('E' . $row, $is_first ? ($sale['ex_sec1'] ?? '') : '');
             $sheet->setCellValue('F' . $row, $cart['cost_name'] ?? '');
             $sheet->setCellValue('G' . $row, (isset($cart['s21_quantity']) ? $cart['s21_quantity'] . '개' : ''));
-            $sheet->setCellValue('H' . $row, number_format($item_price));
-            $sheet->setCellValue('I' . $row, $is_first ? (isset($sale['s20_total_cost']) ? number_format($sale['s20_total_cost']) : '') : '');
+            $sheet->setCellValue('H' . $row, (int)$item_price);
+            $sheet->setCellValue('I' . $row, $is_first ? (isset($sale['s20_total_cost']) ? (int)$sale['s20_total_cost'] : '') : '');
             $sheet->setCellValue('J' . $row, $is_first ? ($sale['ex_address'] ?? '') : '');
             $sheet->setCellValue('K' . $row, $is_first ? ($sale['ex_tel'] ?? '') : '');
             $sheet->setCellValue('L' . $row, $is_first ? ($sale['s20_tax_code'] ? '발행' : '미발행') : '');
