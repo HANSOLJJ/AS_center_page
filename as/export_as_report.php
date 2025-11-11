@@ -77,7 +77,6 @@ $query = "SELECT
     ex_company,
     ex_sec1,
     DATE_FORMAT(s13_as_out_date, '%Y-%m-%d') as as_out_date,
-    s13_as_end_result,
     s13_total_cost,
     s13_bankcheck_w,
     COALESCE(ex_tel, '') as ex_tel,
@@ -153,10 +152,11 @@ while ($as = mysql_fetch_assoc($result)) {
     // 세금계산서 표기
     $tax_display = $as['s13_tax_code'] ? '발행' : '미발행';
 
-    // AS 제품명 조회
+    // AS 제품명 및 처리내역 조회
     $item_query = "SELECT
         s14_aiid,
-        cost_name
+        cost_name,
+        as_end_result
         FROM step14_as_item
         WHERE s14_asid = '" . mysql_real_escape_string($asid) . "'
         ORDER BY s14_aiid ASC
@@ -164,9 +164,11 @@ while ($as = mysql_fetch_assoc($result)) {
     
     $item_result = mysql_query($item_query);
     $product_name = '';
+    $end_result = '';
     if ($item_result && mysql_num_rows($item_result) > 0) {
         $item = mysql_fetch_assoc($item_result);
         $product_name = $item['cost_name'] ?? '';
+        $end_result = $item['as_end_result'] ?? '';
     }
 
     // AS 사용 부품 조회
@@ -193,7 +195,7 @@ while ($as = mysql_fetch_assoc($result)) {
         $sheet->setCellValue('F' . $row, $as['ex_sec1'] ?? '');
         $sheet->setCellValue('G' . $row, $as['as_out_date']);
         $sheet->setCellValue('H' . $row, $product_name);
-        $sheet->setCellValue('I' . $row, $as['s13_as_end_result'] ?? '');
+        $sheet->setCellValue('I' . $row, $end_result);
         $sheet->setCellValue('J' . $row, '');
         $sheet->setCellValue('K' . $row, '');
         $sheet->setCellValue('L' . $row, '');
@@ -228,7 +230,7 @@ while ($as = mysql_fetch_assoc($result)) {
             $sheet->setCellValue('F' . $row, $is_first ? ($as['ex_sec1'] ?? '') : '');
             $sheet->setCellValue('G' . $row, $is_first ? $as['as_out_date'] : '');
             $sheet->setCellValue('H' . $row, $is_first ? $product_name : '');
-            $sheet->setCellValue('I' . $row, $is_first ? ($as['s13_as_end_result'] ?? '') : '');
+            $sheet->setCellValue('I' . $row, $is_first ? $end_result : '');
             $sheet->setCellValue('J' . $row, $part['cost_name'] ?? '');
             $sheet->setCellValue('K' . $row, (isset($part['s18_quantity']) ? $part['s18_quantity'] . '개' : ''));
             $sheet->setCellValue('L' . $row, (int)$part_price);
