@@ -3,9 +3,7 @@ header('Content-Type: text/html; charset=utf-8');
 session_start();
 
 // MySQL 호환성 레이어 로드
-require_once '@config.php';
-require_once '@error_function.php';
-require_once '@access.php';
+require_once 'mysql_compat.php';
 
 // 데이터베이스 연결
 $connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
@@ -19,7 +17,7 @@ if ($number <= 0) {
 }
 
 ##### 선택한 게시물의 입력값을 뽑아낸다.
-$query = "SELECT s13_asid, s13_as_center, s13_as_in_date, s13_as_in_how, s13_as_in_no, s13_meid, s13_dex_no, s13_total_cost, s13_sms1, s13_sms2, s13_bank_check, s13_tax_code, s13_dex_send, s13_dex_send_name, s13_as_out_date, s13_as_name2, ex_tel, ex_sms_no, ex_sec1, ex_sec2, ex_company, ex_man, ex_address, ex_address_no, ex_company_no, s13_bankcheck_w FROM step13_as WHERE s13_asid = $number";
+$query = "SELECT s13_asid, s13_as_center, s13_as_in_date, s13_as_in_how, s13_as_out_no, s13_meid, s13_dex_no, s13_total_cost, s13_sms1, s13_sms2, s13_bank_check, s13_tax_code, s13_dex_send, s13_dex_send_name, s13_as_out_date, s13_as_name2, ex_tel, ex_sms_no, ex_sec1, ex_sec2, ex_company, ex_man, ex_address, ex_address_no, ex_company_no, s13_bankcheck_w FROM step13_as WHERE s13_asid = $number";
 $result = mysql_query($query);
 if (!$result) {
     error("QUERY_ERROR");
@@ -32,7 +30,7 @@ $my_s13_as_center = $row->s13_as_center;
 $my_s13_as_in_date = $row->s13_as_in_date;
 $my_s13_as_in_how = $row->s13_as_in_how;
 
-$my_s13_as_in_no = $row->s13_as_in_no;
+$my_s13_as_out_no = $row->s13_as_out_no;
 $my_s13_meid = $row->s13_meid;
 $my_s13_dex_no = $row->s13_dex_no;
 $my_s13_total_cost = $row->s13_total_cost;
@@ -233,7 +231,7 @@ $center_name = mysql_result($center_query, 0, 0);
                             <p align='center'><b>접수번호</b></p>
                         </td>
                         <td width="50%">
-                            <p align='center'><? echo "$my_s13_as_in_no"; ?></p>
+                            <p align='center'><? echo "$my_s13_as_out_no"; ?></p>
                         </td>
                     </tr>
                     <tr>
@@ -296,7 +294,7 @@ $center_name = mysql_result($center_query, 0, 0);
                 </table>
                 <?php
                 // AS 항목 및 비용 내역 표시
-                $query_item_list = "SELECT s14_aiid, s14_asid, s14_model, s14_poor, s14_stat, s14_asrid, cost_name, cost_sn, as_start_view, as_end_result FROM step14_as_item WHERE s14_asid = '$my_s13_asid'";
+                $query_item_list = "SELECT s14_aiid, s14_asid, s14_model, s14_poor, s14_stat, s14_asrid, cost_name, cost_sn, as_start_view, as_end_result FROM step14_as_item WHERE s14_asid = $my_s13_asid";
                 $result_item_list = mysql_query($query_item_list);
                 if (!$result_item_list) {
                     error("QUERY_ERROR");
@@ -351,7 +349,7 @@ $center_name = mysql_result($center_query, 0, 0);
                                 <table width='100%' cellpadding='0' cellspacing='0' border='0' align='center'>
                                     <?php
                                     // 소모품 목록 표시
-                                    $instant_query = "SELECT s18_accid, s18_aiid, s18_uid, s18_quantity, s18_sp_cost, s18_asid, cost_name, cost_sn, cost1, cost2, cost_sec FROM step18_as_cure_cart WHERE s18_aiid = '$my_s14_aiid'";
+                                    $instant_query = "SELECT s18_accid, s18_aiid, s18_uid, s18_quantity, s18_sp_cost, s18_asid, cost_name, cost_sn, cost1, cost2, cost_sec FROM step18_as_cure_cart WHERE s18_aiid = $my_s14_aiid";
                                     $instant_result = mysql_query($instant_query);
                                     if (!$instant_result) {
                                         error("QUERY_ERROR");
@@ -419,7 +417,7 @@ $center_name = mysql_result($center_query, 0, 0);
                             <font color='red'><b>
                                     <?php
                                     // 전체 처리비용 합계
-                                    $query_sum1 = "SELECT s18_asid, s18_uid, s18_quantity, s18_sp_cost, cost1, cost2 FROM step18_as_cure_cart WHERE s18_asid = '$my_s13_asid'";
+                                    $query_sum1 = "SELECT s18_asid, s18_uid, s18_quantity, s18_sp_cost, cost1, cost2 FROM step18_as_cure_cart WHERE s18_asid = $my_s13_asid";
                                     $result_sum1 = mysql_query($query_sum1);
                                     if (!$result_sum1) {
                                         error("QUERY_ERROR");

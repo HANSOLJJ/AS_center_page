@@ -28,7 +28,7 @@ if ($action === 'search_member') {
 
     if (!empty($search_name)) {
         $search_esc = mysql_real_escape_string($search_name);
-        $result = @mysql_query("SELECT s11_meid, s11_com_name, s11_phone1, s11_phone2, s11_phone3 FROM step11_member WHERE s11_com_name LIKE '%$search_esc%' LIMIT 10");
+        $result = @mysql_query("SELECT s11_meid, s11_com_name, s11_phone1, s11_phone2, s11_phone3, s11_sec FROM step11_member WHERE s11_com_name LIKE '%$search_esc%' LIMIT 10");
 
         if ($result && mysql_num_rows($result) > 0) {
             $members = array();
@@ -161,7 +161,7 @@ if ($action === 'save_order') {
     $as_level = '1'; // 요청 상태
 
     $mem_type_esc = mysql_real_escape_string($mem_type);
-    $insert_query = "INSERT INTO step20_sell (s20_sell_in_date,s20_meid, ex_sec1, ex_company, ex_tel, s20_as_level, s20_as_center, s20_total_cost) 
+    $insert_query = "INSERT INTO step20_sell (s20_sell_in_date,s20_meid, ex_sec1, ex_company, ex_tel, s20_sell_level, s20_sell_center, s20_total_cost)
     VALUES ('$sell_in_date',  $s20_meid, '$mem_type_esc', '" . mysql_real_escape_string($ex_company) . "', '" . mysql_real_escape_string($ex_tel) . "', '$as_level', 'center1283763850', 0)";
 
     error_log("step20_sell insert query: $insert_query");
@@ -260,7 +260,7 @@ if ($action === 'get_parts') {
     $total_pages = ceil($total_count / $per_page);
 
     $query = "SELECT p.s1_uid, p.s1_name, p.s1_caid, c.s5_category,
-                     p.s1_cost_c_1, p.s1_cost_a_1, p.s1_cost_n_1
+                     p.s1_cost_c_1, p.s1_cost_a_2, p.s1_cost_n_2
               FROM step1_parts p
               LEFT JOIN step5_category c ON p.s1_caid = c.s5_caid
               WHERE $where
@@ -275,9 +275,9 @@ if ($action === 'get_parts') {
             // 회원 구분에 따라 가격 선택
             $price = 0;
             if ($sec === '일반') {
-                $price = floatval($row['s1_cost_n_1']);
+                $price = floatval($row['s1_cost_n_2']);
             } elseif ($sec === '대리점') {
-                $price = floatval($row['s1_cost_a_1']);
+                $price = floatval($row['s1_cost_a_2']);
             } else { // 딜러, AS센터공급가
                 $price = floatval($row['s1_cost_c_1']);
             }
@@ -694,6 +694,7 @@ if ($action === 'get_parts') {
                 <div id="memberInfo" class="member-info">
                     <strong>선택된 업체:</strong> <span id="selectedMemberName"></span>
                     <br><strong>전화:</strong> <span id="selectedMemberPhone"></span>
+                    <br><strong>고객타입:</strong> <span id="selectedMemberType"></span>
                     <input type="hidden" id="selectedMemberId">
                 </div>
 
@@ -851,18 +852,33 @@ if ($action === 'get_parts') {
             members.forEach(member => {
                 const div = document.createElement('div');
                 div.className = 'member-option';
-                div.innerHTML = `${member.s11_com_name} (${member.s11_phone1}-${member.s11_phone2}-${member.s11_phone3})`;
-                div.onclick = () => selectMember(member.s11_meid, member.s11_com_name, member.s11_phone1, member.s11_phone2, member.s11_phone3);
+
+                // 고객 타입 표시 (딜러는 특별히 표시)
+                let typeDisplay = member.s11_sec;
+                if (member.s11_sec === '딜러') {
+                    typeDisplay = '딜러(AS center 공급가)';
+                }
+
+                div.innerHTML = `${member.s11_com_name} (${member.s11_phone1}-${member.s11_phone2}-${member.s11_phone3}) <span style="font-size: 12px; color: #999; margin-left: 8px;">${typeDisplay}</span>`;
+                div.onclick = () => selectMember(member.s11_meid, member.s11_com_name, member.s11_phone1, member.s11_phone2, member.s11_phone3, member.s11_sec);
                 select.appendChild(div);
             });
             select.classList.add('show');
         }
 
-        function selectMember(id, name, phone1, phone2, phone3) {
+        function selectMember(id, name, phone1, phone2, phone3, sec) {
             selectedMemberId = id;
             document.getElementById('selectedMemberId').value = id;
             document.getElementById('selectedMemberName').textContent = name;
             document.getElementById('selectedMemberPhone').textContent = phone1 + '-' + phone2 + '-' + phone3;
+
+            // 고객 타입 표시 (딜러는 특별히 표시)
+            let typeDisplay = sec;
+            if (sec === '딜러') {
+                typeDisplay = '딜러(AS center 공급가)';
+            }
+            document.getElementById('selectedMemberType').textContent = typeDisplay;
+
             document.getElementById('memberInfo').classList.add('show');
             document.getElementById('memberSelect').classList.remove('show');
             document.getElementById('newMemberForm').style.display = 'none';

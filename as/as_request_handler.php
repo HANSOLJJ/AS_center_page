@@ -19,7 +19,7 @@ $user_name = $_SESSION['member_id'];
 $current_page = 'as_requests';
 
 // 요청 방식에 따른 처리
-$action = isset($_GET['action']) ? $_GET['action'] : '';
+$action = isset($_POST['action']) ? $_POST['action'] : (isset($_GET['action']) ? $_GET['action'] : '');
 $response = array('success' => false, 'message' => '');
 
 // Edit mode 확인
@@ -110,7 +110,7 @@ if ($action === 'search_member') {
 
     if (!empty($search_name)) {
         $search_esc = mysql_real_escape_string($search_name);
-        $result = @mysql_query("SELECT s11_meid, s11_com_name, s11_phone1, s11_phone2, s11_phone3 FROM step11_member WHERE s11_com_name LIKE '%$search_esc%' LIMIT 10");
+        $result = @mysql_query("SELECT s11_meid, s11_com_name, s11_phone1, s11_phone2, s11_phone3, s11_sec FROM step11_member WHERE s11_com_name LIKE '%$search_esc%' LIMIT 10");
 
         if ($result && mysql_num_rows($result) > 0) {
             $members = array();
@@ -250,7 +250,7 @@ if ($action === 'save_as_request') {
 
         // s14_stat: '입고' (기존 코드 패턴 참고)
         // s14_asrid, s14_cart는 빈 문자열로 초기화 (NOT NULL 제약)
-        $insert_values[] = "('$as_id', '$model_id', '$poor_id', '입고', '', '', '$cost_name_esc', '$as_start_view_esc')";
+        $insert_values[] = "($as_id, $model_id, '$poor_id', '입고', '', '', '$cost_name_esc', '$as_start_view_esc')";
 
         // 첫 번째 제품명 기록
         if ($idx == 0 && !empty($cost_name)) {
@@ -426,7 +426,7 @@ if ($action === 'update_as_request') {
 
         // s14_stat: '입고' (기존 코드 패턴 참고)
         // s14_asrid, s14_cart는 빈 문자열로 초기화 (NOT NULL 제약)
-        $insert_values[] = "('$as_id', '$model_id', '$poor_id', '입고', '', '', '$cost_name_esc', '$as_start_view_esc')";
+        $insert_values[] = "($as_id, $model_id, '$poor_id', '입고', '', '', '$cost_name_esc', '$as_start_view_esc')";
 
         // 첫 번째 제품명 기록
         if ($idx == 0 && !empty($cost_name)) {
@@ -506,6 +506,45 @@ if ($action === 'add_member') {
         $response['message'] = '업체가 등록되었습니다.';
     } else {
         $response['message'] = '등록 중 오류가 발생했습니다.';
+    }
+    echo json_encode($response);
+    exit;
+}
+
+// completeAS 액션 처리
+if ($action === 'completeAS') {
+    $asid = isset($_POST['asid']) ? intval($_POST['asid']) : 0;
+
+    if (empty($asid)) {
+        $response['message'] = 'AS ID가 필요합니다.';
+        echo json_encode($response);
+        exit;
+    }
+
+    // 현재 datetime 생성
+    $now = date('Y-m-d H:i:s');
+    $date_part = date('ymd'); // yymmdd 형식
+
+    // 같은 날짜의 이전 레코드 개수 + 1 = 순번
+    $count_query = "SELECT COUNT(*) as cnt FROM step13_as WHERE DATE(s13_as_out_date) = DATE('$now') AND s13_asid <= $asid";
+    $count_result = @mysql_query($count_query);
+    $count_row = @mysql_fetch_assoc($count_result);
+    $seq = intval($count_row['cnt']);
+    $seq_str = str_pad($seq, 3, '0', STR_PAD_LEFT);
+
+    // s13_as_out_no: "NOyymmdd-SSS" 형식
+    $new_out_no = 'NO' . $date_part . '-' . $seq_str;
+    // s13_as_out_no2: "yymmddSSS" 형식
+    $new_out_no2 = $date_part . $seq_str;
+
+    // AS 완료 처리: s13_as_out_date, s13_bank_check에 현재 시간, s13_as_level을 5로, s13_bankcheck_w에 'center' 설정, s13_as_out_no/s13_as_out_no2 생성
+    $update_query = "UPDATE step13_as SET s13_as_out_date = '$now', s13_bank_check = '$now', s13_as_level = '5', s13_bankcheck_w = 'center', s13_as_out_no = '$new_out_no', s13_as_out_no2 = '$new_out_no2' WHERE s13_asid = $asid";
+
+    if (@mysql_query($update_query)) {
+        $response['success'] = true;
+        $response['message'] = 'AS가 완료되었습니다.';
+    } else {
+        $response['message'] = 'AS 완료 처리 중 오류가 발생했습니다.';
     }
     echo json_encode($response);
     exit;
@@ -803,6 +842,7 @@ if ($action === 'add_member') {
             <div id="memberInfo" class="member-info">
                 <strong>선택된 업체:</strong> <span id="selectedMemberName"></span>
                 <br><strong>전화:</strong> <span id="selectedMemberPhone"></span>
+                <br><strong>고객타입:</strong> <span id="selectedMemberType"></span>
                 <input type="hidden" id="selectedMemberId">
             </div>
 
@@ -1029,18 +1069,33 @@ if ($action === 'add_member') {
             members.forEach(member => {
                 const div = document.createElement('div');
                 div.className = 'member-option';
-                div.innerHTML = `${member.s11_com_name} (${member.s11_phone1}-${member.s11_phone2}-${member.s11_phone3})`;
-                div.onclick = () => selectMember(member.s11_meid, member.s11_com_name, member.s11_phone1, member.s11_phone2, member.s11_phone3);
+
+                // 고객 타입 표시 (딜러는 특별히 표시)
+                let typeDisplay = member.s11_sec;
+                if (member.s11_sec === '딜러') {
+                    typeDisplay = '딜러(AS center 공급가)';
+                }
+
+                div.innerHTML = `${member.s11_com_name} (${member.s11_phone1}-${member.s11_phone2}-${member.s11_phone3}) <span style="font-size: 12px; color: #999; margin-left: 8px;">${typeDisplay}</span>`;
+                div.onclick = () => selectMember(member.s11_meid, member.s11_com_name, member.s11_phone1, member.s11_phone2, member.s11_phone3, member.s11_sec);
                 select.appendChild(div);
             });
             select.classList.add('show');
         }
 
-        function selectMember(id, name, phone1, phone2, phone3) {
+        function selectMember(id, name, phone1, phone2, phone3, sec) {
             selectedMemberId = id;
             document.getElementById('selectedMemberId').value = id;
             document.getElementById('selectedMemberName').textContent = name;
             document.getElementById('selectedMemberPhone').textContent = phone1 + '-' + phone2 + '-' + phone3;
+
+            // 고객 타입 표시 (딜러는 특별히 표시)
+            let typeDisplay = sec;
+            if (sec === '딜러') {
+                typeDisplay = '딜러(AS center 공급가)';
+            }
+            document.getElementById('selectedMemberType').textContent = typeDisplay;
+
             document.getElementById('memberInfo').classList.add('show');
             document.getElementById('memberSelect').classList.remove('show');
             document.getElementById('newMemberForm').style.display = 'none';
@@ -1091,7 +1146,7 @@ if ($action === 'add_member') {
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        selectMember(data.member_id, comName, phone1, phone2, phone3);
+                        selectMember(data.member_id, comName, phone1, phone2, phone3, sec);
                         document.getElementById('newMemberForm').style.display = 'none';
                         document.getElementById('newComName').value = '';
                         document.getElementById('newPhone1').value = '';

@@ -39,11 +39,14 @@ if (!empty($itemid)) {
         $error_message = 'AS 아이템을 찾을 수 없습니다. (itemid=' . $itemid . ')';
     } else {
         $item_info = mysql_fetch_assoc($item_result);
-        $asid = $item_info['s14_asid'];
+        $asid = intval($item_info['s14_asid']);
         $current_poor_id = $item_info['s14_poor'];
 
-        // Step 2: AS 요청 정보 조회 (asid 사용)
-        $as_query = "SELECT s13_asid, s13_meid, s13_as_in_how, s13_as_in_date, ex_company, ex_tel FROM step13_as WHERE s13_asid = $asid";
+        // Step 2: AS 요청 정보 조회 (asid 사용) + 고객 타입 조회
+        $as_query = "SELECT a.s13_asid, a.s13_meid, a.s13_as_in_how, a.s13_as_in_date, a.ex_company, a.ex_tel, m.s11_sec
+                     FROM step13_as a
+                     LEFT JOIN step11_member m ON a.s13_meid = m.s11_meid
+                     WHERE a.s13_asid = $asid";
         $as_result = mysql_query($as_query);
 
         if ($as_result && mysql_num_rows($as_result) > 0) {
@@ -467,7 +470,20 @@ $current_result = isset($item_info['as_end_result']) && !empty($item_info['as_en
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-label">수리 요청 업체명</span>
-                            <span class="info-value"><?php echo htmlspecialchars($as_info['ex_company'] ?? '-'); ?></span>
+                            <span class="info-value">
+                                <?php echo htmlspecialchars($as_info['ex_company'] ?? '-'); ?>
+                                <?php if (!empty($as_info['s11_sec'])): ?>
+                                    <span style="font-size: 12px; color: #999; margin-left: 8px;">
+                                        <?php
+                                            $type_display = $as_info['s11_sec'];
+                                            if ($as_info['s11_sec'] === '딜러') {
+                                                $type_display = '딜러(AS center 공급가)';
+                                            }
+                                            echo htmlspecialchars($type_display);
+                                        ?>
+                                    </span>
+                                <?php endif; ?>
+                            </span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">전화번호</span>
@@ -611,6 +627,10 @@ $current_result = isset($item_info['as_end_result']) && !empty($item_info['as_en
         let currentPage = 1;
         let totalPages = 1;
 
+        // 고객 정보 (PHP에서 전달)
+        let customerId = <?php echo isset($as_info['s13_meid']) ? intval($as_info['s13_meid']) : 0; ?>;
+        let customerType = '<?php echo isset($as_info['s11_sec']) ? htmlspecialchars($as_info['s11_sec']) : '일반'; ?>';
+
         // 초기화: 카테고리 로드
         function initializeCategories() {
             const categoryContainer = document.getElementById('categoryButtons');
@@ -658,7 +678,7 @@ $current_result = isset($item_info['as_end_result']) && !empty($item_info['as_en
             fetch('order_handler.php?action=get_parts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'search_key=' + encodeURIComponent(searchKey) + '&category=' + encodeURIComponent(selectedCategory) + '&member_id=0&page=' + page
+                body: 'search_key=' + encodeURIComponent(searchKey) + '&category=' + encodeURIComponent(selectedCategory) + '&member_id=' + customerId + '&page=' + page
             })
                 .then(r => r.json())
                 .then(data => {

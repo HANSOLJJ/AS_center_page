@@ -62,7 +62,16 @@
       "mcp__git-mcp-server__git_remote",
       "Bash(netstat:*)",
       "Bash(php update_bankcheck_w.php:*)",
-      "Bash(docker inspect:*)"
+      "Bash(docker inspect:*)",
+      "Bash(for file in as/orders.php as/parts.php as/members.php as/products.php as/dashboard.php)",
+      "Bash(do)",
+      "Bash(if grep -q '<div class=\"\"nav-bar\"\">' \"$file\")",
+      "Bash(then)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(php -l:*)",
+      "Bash(where:*)",
+      "Bash(php:*)"
     ],
     "deny": [],
     "ask": []

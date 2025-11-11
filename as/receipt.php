@@ -23,8 +23,8 @@ if ($sellid <= 0) {
 
 // 주문 정보 조회 - 원본 set2.php와 동일한 필드들
 $order_result = @mysql_query("
-    SELECT s20_sellid, s20_as_in_no, s20_as_center, s20_sell_in_date, s20_total_cost,
-           s20_bank_check, s20_tax_code, s20_as_out_date, s20_as_level, s20_sell_name1,
+    SELECT s20_sellid, s20_sell_out_no, s20_sell_center, s20_sell_in_date, s20_total_cost,
+           s20_bank_check, s20_tax_code, s20_sell_out_date, s20_sell_level, s20_sell_name1,
            s20_meid, ex_tel, ex_sms_no, ex_sec1, ex_sec2, ex_company, ex_man, ex_address,
            ex_address_no, ex_company_no, s20_bankcheck_w
     FROM step20_sell
@@ -57,20 +57,20 @@ if (!empty($order['s20_sell_in_date'])) {
     }
 }
 
-// s20_as_out_date 처리 (A/S 처리완료일)
+// s20_sell_out_date 처리 (A/S 처리완료일)
 $out_date = '';
-if (!empty($order['s20_as_out_date'])) {
-    if (is_numeric($order['s20_as_out_date']) && intval($order['s20_as_out_date']) > 86400) {
+if (!empty($order['s20_sell_out_date'])) {
+    if (is_numeric($order['s20_sell_out_date']) && intval($order['s20_sell_out_date']) > 86400) {
         // 유효한 유닉스 타임스탐프 (최소 1970-02-01 이후)
-        $out_date = date("Y년 m월 d일", intval($order['s20_as_out_date']));
+        $out_date = date("Y년 m월 d일", intval($order['s20_sell_out_date']));
     } else {
         // 문자열 datetime 형식
-        $timestamp = strtotime($order['s20_as_out_date']);
+        $timestamp = strtotime($order['s20_sell_out_date']);
         if ($timestamp !== false && $timestamp > 0) {
             $out_date = date("Y년 m월 d일", $timestamp);
         } else {
             // strtotime 실패 시 원본 값 그대로 표시
-            $out_date = htmlspecialchars($order['s20_as_out_date']);
+            $out_date = htmlspecialchars($order['s20_sell_out_date']);
         }
     }
 }
@@ -107,7 +107,7 @@ if ($order['s20_bankcheck_w'] == 'center') {
 }
 
 // 센터명 조회
-$center_query = @mysql_query("SELECT s2_center FROM step2_center WHERE s2_center_id = '{$order['s20_as_center']}'");
+$center_query = @mysql_query("SELECT s2_center FROM step2_center WHERE s2_center_id = '{$order['s20_sell_center']}'");
 $center_name = $center_query ? mysql_result($center_query, 0, 0) : '미정';
 
 // 주문 항목 조회
@@ -412,7 +412,7 @@ if (!empty($items)) {
                         <tr>
                             <td colspan="3" height="50"
                                 style="border: 1px solid #000; text-align: center; vertical-align: middle;">
-                                <p style="font-size: 14px; font-weight: bold;">A/S 접수 및 처리 내역서</p>
+                                <p style="font-size: 14px; font-weight: bold;">소모품 신청 처리 내역서</p>
                             </td>
                         </tr>
                         <tr>
@@ -459,7 +459,7 @@ if (!empty($items)) {
                                 style="border: 1px solid #000; text-align: center; vertical-align: middle; font-weight: bold;">
                                 접수번호</td>
                             <td width="50%" style="border: 1px solid #000; text-align: center; vertical-align: middle;">
-                                <?php echo htmlspecialchars($order['s20_as_in_no']); ?>
+                                <?php echo htmlspecialchars($order['s20_sell_out_no']); ?>
                             </td>
                         </tr>
                         <tr>

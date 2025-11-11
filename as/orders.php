@@ -33,7 +33,7 @@ $limit = 10;
 $offset = ($page - 1) * $limit;
 
 // 기간 필터 설정
-$range = isset($_GET['range']) ? $_GET['range'] : 'today';
+$range = isset($_GET['range']) ? $_GET['range'] : '';
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 $month_start = date('Y-m-01');
@@ -757,6 +757,7 @@ if (!empty($sellid_list)) {
                     <input type="hidden" name="tab" value="request">
 
                     <div class="date-filter-buttons">
+                        <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>" onclick="setOrderDateRange('all', 'search-form-request'); document.getElementById('search-form-request').submit();">전체 기간</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setOrderDateRange('today', 'search-form-request'); document.getElementById('search-form-request').submit();">오늘</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setOrderDateRange('week', 'search-form-request'); document.getElementById('search-form-request').submit();">금주</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setOrderDateRange('month', 'search-form-request'); document.getElementById('search-form-request').submit();">금월</button>
@@ -1005,6 +1006,7 @@ if (!empty($sellid_list)) {
                     <input type="hidden" name="tab" value="completed">
 
                     <div class="date-filter-buttons">
+                        <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>" onclick="setOrderDateRange('all', 'search-form-completed'); document.getElementById('search-form-completed').submit();">전체 기간</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setOrderDateRange('today', 'search-form-completed'); document.getElementById('search-form-completed').submit();">오늘</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setOrderDateRange('week', 'search-form-completed'); document.getElementById('search-form-completed').submit();">금주</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setOrderDateRange('month', 'search-form-completed'); document.getElementById('search-form-completed').submit();">금월</button>

@@ -29,40 +29,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($action === 'complete') {
-    // 판매 완료: s20_as_level을 '2'로 업데이트, s20_bank_check와 s20_as_out_date에 현재 시간 기록, s20_bankcheck_w에 "center" 기록
-    //s20_as_time,s20_as_in_no,s20_as_in_no2도 s20_as_out_date에 업데이트
+    // 판매 완료: s20_sell_level을 '2'로 업데이트, s20_bank_check와 s20_sell_out_date에 현재 시간 기록, s20_bankcheck_w에 "center" 기록
+    //s20_sell_time,s20_sell_out_no,s20_sell_out_no2도 s20_sell_out_date에 업데이트
     $now = date('Y-m-d H:i:s');
 
 
     $sell_out_data = $now;
     // 접수번호 자동 생성
-    // s20_as_in_date를 YYMMDD 형식으로 변환 (예: 2012-04-13 -> 120413)
+    // s20_sell_out_date를 YYMMDD 형식으로 변환 (예: 2012-04-13 -> 120413)
     $date_part = date('ymd', strtotime($sell_out_data));
-    $as_time = $date_part; // s20_as_time에 저장할 값 (예: 120413)
+    $as_time = $date_part; // s20_sell_time에 저장할 값 (예: 120413)
 
     // 같은 날짜의 주문 개수 조회 (순번 결정)
-    $count_query = "SELECT COUNT(*) as cnt FROM step20_sell WHERE DATE(s20_as_out_date) = DATE('$sell_out_data')";
+    $count_query = "SELECT COUNT(*) as cnt FROM step20_sell WHERE DATE(s20_sell_out_date) = DATE('$sell_out_data')";
     $count_result = @mysql_query($count_query);
     $count_row = mysql_fetch_assoc($count_result);
     $seq_no = ($count_row['cnt'] + 1); // 1부터 시작
     $seq_no_str = str_pad($seq_no, 3, '0', STR_PAD_LEFT); // 3자리 제로패딩 (001, 002, ...)
 
-    // s20_as_in_no2: YYMMDD + 순번 (예: 120413001)
-    $as_in_no2 = $date_part . $seq_no_str;
+    // s20_sell_out_no2: YYMMDD + 순번 (예: 120413001)
+    $as_out_no2 = $date_part . $seq_no_str;
 
-    // s20_as_in_no: NO + YYMMDD + - + 순번 (예: NO120413-001)
-    $as_in_no = 'NO' . $date_part . '-' . $seq_no_str;
+    // s20_sell_out_no: NO + YYMMDD + - + 순번 (예: NO120413-001)
+    $as_out_no = 'NO' . $date_part . '-' . $seq_no_str;
 
-    $as_in_no_esc = mysql_real_escape_string($as_in_no);
-    $as_in_no2_esc = mysql_real_escape_string($as_in_no2);
+    $as_out_no_esc = mysql_real_escape_string($as_out_no);
+    $as_out_no2_esc = mysql_real_escape_string($as_out_no2);
     $as_time_esc = mysql_real_escape_string($as_time);
 
 
 
-    $update_query = "UPDATE step20_sell SET s20_as_level = '2', s20_as_time='$as_time_esc', s20_as_in_no='$as_in_no_esc', s20_as_in_no2='$as_in_no2_esc', s20_bank_check = '$now', s20_as_out_date = '$now', s20_bankcheck_w = 'center' WHERE s20_sellid = $id";
+    $update_query = "UPDATE step20_sell SET s20_sell_level = '2', s20_sell_time='$as_time_esc', s20_sell_out_no='$as_out_no_esc', s20_sell_out_no2='$as_out_no2_esc', s20_bank_check = '$now', s20_sell_out_date = '$now', s20_bankcheck_w = 'center' WHERE s20_sellid = $id";
     $result = mysql_query($update_query);
 
-    // step21_sell_cart의 s21_signdate를 s20_as_out_date와 동기화 (입금 확인 시간 동기화)
+    // step21_sell_cart의 s21_signdate를 s20_sell_out_date와 동기화 (입금 확인 시간 동기화)
     if ($result) {
         $sync_query = "UPDATE step21_sell_cart SET s21_signdate = '$now' WHERE s21_sellid = $id";
         @mysql_query($sync_query);
@@ -90,14 +90,14 @@ if ($action === 'complete') {
     }
 } elseif ($action === 'cancel') {
     // 판매 완료 취소: 완료 시 업데이트된 모든 값들을 초기화
-    // s20_as_level을 '1'로 변경하여 판매요청 탭으로 돌아감
+    // s20_sell_level을 '1'로 변경하여 판매요청 탭으로 돌아감
     $update_query = "UPDATE step20_sell SET
-        s20_as_level = '1',
-        s20_as_time = '',
-        s20_as_in_no = '',
-        s20_as_in_no2 = '',
+        s20_sell_level = '1',
+        s20_sell_time = '',
+        s20_sell_out_no = '',
+        s20_sell_out_no2 = '',
         s20_bank_check = NULL,
-        s20_as_out_date = NULL,
+        s20_sell_out_date = NULL,
         s20_bankcheck_w = ''
         WHERE s20_sellid = $id";
     $result = mysql_query($update_query);

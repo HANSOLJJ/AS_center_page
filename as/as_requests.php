@@ -28,7 +28,7 @@ $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
 // 기간 필터 설정
-$range = isset($_GET['range']) ? $_GET['range'] : 'today';
+$range = isset($_GET['range']) ? $_GET['range'] : '';
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 $month_start = date('Y-m-01');
@@ -857,6 +857,7 @@ function getStatusColor($level)
                 <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
 
                 <div class="date-filter-buttons">
+                    <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>" onclick="setSearchDateRange('all', 'search-form-tab'); document.getElementById('search-form-tab').submit();">전체 기간</button>
                     <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setSearchDateRange('today', 'search-form-tab'); document.getElementById('search-form-tab').submit();">오늘</button>
                     <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setSearchDateRange('week', 'search-form-tab'); document.getElementById('search-form-tab').submit();">금주</button>
                     <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setSearchDateRange('month', 'search-form-tab'); document.getElementById('search-form-tab').submit();">금월</button>
@@ -890,7 +891,10 @@ function getStatusColor($level)
                 const day = String(today.getDate()).padStart(2, '0');
                 const todayStr = year + '-' + month + '-' + day;
 
-                if (range === 'today') {
+                if (range === 'all') {
+                    startDate = '';
+                    endDate = '';
+                } else if (range === 'today') {
                     startDate = todayStr;
                     endDate = todayStr;
                 } else if (range === 'week') {
@@ -909,7 +913,7 @@ function getStatusColor($level)
 
                 form.search_start_date.value = startDate;
                 form.search_end_date.value = endDate;
-                document.getElementById('range-input').value = range;
+                document.getElementById('range-input').value = (range === 'all' ? '' : range);
                 form.submit();
             }
             </script>
