@@ -22,8 +22,8 @@ $current_page = 'as_statistics';
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'overview';
 $current_tab = in_array($tab, ['overview', 'as_analysis', 'sales_analysis']) ? $tab : 'overview';
 
-// 기간 설정 (기본값: 오늘)
-$range = isset($_GET['range']) ? $_GET['range'] : 'today';
+// 기간 설정 (기본값: 금월)
+$range = isset($_GET['range']) ? $_GET['range'] : 'month';
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 $month_start = date('Y-m-01');
@@ -41,6 +41,10 @@ if ($range === 'today') {
 } elseif ($range === 'year') {
     $start_date = $year_start;
     $end_date = $today;
+} elseif ($range === '' || $range === 'all') {
+    // 전체 기간: 날짜 제한 없음
+    $start_date = '';
+    $end_date = '';
 } else {
     $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : $today;
     $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : $today;
@@ -50,6 +54,10 @@ if ($range === 'today') {
 function getStatistics($connect, $start_date, $end_date)
 {
     // AS 통계
+    $as_where = (!empty($start_date) && !empty($end_date))
+        ? "WHERE DATE(s13_as_in_date) BETWEEN '$start_date' AND '$end_date'"
+        : "";
+
     $as_query = "SELECT
         COUNT(*) as total_as,
         SUM(CASE WHEN s13_as_level NOT IN ('2','3','4','5') THEN 1 ELSE 0 END) as as_request,
@@ -57,19 +65,23 @@ function getStatistics($connect, $start_date, $end_date)
         SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as as_completed,
         SUM(COALESCE(ex_total_cost, 0)) as total_as_cost
         FROM step13_as
-        WHERE DATE(s13_as_in_date) BETWEEN '$start_date' AND '$end_date'";
+        $as_where";
 
     $as_result = mysql_query($as_query);
     $as_stats = mysql_fetch_assoc($as_result) ?? array();
 
     // 자재 판매 통계
+    $sales_where = (!empty($start_date) && !empty($end_date))
+        ? "WHERE DATE(s20_sell_in_date) BETWEEN '$start_date' AND '$end_date'"
+        : "";
+
     $sales_query = "SELECT
         COUNT(*) as total_sales,
         SUM(CASE WHEN s20_sell_level = '1' THEN 1 ELSE 0 END) as sales_request,
         SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as sales_completed,
         SUM(COALESCE(s20_total_cost, 0)) as total_sales_cost
         FROM step20_sell
-        WHERE DATE(s20_sell_in_date) BETWEEN '$start_date' AND '$end_date'";
+        $sales_where";
 
     $sales_result = mysql_query($sales_query);
     $sales_stats = mysql_fetch_assoc($sales_result) ?? array();
@@ -122,13 +134,17 @@ function getMonthlySalesStats($connect)
 // TOP3 수리 제품 (step14_as_item에서 s14_model별 count, step13_as s13_as_out_date 기준)
 function getTopRepairProducts($connect, $start_date, $end_date)
 {
+    $where_clause = (!empty($start_date) && !empty($end_date))
+        ? "WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'"
+        : "WHERE a.s13_as_level = '5'";
+
     $query = "SELECT
         b.s14_model,
         MAX(b.cost_name) as cost_name,
         COUNT(*) as count
         FROM step14_as_item b
         LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
-        WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'
+        $where_clause
         GROUP BY b.s14_model
         ORDER BY count DESC
         LIMIT 3";
@@ -144,6 +160,10 @@ function getTopRepairProducts($connect, $start_date, $end_date)
 // TOP3 수리 자재 (step18_as_cure_cart에서 s18_uid와 s18_quantity 고려)
 function getTopRepairParts($connect, $start_date, $end_date)
 {
+    $where_clause = (!empty($start_date) && !empty($end_date))
+        ? "WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'"
+        : "WHERE a.s13_as_level = '5'";
+
     $query = "SELECT
         c.s18_uid,
         c.cost_name,
@@ -152,7 +172,7 @@ function getTopRepairParts($connect, $start_date, $end_date)
         FROM step18_as_cure_cart c
         LEFT JOIN step14_as_item b ON c.s18_aiid = b.s14_aiid
         LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
-        WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'
+        $where_clause
         GROUP BY c.s18_uid, c.cost_name
         ORDER BY total_qty DESC
         LIMIT 3";
@@ -168,6 +188,10 @@ function getTopRepairParts($connect, $start_date, $end_date)
 // TOP3 판매 자재 (step20_sell에서 판매 완료 기준, step21_sell_cart에서 수량 합산)
 function getTopSaleParts($connect, $start_date, $end_date)
 {
+    $where_clause = (!empty($start_date) && !empty($end_date))
+        ? "WHERE s.s20_sell_level = '2' AND DATE(s.s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'"
+        : "WHERE s.s20_sell_level = '2'";
+
     $query = "SELECT
         c.s21_uid,
         c.cost_name,
@@ -175,7 +199,7 @@ function getTopSaleParts($connect, $start_date, $end_date)
         COUNT(*) as item_count
         FROM step21_sell_cart c
         LEFT JOIN step20_sell s ON c.s21_sellid = s.s20_sellid
-        WHERE s.s20_sell_level = '2' AND DATE(s.s20_sell_out_date) BETWEEN '$start_date' AND '$end_date'
+        $where_clause
         GROUP BY c.s21_uid, c.cost_name
         ORDER BY total_qty DESC
         LIMIT 3";
@@ -554,6 +578,8 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                 <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
 
                 <div class="date-filter-buttons">
+                    <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>"
+                        onclick="setDateRange('all', this.form); this.form.submit();">전체 기간</button>
                     <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>"
                         onclick="setDateRange('today', this.form); this.form.submit();">오늘</button>
                     <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>"
@@ -570,6 +596,8 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
                     <input type="hidden" id="range-input-stat" name="range" value="">
                     <button type="submit">검색</button>
+                    <a href="export_statistics.php?start_date=<?php echo urlencode($start_date); ?>&end_date=<?php echo urlencode($end_date); ?>&range=<?php echo urlencode($range); ?>"
+                       style="margin-left: 10px; padding: 8px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 Excel 다운로드</a>
                 </div>
             </form>
 
@@ -598,11 +626,14 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     } else if (range === 'year') {
                         startDate = year + '-01-01';
                         endDate = todayStr;
+                    } else if (range === 'all') {
+                        startDate = '';
+                        endDate = '';
                     }
 
                     form.start_date.value = startDate;
                     form.end_date.value = endDate;
-                    document.getElementById('range-input-stat').value = range;
+                    document.getElementById('range-input-stat').value = (range === 'all' ? '' : range);
                     // range 버튼 시 자동 submit하지 않음
                 }
 
