@@ -71,7 +71,10 @@
       "Bash(done)",
       "Bash(php -l:*)",
       "Bash(where:*)",
-      "Bash(php:*)"
+      "Bash(php:*)",
+      "mcp__git-mcp-server__git_show",
+      "Bash(unzip:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []
