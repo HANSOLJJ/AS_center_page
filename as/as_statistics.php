@@ -577,9 +577,20 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 
             <!-- 기간 필터 -->
             <?php if ($current_tab === 'monthly_report'): ?>
-                <!-- 월간 리포트 탭: 월 선택 -->
+                <!-- 월간 리포트 탭: 연도/월 선택 -->
                 <div class="date-filter-controls" style="display: flex; align-items: center; gap: 10px;">
-                    <label style="font-weight: 500; margin: 0;">월 선택:</label>
+                    <label style="font-weight: 500; margin: 0;">기간 선택:</label>
+
+                    <!-- 연도 선택 -->
+                    <select id="report_year_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                        <?php
+                        $current_year = date('Y');
+                        for ($y = $current_year; $y >= $current_year - 10; $y--) {
+                            $selected = (isset($_GET['report_year']) && $_GET['report_year'] == $y) ? 'selected' : '';
+                            echo "<option value=\"$y\" $selected>$y년</option>";
+                        }
+                        ?>
+                    </select>
 
                     <!-- 월 선택 -->
                     <select id="report_month_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
@@ -649,10 +660,10 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 
                 // 월간 종합 리포트 다운로드 함수
                 function downloadMonthlyReport() {
-                    const currentYear = new Date().getFullYear();
+                    const reportYear = document.getElementById('report_year_select').value;
                     const reportMonth = document.getElementById('report_month_select').value;
 
-                    const url = 'export_monthly_report.php?report_year=' + currentYear +
+                    const url = 'export_monthly_report.php?report_year=' + encodeURIComponent(reportYear) +
                                 '&report_month=' + encodeURIComponent(reportMonth);
 
                     // 브라우저 다운로드 다이얼로그 표시
