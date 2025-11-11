@@ -596,18 +596,55 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
                     <input type="hidden" id="range-input-stat" name="range" value="">
                     <button type="submit">검색</button>
-                    <a href="export_as_report.php?start_date=<?php echo urlencode($start_date); ?>&end_date=<?php echo urlencode($end_date); ?>&range=<?php echo urlencode($range); ?>"
-                       style="margin-left: 10px; padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 AS 리포트 (CSV)</a>
-                    <a href="export_sales_report.php?start_date=<?php echo urlencode($start_date); ?>&end_date=<?php echo urlencode($end_date); ?>&range=<?php echo urlencode($range); ?>"
-                       style="margin-left: 5px; padding: 8px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 판매 리포트 (CSV)</a>
-                    <a href="export_xlsx_as_report.php?start_date=<?php echo urlencode($start_date); ?>&end_date=<?php echo urlencode($end_date); ?>&range=<?php echo urlencode($range); ?>"
-                       style="margin-left: 5px; padding: 8px 20px; background: #8b5cf6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 AS 리포트 (XLSX)</a>
-                    <a href="export_xlsx_sales_report.php?start_date=<?php echo urlencode($start_date); ?>&end_date=<?php echo urlencode($end_date); ?>&range=<?php echo urlencode($range); ?>"
-                       style="margin-left: 5px; padding: 8px 20px; background: #ec4899; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 판매 리포트 (XLSX)</a>
+                    <div style="display: inline-flex; gap: 5px; margin-left: 10px;">
+                        <button type="button" onclick="downloadReport('export_xlsx_as_report.php')"
+                            style="padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">📥 AS 리포트</button>
+                        <button type="button" onclick="openReport('export_xlsx_as_report.php')"
+                            style="padding: 8px 15px; background: #1e40af; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">👁️ 열기</button>
+                    </div>
+                    <div style="display: inline-flex; gap: 5px; margin-left: 5px;">
+                        <button type="button" onclick="downloadReport('export_xlsx_sales_report.php')"
+                            style="padding: 8px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">📥 판매 리포트</button>
+                        <button type="button" onclick="openReport('export_xlsx_sales_report.php')"
+                            style="padding: 8px 15px; background: #047857; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">👁️ 열기</button>
+                    </div>
                 </div>
             </form>
 
             <script>
+                // 리포트 다운로드 함수
+                function downloadReport(filename) {
+                    const startDate = document.querySelector('input[name="start_date"]').value;
+                    const endDate = document.querySelector('input[name="end_date"]').value;
+                    const range = document.getElementById('range-input-stat').value || 'month';
+
+                    const url = filename + '?start_date=' + encodeURIComponent(startDate) +
+                                '&end_date=' + encodeURIComponent(endDate) +
+                                '&range=' + encodeURIComponent(range);
+
+                    // 다운로드 링크 생성
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = true;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+
+                // 리포트 열기 함수 (새 탭에서 열기)
+                function openReport(filename) {
+                    const startDate = document.querySelector('input[name="start_date"]').value;
+                    const endDate = document.querySelector('input[name="end_date"]').value;
+                    const range = document.getElementById('range-input-stat').value || 'month';
+
+                    const url = filename + '?start_date=' + encodeURIComponent(startDate) +
+                                '&end_date=' + encodeURIComponent(endDate) +
+                                '&range=' + encodeURIComponent(range);
+
+                    // 새 탭에서 열기
+                    window.open(url, '_blank');
+                }
+
                 function setDateRange(range, form) {
                     const today = new Date();
                     let startDate, endDate;
