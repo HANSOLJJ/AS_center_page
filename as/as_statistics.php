@@ -577,40 +577,24 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 
             <!-- 기간 필터 -->
             <?php if ($current_tab === 'monthly_report'): ?>
-                <!-- 월간 리포트 탭: 연도/월 선택 -->
-                <form method="GET" class="date-filter">
-                    <input type="hidden" name="tab" value="monthly_report">
+                <!-- 월간 리포트 탭: 월 선택 -->
+                <div class="date-filter-controls" style="display: flex; align-items: center; gap: 10px;">
+                    <label style="font-weight: 500; margin: 0;">월 선택:</label>
 
-                    <div class="date-filter-controls" style="display: flex; align-items: center; gap: 10px;">
-                        <label style="font-weight: 500; margin: 0;">기간 선택:</label>
+                    <!-- 월 선택 -->
+                    <select id="report_month_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                        <?php
+                        $current_month = date('m');
+                        for ($m = 1; $m <= 12; $m++) {
+                            $selected = (isset($_GET['report_month']) && $_GET['report_month'] == $m) ? 'selected' : '';
+                            echo "<option value=\"" . str_pad($m, 2, '0', STR_PAD_LEFT) . "\" $selected>" . str_pad($m, 2, '0', STR_PAD_LEFT) . "월</option>";
+                        }
+                        ?>
+                    </select>
 
-                        <!-- 연도 선택 -->
-                        <select name="report_year" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
-                            <?php
-                            $current_year = date('Y');
-                            for ($y = $current_year; $y >= $current_year - 10; $y--) {
-                                $selected = (isset($_GET['report_year']) && $_GET['report_year'] == $y) ? 'selected' : '';
-                                echo "<option value=\"$y\" $selected>$y년</option>";
-                            }
-                            ?>
-                        </select>
-
-                        <!-- 월 선택 -->
-                        <select name="report_month" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
-                            <?php
-                            $current_month = date('m');
-                            for ($m = 1; $m <= 12; $m++) {
-                                $selected = (isset($_GET['report_month']) && $_GET['report_month'] == $m) ? 'selected' : '';
-                                echo "<option value=\"" . str_pad($m, 2, '0', STR_PAD_LEFT) . "\" $selected>" . str_pad($m, 2, '0', STR_PAD_LEFT) . "월</option>";
-                            }
-                            ?>
-                        </select>
-
-                        <button type="submit" style="padding: 8px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">조회</button>
-                        <button type="button" onclick="downloadMonthlyReport()"
-                            style="padding: 8px 20px; background: #8b5cf6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; margin-left: auto;">📥 월간 종합 리포트</button>
-                    </div>
-                </form>
+                    <button type="button" onclick="downloadMonthlyReport()"
+                        style="padding: 8px 20px; background: #8b5cf6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; margin-left: auto;">📥 월간 종합 리포트</button>
+                </div>
             <?php else: ?>
                 <!-- 다른 탭: 기존 기간 필터 -->
                 <form method="GET" class="date-filter">
@@ -665,10 +649,10 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 
                 // 월간 종합 리포트 다운로드 함수
                 function downloadMonthlyReport() {
-                    const reportYear = document.querySelector('select[name="report_year"]').value;
-                    const reportMonth = document.querySelector('select[name="report_month"]').value;
+                    const currentYear = new Date().getFullYear();
+                    const reportMonth = document.getElementById('report_month_select').value;
 
-                    const url = 'export_monthly_report.php?report_year=' + encodeURIComponent(reportYear) +
+                    const url = 'export_monthly_report.php?report_year=' + currentYear +
                                 '&report_month=' + encodeURIComponent(reportMonth);
 
                     // 브라우저 다운로드 다이얼로그 표시
