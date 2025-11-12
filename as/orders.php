@@ -1127,7 +1127,7 @@ if (!empty($sellid_list)) {
                                     echo "<td rowspan='" . count($items) . "' style='font-weight: bold;'>" . number_format($total_price) . "</td>";
                                     echo "<td rowspan='" . count($items) . "' style='background: #d4edda; color: #155724; font-weight: 600;'>✓ 완료</td>";
                                     echo "<td rowspan='" . count($items) . "'><button onclick='cancelSale(" . $row['s20_sellid'] . ")' class='action-btn cancel'>취소</button></td>";
-                                    echo "<td rowspan='" . count($items) . "'><a href='sales_receipt.php?id=" . $row['s20_sellid'] . "' target='_blank' class='action-btn view'>보기</a></td>";
+                                    echo "<td rowspan='" . count($items) . "'><a href='order_receipt.php?id=" . $row['s20_sellid'] . "' target='_blank' class='action-btn view'>보기</a></td>";
                                     echo "</tr>";
 
                                     // 나머지 자재 행들
@@ -1155,7 +1155,7 @@ if (!empty($sellid_list)) {
                                     echo "<td style='font-weight: bold;'>" . number_format($total_price) . "</td>";
                                     echo "<td style='background: #d4edda; color: #155724; font-weight: 600;'>✓ 완료</td>";
                                     echo "<td><button onclick='cancelSale(" . $row['s20_sellid'] . ")' class='action-btn cancel'>취소</button></td>";
-                                    echo "<td><a href='sales_receipt.php?id=" . $row['s20_sellid'] . "' target='_blank' class='action-btn view'>보기</a></td>";
+                                    echo "<td><a href='order_receipt.php?id=" . $row['s20_sellid'] . "' target='_blank' class='action-btn view'>보기</a></td>";
                                     echo "</tr>";
                                 }
                                 $display_count--;
