@@ -22,32 +22,43 @@ $current_page = 'as_statistics';
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'overview';
 $current_tab = in_array($tab, ['overview', 'monthly_report', 'as_analysis', 'sales_analysis']) ? $tab : 'overview';
 
-// 기간 설정 (기본값: 금월)
-$range = isset($_GET['range']) ? $_GET['range'] : 'month';
+// 기간 설정
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 $month_start = date('Y-m-01');
 $year_start = date('Y-01-01');
 
-if ($range === 'today') {
-    $start_date = $today;
-    $end_date = $today;
-} elseif ($range === 'week') {
-    $start_date = $week_start;
-    $end_date = $today;
-} elseif ($range === 'month') {
-    $start_date = $month_start;
-    $end_date = $today;
-} elseif ($range === 'year') {
-    $start_date = $year_start;
-    $end_date = $today;
-} elseif ($range === '' || $range === 'all') {
-    // 전체 기간: 날짜 제한 없음
-    $start_date = '';
-    $end_date = '';
+// start_date와 end_date가 있으면 사용자 지정 기간으로 처리
+if (isset($_GET['start_date']) && isset($_GET['end_date']) && !empty($_GET['start_date']) && !empty($_GET['end_date'])) {
+    // 사용자가 특정 날짜를 선택한 경우
+    $start_date = $_GET['start_date'];
+    $end_date = $_GET['end_date'];
+    $range = 'custom';  // 사용자 지정 기간임을 표시
 } else {
-    $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : $today;
-    $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : $today;
+    // 미리 정의된 기간 또는 기본값 사용
+    $range = isset($_GET['range']) ? $_GET['range'] : 'month';
+
+    if ($range === 'today') {
+        $start_date = $today;
+        $end_date = $today;
+    } elseif ($range === 'week') {
+        $start_date = $week_start;
+        $end_date = $today;
+    } elseif ($range === 'month') {
+        $start_date = $month_start;
+        $end_date = $today;
+    } elseif ($range === 'year') {
+        $start_date = $year_start;
+        $end_date = $today;
+    } elseif ($range === '' || $range === 'all') {
+        // 전체 기간: 날짜 제한 없음
+        $start_date = '';
+        $end_date = '';
+    } else {
+        // 기타 경우: 전체 기간
+        $start_date = '';
+        $end_date = '';
+    }
 }
 
 // 통계 데이터 조회 함수
