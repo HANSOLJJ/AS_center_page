@@ -1141,7 +1141,7 @@ function getStatusColor($level)
                                     <?php elseif ($current_tab === 'completed'): ?>
                                         <!-- completed 탭: 보기 -->
                                         <td rowspan="<?php echo $rowspan; ?>">
-                                            <a href="as_request_view.php?id=<?php echo intval($as_info['s13_asid'] ?? 0); ?>"
+                                            <a href="as_receipt.php?id=<?php echo intval($as_info['s13_asid'] ?? 0); ?>"
                                                 class="action-btn view" target="_blank">보기</a>
                                         </td>
                                     <?php elseif ($current_tab === 'working'): ?>
