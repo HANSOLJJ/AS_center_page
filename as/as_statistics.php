@@ -185,6 +185,48 @@ function getTopRepairParts($connect, $start_date, $end_date)
     return $data;
 }
 
+// 연도별 판매액 통계 (2012년부터)
+function getYearlySalesStats($connect)
+{
+    $query = "SELECT
+        YEAR(s20_sell_out_date) as year,
+        SUM(COALESCE(s20_total_cost, 0)) as total_cost,
+        COUNT(*) as count
+        FROM step20_sell
+        WHERE s20_sell_level = '2' AND s20_sell_out_date IS NOT NULL AND YEAR(s20_sell_out_date) >= 2012
+        GROUP BY YEAR(s20_sell_out_date)
+        ORDER BY year ASC";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
+// 올해 월별 판매액 통계
+function getCurrentYearMonthlySalesStats($connect)
+{
+    $current_year = date('Y');
+    $query = "SELECT
+        MONTH(s20_sell_out_date) as month,
+        DATE_FORMAT(s20_sell_out_date, '%m월') as month_label,
+        SUM(COALESCE(s20_total_cost, 0)) as total_cost,
+        COUNT(*) as count
+        FROM step20_sell
+        WHERE s20_sell_level = '2' AND s20_sell_out_date IS NOT NULL AND YEAR(s20_sell_out_date) = $current_year
+        GROUP BY MONTH(s20_sell_out_date)
+        ORDER BY month ASC";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
 // TOP10 판매 자재 (step20_sell에서 판매 완료 기준, step21_sell_cart에서 수량 합산)
 function getTopSaleParts($connect, $start_date, $end_date)
 {
@@ -266,6 +308,10 @@ $monthly_sales = getMonthlySalesStats($connect);
 $top_products = getTopRepairProducts($connect, $start_date, $end_date);
 $top_parts = getTopRepairParts($connect, $start_date, $end_date);
 $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
+
+// 판매분석용 그래프 데이터
+$yearly_sales = getYearlySalesStats($connect);
+$current_year_monthly_sales = getCurrentYearMonthlySalesStats($connect);
 
 // 월간 리포트 탭 데이터 조회
 $report_year = isset($_GET['report_year']) ? intval($_GET['report_year']) : date('Y');
@@ -583,6 +629,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
             color: #999;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 </head>
 
 <body>
@@ -1031,6 +1078,21 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     </div>
                 </div>
 
+                <!-- 판매액 그래프 -->
+                <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <!-- 연도별 판매액 그래프 -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📈 연도별 총 판매액 (2012년~)</h4>
+                        <canvas id="yearlyChart" style="max-height: 300px;"></canvas>
+                    </div>
+
+                    <!-- 올해 월별 판매액 그래프 -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 월별 판매액</h4>
+                        <canvas id="monthlyChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+
                 <!-- TOP10 판매 자재 테이블 -->
                 <div style="margin-top: 30px;">
                     <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📦 TOP10 판매 자재</h4>
@@ -1065,6 +1127,125 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
 
         </div>
     </div>
+
+<script>
+// 판매분석 탭 그래프 렌더링
+<?php if ($current_tab === 'sales_analysis'): ?>
+
+    // 연도별 판매액 데이터
+    var yearlyLabels = [<?php echo implode(',', array_map(function($item) { return "'" . $item['year'] . "년'"; }, $yearly_sales)); ?>];
+    var yearlyCosts = [<?php echo implode(',', array_map(function($item) { return intval($item['total_cost']); }, $yearly_sales)); ?>];
+
+    // 연도별 그래프
+    if (document.getElementById('yearlyChart')) {
+        var yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
+        var yearlyChart = new Chart(yearlyCtx, {
+            type: 'line',
+            data: {
+                labels: yearlyLabels,
+                datasets: [{
+                    label: '총 판매액 (원)',
+                    data: yearlyCosts,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString() + '원';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 올해 월별 판매액 데이터
+    var monthlyLabels = [<?php
+        for ($m = 1; $m <= 12; $m++) {
+            echo "'" . $m . "월'";
+            if ($m < 12) echo ",";
+        }
+    ?>];
+    var monthlyCosts = [];
+    var monthlyDataMap = {};
+
+    // 월별 데이터 맵 생성
+    <?php foreach ($current_year_monthly_sales as $item): ?>
+        monthlyDataMap[<?php echo intval($item['month']); ?>] = <?php echo intval($item['total_cost']); ?>;
+    <?php endforeach; ?>
+
+    // 모든 월에 대해 데이터 설정 (없으면 0)
+    for (var i = 1; i <= 12; i++) {
+        monthlyCosts.push(monthlyDataMap[i] || 0);
+    }
+
+    // 올해 월별 그래프
+    if (document.getElementById('monthlyChart')) {
+        var monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+        var monthlyChart = new Chart(monthlyCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyLabels,
+                datasets: [{
+                    label: '총 판매액 (원)',
+                    data: monthlyCosts,
+                    borderColor: '#06b6d4',
+                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#06b6d4',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString() + '원';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+<?php endif; ?>
+</script>
 
 </body>
 
