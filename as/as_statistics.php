@@ -1088,22 +1088,25 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         <div class="label">건</div>
                     </div>
                     <div class="stat-card">
-                        <h4>총 매출</h4>
+                        <h4>총 AS 매출</h4>
                         <?php echo formatRevenue($stats['as']['total_as_cost'] ?? 0); ?>
                     </div>
                 </div>
 
-                <!-- AS 비용 그래프 -->
+                <!-- AS 매출 그래프 -->
                 <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
-                    <!-- 연도별 AS 비용 그래프 -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📈 연도별 총 AS비용 (2012년~)</h4>
+                    <!-- 연도별 AS 매출 그래프 -->
+                    <div
+                        style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📈 연도별 총 AS 매출 (2012년~)</h4>
                         <canvas id="asYearlyChart" style="max-height: 300px;"></canvas>
                     </div>
 
-                    <!-- 올해 월별 AS 비용 그래프 -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 월별 AS비용</h4>
+                    <!-- 올해 월별 AS 매출 그래프 -->
+                    <div
+                        style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 월별 AS 매출
+                        </h4>
                         <canvas id="asMonthlyChart" style="max-height: 300px;"></canvas>
                     </div>
                 </div>
@@ -1149,7 +1152,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         <div class="label">건</div>
                     </div>
                     <div class="stat-card">
-                        <h4>총 판매액</h4>
+                        <h4>총 판매 매출</h4>
                         <?php echo formatRevenue($stats['sales']['total_sales_cost'] ?? 0); ?>
                     </div>
                 </div>
@@ -1159,14 +1162,14 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     <!-- 연도별 판매액 그래프 -->
                     <div
                         style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📈 연도별 총 판매액 (2012년~)</h4>
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📈 연도별 소모품 매출 (2012년~)</h4>
                         <canvas id="yearlyChart" style="max-height: 300px;"></canvas>
                     </div>
 
                     <!-- 올해 월별 판매액 그래프 -->
                     <div
                         style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 월별 판매액
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 소모품 매출
                         </h4>
                         <canvas id="monthlyChart" style="max-height: 300px;"></canvas>
                     </div>
@@ -1235,7 +1238,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     data: {
                         labels: yearlyLabels,
                         datasets: [{
-                            label: '총 판매액 (만원)',
+                            label: '연 소모품 매출',
                             data: yearlyCosts,
                             borderColor: '#667eea',
                             backgroundColor: 'rgba(102, 126, 234, 0.1)',
@@ -1260,6 +1263,10 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         scales: {
                             y: {
                                 beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '(만원)'
+                                },
                                 ticks: {
                                     callback: function (value) {
                                         return Math.round(value / 10000).toLocaleString();
@@ -1301,7 +1308,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     data: {
                         labels: monthlyLabels,
                         datasets: [{
-                            label: '총 판매액 (만원)',
+                            label: '월 소모품 매출',
                             data: monthlyCosts,
                             borderColor: '#06b6d4',
                             backgroundColor: 'rgba(6, 182, 212, 0.1)',
@@ -1326,6 +1333,10 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         scales: {
                             y: {
                                 beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '(만원)'
+                                },
                                 ticks: {
                                     callback: function (value) {
                                         return Math.round(value / 10000).toLocaleString();
@@ -1355,7 +1366,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     data: {
                         labels: asYearlyLabels,
                         datasets: [{
-                            label: '총 AS비용 (만원)',
+                            label: '연 AS 매출',
                             data: asYearlyCosts,
                             borderColor: '#f59e0b',
                             backgroundColor: 'rgba(245, 158, 11, 0.1)',
@@ -1380,6 +1391,10 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         scales: {
                             y: {
                                 beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '(만원)'
+                                },
                                 ticks: {
                                     callback: function (value) {
                                         return Math.round(value / 10000).toLocaleString();
@@ -1391,7 +1406,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 });
             }
 
-            // 올해 월별 AS 비용 데이터
+            // 올해 월별 AS 매출 데이터
             var asMonthlyLabels = [<?php
             for ($m = 1; $m <= 12; $m++) {
                 echo "'" . $m . "'";
@@ -1420,7 +1435,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     data: {
                         labels: asMonthlyLabels,
                         datasets: [{
-                            label: '총 AS비용 (만원)',
+                            label: '월 AS 매출',
                             data: asMonthyCosts,
                             borderColor: '#10b981',
                             backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -1445,6 +1460,10 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         scales: {
                             y: {
                                 beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '(만원)'
+                                },
                                 ticks: {
                                     callback: function (value) {
                                         return Math.round(value / 10000).toLocaleString();
