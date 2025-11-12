@@ -2,7 +2,7 @@
 /**
  * AS 리포트 XLSX 내보내기
  *
- * as_statistics.php에서 호출되는 AS 완료 데이터 리포트 생성 파일
+ * statistics.php에서 호출되는 AS 완료 데이터 리포트 생성 파일
  * PhpSpreadsheet 라이브러리를 사용하여 XLSX 형식으로 내보냄
  * 날짜 범위 필터링 지원 (GET 파라미터: start_date, end_date, range)
  * 부품별 자동 줄 분리 (하나의 AS에 여러 부품이 있을 경우)

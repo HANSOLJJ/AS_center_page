@@ -289,7 +289,7 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
         <a href="parts.php" class="nav-item">자재 관리</a>
         <a href="members.php" class="nav-item">고객 관리</a>
         <a href="products.php" class="nav-item">제품 관리</a>
-        <a href="as_statistics.php" class="nav-item">통계/분석</a>
+        <a href="statistics.php" class="nav-item">통계/분석</a>
     </div>
 
     <div class="container">
@@ -328,7 +328,7 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
                     <p>자재 판매 현황을 조회 및 관리합니다.</p>
                 </a>
 
-                <a href="as_statistics.php" class="menu-card featured-card">
+                <a href="statistics.php" class="menu-card featured-card">
                     <h3>📊 통계/분석</h3>
                     <p>AS 및 판매 통계를 분석합니다.</p>
                 </a>

@@ -16,7 +16,7 @@ $connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
 mysql_select_db('mic4u', $connect);
 
 $user_name = $_SESSION['member_id'];
-$current_page = 'as_statistics';
+$current_page = 'statistics';
 
 // 탭 선택
 $tab = isset($_GET['tab']) ? $_GET['tab'] : 'overview';
@@ -769,7 +769,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
         <a href="parts.php" class="nav-item">자재 관리</a>
         <a href="members.php" class="nav-item">고객 관리</a>
         <a href="products.php" class="nav-item">제품 관리</a>
-        <a href="as_statistics.php"
+        <a href="statistics.php"
             class="nav-item <?php echo $current_page === 'as_statistics' ? 'active' : ''; ?>">통계/분석</a>
     </div>
 
@@ -780,13 +780,13 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
             <!-- 탭 -->
             <div class="tabs">
                 <button class="tab-btn <?php echo $current_tab === 'overview' ? 'active' : ''; ?>"
-                    onclick="location.href='as_statistics.php?tab=overview'">개요</button>
+                    onclick="location.href='statistics.php?tab=overview'">개요</button>
                 <button class="tab-btn <?php echo $current_tab === 'monthly_report' ? 'active' : ''; ?>"
-                    onclick="location.href='as_statistics.php?tab=monthly_report'">월간 리포트</button>
+                    onclick="location.href='statistics.php?tab=monthly_report'">월간 리포트</button>
                 <button class="tab-btn <?php echo $current_tab === 'as_analysis' ? 'active' : ''; ?>"
-                    onclick="location.href='as_statistics.php?tab=as_analysis'">AS 분석</button>
+                    onclick="location.href='statistics.php?tab=as_analysis'">AS 분석</button>
                 <button class="tab-btn <?php echo $current_tab === 'sales_analysis' ? 'active' : ''; ?>"
-                    onclick="location.href='as_statistics.php?tab=sales_analysis'">판매 분석</button>
+                    onclick="location.href='statistics.php?tab=sales_analysis'">판매 분석</button>
             </div>
 
             <!-- 기간 필터 -->
@@ -917,7 +917,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 function updateMonthlyReport() {
                     const reportYear = document.getElementById('report_year_select').value;
                     const reportMonth = document.getElementById('report_month_select').value;
-                    window.location.href = 'as_statistics.php?tab=monthly_report&report_year=' + reportYear + '&report_month=' + reportMonth;
+                    window.location.href = 'statistics.php?tab=monthly_report&report_year=' + reportYear + '&report_month=' + reportMonth;
                 }
 
                 // 월간 종합 리포트 다운로드 함수
