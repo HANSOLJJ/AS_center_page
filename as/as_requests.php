@@ -28,7 +28,6 @@ $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
 // 기간 필터 설정
-$range = isset($_GET['range']) ? $_GET['range'] : '';
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 $month_start = date('Y-m-01');
@@ -38,19 +37,27 @@ $year_start = date('Y-01-01');
 $search_start_date = isset($_GET['search_start_date']) ? $_GET['search_start_date'] : (isset($_POST['search_start_date']) ? $_POST['search_start_date'] : '');
 $search_end_date = isset($_GET['search_end_date']) ? $_GET['search_end_date'] : (isset($_POST['search_end_date']) ? $_POST['search_end_date'] : '');
 
-// range에 따라 search_start_date, search_end_date 자동 설정
-if ($range === 'today') {
-    $search_start_date = $today;
-    $search_end_date = $today;
-} elseif ($range === 'week') {
-    $search_start_date = $week_start;
-    $search_end_date = $today;
-} elseif ($range === 'month') {
-    $search_start_date = $month_start;
-    $search_end_date = $today;
-} elseif ($range === 'year') {
-    $search_start_date = $year_start;
-    $search_end_date = $today;
+// search_start_date와 search_end_date가 모두 있으면 사용자 지정 기간으로 처리
+if (!empty($search_start_date) && !empty($search_end_date)) {
+    // 사용자가 특정 날짜를 입력한 경우
+    $range = 'custom';  // 사용자 지정 기간임을 표시
+} else {
+    // 미리 정의된 기간 또는 기본값 사용
+    $range = isset($_GET['range']) ? $_GET['range'] : '';
+
+    if ($range === 'today') {
+        $search_start_date = $today;
+        $search_end_date = $today;
+    } elseif ($range === 'week') {
+        $search_start_date = $week_start;
+        $search_end_date = $today;
+    } elseif ($range === 'month') {
+        $search_start_date = $month_start;
+        $search_end_date = $today;
+    } elseif ($range === 'year') {
+        $search_start_date = $year_start;
+        $search_end_date = $today;
+    }
 }
 
 $search_customer = isset($_GET['search_customer']) ? trim($_GET['search_customer']) : (isset($_POST['search_customer']) ? trim($_POST['search_customer']) : '');
@@ -886,11 +893,17 @@ function getStatusColor($level)
                 <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
 
                 <div class="date-filter-buttons">
-                    <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>" onclick="setSearchDateRange('all', 'search-form-tab'); document.getElementById('search-form-tab').submit();">전체 기간</button>
-                    <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>" onclick="setSearchDateRange('today', 'search-form-tab'); document.getElementById('search-form-tab').submit();">오늘</button>
-                    <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>" onclick="setSearchDateRange('week', 'search-form-tab'); document.getElementById('search-form-tab').submit();">금주</button>
-                    <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>" onclick="setSearchDateRange('month', 'search-form-tab'); document.getElementById('search-form-tab').submit();">금월</button>
-                    <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>" onclick="setSearchDateRange('year', 'search-form-tab'); document.getElementById('search-form-tab').submit();">금년</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>"
+                        onclick="setSearchDateRange('all', 'search-form-tab'); document.getElementById('search-form-tab').submit();">전체
+                        기간</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>"
+                        onclick="setSearchDateRange('today', 'search-form-tab'); document.getElementById('search-form-tab').submit();">오늘</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>"
+                        onclick="setSearchDateRange('week', 'search-form-tab'); document.getElementById('search-form-tab').submit();">금주</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>"
+                        onclick="setSearchDateRange('month', 'search-form-tab'); document.getElementById('search-form-tab').submit();">금월</button>
+                    <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>"
+                        onclick="setSearchDateRange('year', 'search-form-tab'); document.getElementById('search-form-tab').submit();">금년</button>
                 </div>
 
                 <div class="date-filter-controls">
@@ -905,46 +918,47 @@ function getStatusColor($level)
                         value="<?php echo htmlspecialchars($search_phone); ?>">
                     <input type="hidden" id="range-input" name="range" value="">
                     <button type="submit">검색</button>
-                    <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>" class="btn-reset">초기화</a>
+                    <a href="as_requests.php?tab=<?php echo htmlspecialchars($current_tab); ?>"
+                        class="btn-reset">초기화</a>
                 </div>
             </form>
 
             <script>
-            function setSearchDateRange(range, formId) {
-                const form = document.getElementById(formId);
-                const today = new Date();
-                let startDate, endDate;
+                function setSearchDateRange(range, formId) {
+                    const form = document.getElementById(formId);
+                    const today = new Date();
+                    let startDate, endDate;
 
-                const year = today.getFullYear();
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const day = String(today.getDate()).padStart(2, '0');
-                const todayStr = year + '-' + month + '-' + day;
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const todayStr = year + '-' + month + '-' + day;
 
-                if (range === 'all') {
-                    startDate = '';
-                    endDate = '';
-                } else if (range === 'today') {
-                    startDate = todayStr;
-                    endDate = todayStr;
-                } else if (range === 'week') {
-                    const dayOfWeek = today.getDay();
-                    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-                    const monday = new Date(today.setDate(diff));
-                    startDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
-                    endDate = todayStr;
-                } else if (range === 'month') {
-                    startDate = year + '-' + month + '-01';
-                    endDate = todayStr;
-                } else if (range === 'year') {
-                    startDate = year + '-01-01';
-                    endDate = todayStr;
+                    if (range === 'all') {
+                        startDate = '';
+                        endDate = '';
+                    } else if (range === 'today') {
+                        startDate = todayStr;
+                        endDate = todayStr;
+                    } else if (range === 'week') {
+                        const dayOfWeek = today.getDay();
+                        const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                        const monday = new Date(today.setDate(diff));
+                        startDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
+                        endDate = todayStr;
+                    } else if (range === 'month') {
+                        startDate = year + '-' + month + '-01';
+                        endDate = todayStr;
+                    } else if (range === 'year') {
+                        startDate = year + '-01-01';
+                        endDate = todayStr;
+                    }
+
+                    form.search_start_date.value = startDate;
+                    form.search_end_date.value = endDate;
+                    document.getElementById('range-input').value = (range === 'all' ? '' : range);
+                    form.submit();
                 }
-
-                form.search_start_date.value = startDate;
-                form.search_end_date.value = endDate;
-                document.getElementById('range-input').value = (range === 'all' ? '' : range);
-                form.submit();
-            }
             </script>
 
             <!-- 정보 텍스트 -->
@@ -973,14 +987,9 @@ function getStatusColor($level)
                         <col class="c-as-task">
                         <col class="c-as-parts">
                         <col class="c-as-totalcost">
-                        <!-- 관리: 완료(working만), 수정, 삭제(request만), 보기(completed만) -->
-                        <?php if ($current_tab === 'working' || $current_tab === 'completed'): ?>
-                            <col class="c-admin"> <!-- 완료/보기 -->
-                        <?php endif; ?>
+                        <col class="c-admin"> <!-- 완료/보기 -->
                         <col class="c-admin"> <!-- 수정/이전 -->
-                        <?php if ($current_tab === 'request'): ?>
-                            <col class="c-admin"> <!-- 삭제 -->
-                        <?php endif; ?>
+
                     </colgroup>
                     <thead>
                         <tr>
@@ -992,8 +1001,6 @@ function getStatusColor($level)
                             <th>입고품목</th>
                             <th colspan="3">수리 내역</th>
                             <th colspan="2">관리</th>
-
-
                         </tr>
                         <tr style="background: #f5f5f5; font-weight: 500;">
                             <th colspan="5"></th>
@@ -1004,12 +1011,10 @@ function getStatusColor($level)
                             <?php if ($current_tab === 'working'): ?>
                                 <th>완료</th>
                             <?php endif; ?>
-
-                            <th>수정</th>
+                            <th>작업 등록</th>
                             <?php if ($current_tab === 'request'): ?>
                                 <th>삭제</th>
-                            <?php endif; ?>
-                            <?php if ($current_tab === 'completed'): ?>
+                            <?php elseif ($current_tab === 'completed'): ?>
                                 <th>보기</th>
                             <?php endif; ?>
                         </tr>
@@ -1119,12 +1124,8 @@ function getStatusColor($level)
                                     <!-- completed 탭: 이전 버튼 -->
                                     <td rowspan="<?php echo $rowspan; ?>">
                                         <a href="as_repair_handler.php?action=restore&itemid=<?php echo $items[0]['s14_aiid']; ?>&tab=completed"
-                                            class="action-btn edit"
-                                            onclick="return confirm('수리 작업을 초기화하시겠습니까?');">이전</a>
+                                            class="action-btn edit" onclick="return confirm('수리 작업을 초기화하시겠습니까?');">이전</a>
                                     </td>
-                                <?php else: ?>
-                                    <!-- request 탭 또는 기타 -->
-                                    <td rowspan="<?php echo $rowspan; ?>"></td>
                                 <?php endif; ?>
 
                                 <?php if ($item_count > 0): ?>
@@ -1144,8 +1145,7 @@ function getStatusColor($level)
                                         <!-- working 탭: 이전 버튼 -->
                                         <td rowspan="<?php echo $rowspan; ?>">
                                             <a href="as_repair_handler.php?action=restore&itemid=<?php echo $items[0]['s14_aiid']; ?>&tab=working"
-                                                class="action-btn edit"
-                                                onclick="return confirm('수리 작업을 초기화하시겠습니까?');">이전</a>
+                                                class="action-btn edit" onclick="return confirm('수리 작업을 초기화하시겠습니까?');">이전</a>
                                         </td>
                                     <?php endif; ?>
                                     <?php if ($current_tab === 'request'): ?>

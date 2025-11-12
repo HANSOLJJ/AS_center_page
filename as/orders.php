@@ -33,7 +33,6 @@ $limit = 10;
 $offset = ($page - 1) * $limit;
 
 // 기간 필터 설정
-$range = isset($_GET['range']) ? $_GET['range'] : '';
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 $month_start = date('Y-m-01');
@@ -45,19 +44,27 @@ $search_phone = isset($_GET['search_phone']) ? trim($_GET['search_phone']) : (is
 $search_start_date = isset($_GET['search_start_date']) ? $_GET['search_start_date'] : (isset($_POST['search_start_date']) ? $_POST['search_start_date'] : '');
 $search_end_date = isset($_GET['search_end_date']) ? $_GET['search_end_date'] : (isset($_POST['search_end_date']) ? $_POST['search_end_date'] : '');
 
-// range에 따라 search_start_date, search_end_date 자동 설정
-if ($range === 'today') {
-    $search_start_date = $today;
-    $search_end_date = $today;
-} elseif ($range === 'week') {
-    $search_start_date = $week_start;
-    $search_end_date = $today;
-} elseif ($range === 'month') {
-    $search_start_date = $month_start;
-    $search_end_date = $today;
-} elseif ($range === 'year') {
-    $search_start_date = $year_start;
-    $search_end_date = $today;
+// search_start_date와 search_end_date가 모두 있으면 사용자 지정 기간으로 처리
+if (!empty($search_start_date) && !empty($search_end_date)) {
+    // 사용자가 특정 날짜를 입력한 경우
+    $range = 'custom';  // 사용자 지정 기간임을 표시
+} else {
+    // 미리 정의된 기간 또는 기본값 사용
+    $range = isset($_GET['range']) ? $_GET['range'] : '';
+
+    if ($range === 'today') {
+        $search_start_date = $today;
+        $search_end_date = $today;
+    } elseif ($range === 'week') {
+        $search_start_date = $week_start;
+        $search_end_date = $today;
+    } elseif ($range === 'month') {
+        $search_start_date = $month_start;
+        $search_end_date = $today;
+    } elseif ($range === 'year') {
+        $search_start_date = $year_start;
+        $search_end_date = $today;
+    }
 }
 
 // WHERE 조건 생성
