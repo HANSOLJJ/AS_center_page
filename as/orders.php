@@ -32,6 +32,25 @@ $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = 10;
 $offset = ($page - 1) * $limit;
 
+// 정렬 파라미터
+$sort_by = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'date';
+$sort_order = isset($_GET['sort_order']) ? strtoupper($_GET['sort_order']) : 'DESC';
+
+// 허용된 정렬 컬럼 화이트리스트
+$allowed_sort_columns = array(
+    'date' => ($tab == 'completed') ? 's20_sell_out_date' : 's20_sell_in_date',
+    'company' => 'ex_company',
+    'cost' => 's20_total_cost'
+);
+
+// 유효성 검증
+if (!isset($allowed_sort_columns[$sort_by])) {
+    $sort_by = 'date';
+}
+if (!in_array($sort_order, array('ASC', 'DESC'))) {
+    $sort_order = 'DESC';
+}
+
 // 기간 필터 설정
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
@@ -115,10 +134,10 @@ if (!$count_result) {
 }
 
 // Step 1: 페이지네이션된 s20_sellid 목록 먼저 조회
-// 탭별로 다른 정렬 기준 사용: 판매요청은 접수일자, 판매완료는 완료일자
-$order_by = ($tab == 'completed')
-    ? "s20_sell_out_date DESC, s20_sellid DESC"
-    : "s20_sell_in_date DESC, s20_sellid DESC";
+// 동적 정렬: 선택된 컬럼으로 정렬하되, 보조 정렬은 s20_sellid DESC
+$sort_column = $allowed_sort_columns[$sort_by];
+$secondary_sort = ($sort_by === 'date') ? '' : ', s20_sellid DESC';
+$order_by = "$sort_column $sort_order$secondary_sort";
 
 $id_result = @mysql_query("
     SELECT s20_sellid, s20_sell_in_date, s20_sell_out_date
@@ -144,10 +163,8 @@ if (!empty($sellid_list)) {
     $sellid_str = implode(',', array_map('intval', $sellid_list));
 
     // Step 2: 해당 ID들의 모든 데이터와 카트 아이템 조회
-    // 탭별로 다른 정렬 기준 사용: 판매요청은 접수일자, 판매완료는 완료일자
-    $order_by_step2 = ($tab == 'completed')
-        ? "s20_sell_out_date DESC, s20_sellid DESC, s21_accid ASC"
-        : "s20_sell_in_date DESC, s20_sellid DESC, s21_accid ASC";
+    // 동적 정렬: 선택된 컬럼으로 정렬하되, 보조 정렬은 s20_sellid DESC, s21_accid ASC
+    $order_by_step2 = "$sort_column $sort_order" . ($sort_by === 'date' ? '' : ', s20_sellid DESC') . ", s21_accid ASC";
 
     $result = @mysql_query("
         SELECT s20_sellid, s20_sell_in_date, s20_sell_out_date, s20_sell_out_no, s20_sell_out_no2, ex_company, ex_tel, s20_sell_level, s20_total_cost,
@@ -855,8 +872,22 @@ if (!empty($sellid_list)) {
                     <thead>
                         <tr>
                             <th>번호</th>
-                            <th>접수일자</th>
-                            <th>업체명</th>
+                            <th class="sortable" onclick="setSortColumn('date')" style="cursor: pointer;">
+                                접수일자
+                                <?php if ($sort_by === 'date'): ?>
+                                    <span style="font-size: 12px; margin-left: 4px;">
+                                        <?php echo ($sort_order === 'DESC') ? '▼' : '▲'; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </th>
+                            <th class="sortable" onclick="setSortColumn('company')" style="cursor: pointer;">
+                                업체명
+                                <?php if ($sort_by === 'company'): ?>
+                                    <span style="font-size: 12px; margin-left: 4px;">
+                                        <?php echo ($sort_order === 'DESC') ? '▼' : '▲'; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </th>
                             <th>전화번호</th>
                             <th colspan="2">판매 품목</th>
                             <th colspan="2">가격</th>
@@ -1064,8 +1095,22 @@ if (!empty($sellid_list)) {
                     <thead>
                         <tr>
                             <th>번호</th>
-                            <th>완료일자</th>
-                            <th>업체명</th>
+                            <th class="sortable" onclick="setSortColumn('date')" style="cursor: pointer;">
+                                완료일자
+                                <?php if ($sort_by === 'date'): ?>
+                                    <span style="font-size: 12px; margin-left: 4px;">
+                                        <?php echo ($sort_order === 'DESC') ? '▼' : '▲'; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </th>
+                            <th class="sortable" onclick="setSortColumn('company')" style="cursor: pointer;">
+                                업체명
+                                <?php if ($sort_by === 'company'): ?>
+                                    <span style="font-size: 12px; margin-left: 4px;">
+                                        <?php echo ($sort_order === 'DESC') ? '▼' : '▲'; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </th>
                             <th>전화번호</th>
                             <th colspan="2">판매 품목</th>
                             <th colspan="2">가격</th>
@@ -1336,6 +1381,28 @@ if (!empty($sellid_list)) {
                 }
             });
         });
+
+        // 테이블 컬럼 정렬 함수
+        function setSortColumn(column) {
+            const url = new URL(window.location);
+            const currentSort = url.searchParams.get('sort_by');
+            const currentOrder = url.searchParams.get('sort_order');
+
+            // 같은 컬럼을 다시 클릭하면 정렬 방향 토글, 다른 컬럼을 클릭하면 DESC부터 시작
+            if (currentSort === column) {
+                // 토글: DESC ↔ ASC
+                url.searchParams.set('sort_order', currentOrder === 'DESC' ? 'ASC' : 'DESC');
+            } else {
+                // 새 컬럼: DESC부터 시작
+                url.searchParams.set('sort_by', column);
+                url.searchParams.set('sort_order', 'DESC');
+            }
+
+            // 페이지를 1로 리셋
+            url.searchParams.set('page', '1');
+
+            window.location = url.toString();
+        }
     </script>
 </body>
 
