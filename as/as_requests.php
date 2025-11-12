@@ -1111,7 +1111,7 @@ function getStatusColor($level)
                                     <strong style="color: #000; font-size: 14px; font-weight: 600;">
                                         <?php
                                         $total = intval($as_info['s13_total_cost'] ?? 0);
-                                        echo $total > 0 ? number_format($total) . '원' : '-';
+                                        echo number_format($total) . '원';
                                         ?>
                                     </strong>
                                 </td>
