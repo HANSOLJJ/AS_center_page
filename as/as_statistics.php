@@ -784,8 +784,9 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         onchange="updateMonthlyReport()">
                         <?php
                         $current_year = intval(date('Y'));
+                        $report_year = isset($_GET['report_year']) ? intval($_GET['report_year']) : $current_year;
                         for ($y = $current_year; $y >= 2012; $y--) {
-                            $isSelected = (isset($_GET['report_year']) && intval($_GET['report_year']) == $y) ? true : false;
+                            $isSelected = ($report_year == $y) ? true : false;
                             $selAttr = $isSelected ? ' selected="selected"' : '';
                             echo '<option value="' . $y . '"' . $selAttr . '>' . $y . '년</option>' . "\n";
                         }
@@ -797,10 +798,12 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 100px; min-width: 100px;"
                         onchange="updateMonthlyReport()">
                         <?php
-                        $current_month = date('m');
+                        $current_month = str_pad(date('m'), 2, '0', STR_PAD_LEFT);
+                        $report_month = isset($_GET['report_month']) ? $_GET['report_month'] : $current_month;
                         for ($m = 1; $m <= 12; $m++) {
-                            $selected = (isset($_GET['report_month']) && $_GET['report_month'] == $m) ? 'selected' : '';
-                            echo "<option value=\"" . str_pad($m, 2, '0', STR_PAD_LEFT) . "\" $selected>" . str_pad($m, 2, '0', STR_PAD_LEFT) . "월</option>";
+                            $padded_month = str_pad($m, 2, '0', STR_PAD_LEFT);
+                            $selected = ($report_month == $padded_month) ? 'selected' : '';
+                            echo "<option value=\"" . $padded_month . "\" $selected>" . $padded_month . "월</option>";
                         }
                         ?>
                     </select>
