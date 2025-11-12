@@ -158,6 +158,34 @@ function getTopRepairModels($connect, $start_date, $end_date)
     return $data;
 }
 
+// TOP10 교체 자재 (step18_as_cure_cart에서 s18_uid별로 s18_quantity 합산, step13_as s13_as_out_date 기준)
+function getTopReplacementParts($connect, $start_date, $end_date)
+{
+    $where_clause = (!empty($start_date) && !empty($end_date))
+        ? "WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'"
+        : "WHERE a.s13_as_level = '5'";
+
+    $query = "SELECT
+        c.s18_uid,
+        c.cost_name as part_name,
+        SUM(c.s18_quantity) as total_quantity,
+        COUNT(*) as usage_count
+        FROM step18_as_cure_cart c
+        LEFT JOIN step14_as_item b ON c.s18_aiid = b.s14_aiid
+        LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
+        $where_clause
+        GROUP BY c.s18_uid, c.cost_name
+        ORDER BY total_quantity DESC
+        LIMIT 10";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
 // TOP3 수리 제품 (step14_as_item에서 s14_model별 count, step13_as s13_as_out_date 기준)
 function getTopRepairProducts($connect, $start_date, $end_date)
 {
@@ -373,6 +401,7 @@ $stats = getStatistics($connect, $start_date, $end_date);
 $monthly_as = getMonthlyASStats($connect);
 $monthly_sales = getMonthlySalesStats($connect);
 $top_repair_models = getTopRepairModels($connect, $start_date, $end_date);
+$top_replacement_parts = getTopReplacementParts($connect, $start_date, $end_date);
 $top_products = getTopRepairProducts($connect, $start_date, $end_date);
 $top_parts = getTopRepairParts($connect, $start_date, $end_date);
 $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
@@ -1139,40 +1168,80 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     </div>
                 </div>
 
-                <div style="margin-top: 30px;">
-                    <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">🔧 TOP10 수리 모델</h4>
-                    <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <thead>
-                            <tr style="background: #f59e0b; color: white;">
-                                <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">No</th>
-                                <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">모델명</th>
-                                <th style="padding: 12px; text-align: center;">수리건수</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (!empty($top_repair_models)): ?>
-                                <?php $rank = 1; ?>
-                                <?php foreach ($top_repair_models as $model): ?>
-                                    <tr style="border-bottom: 1px solid #ddd;">
-                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
-                                            <?php echo $rank; ?>
-                                        </td>
-                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
-                                            <?php echo htmlspecialchars($model['model_name'] ?? '-'); ?>
-                                        </td>
-                                        <td style="padding: 12px; text-align: center;">
-                                            <?php echo number_format($model['repair_count']); ?>건
-                                        </td>
-                                    </tr>
-                                    <?php $rank++; ?>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr>
-                                    <td colspan="3" style="padding: 20px; text-align: center; color: #999;">조회된 수리 모델이 없습니다.</td>
+                <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <!-- TOP10 수리 모델 -->
+                    <div>
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">🔧 TOP10 수리 모델</h4>
+                        <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <thead>
+                                <tr style="background: #f59e0b; color: white;">
+                                    <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">No</th>
+                                    <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">모델명</th>
+                                    <th style="padding: 12px; text-align: center;">수리건수</th>
                                 </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($top_repair_models)): ?>
+                                    <?php $rank = 1; ?>
+                                    <?php foreach ($top_repair_models as $model): ?>
+                                        <tr style="border-bottom: 1px solid #ddd;">
+                                            <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
+                                                <?php echo $rank; ?>
+                                            </td>
+                                            <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
+                                                <?php echo htmlspecialchars($model['model_name'] ?? '-'); ?>
+                                            </td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                <?php echo number_format($model['repair_count']); ?>건
+                                            </td>
+                                        </tr>
+                                        <?php $rank++; ?>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="3" style="padding: 20px; text-align: center; color: #999;">조회된 수리 모델이 없습니다.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- TOP10 교체 자재 -->
+                    <div>
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">🔩 TOP10 교체 자재</h4>
+                        <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <thead>
+                                <tr style="background: #10b981; color: white;">
+                                    <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">No</th>
+                                    <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">자재명</th>
+                                    <th style="padding: 12px; text-align: center;">사용량</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($top_replacement_parts)): ?>
+                                    <?php $rank = 1; ?>
+                                    <?php foreach ($top_replacement_parts as $part): ?>
+                                        <tr style="border-bottom: 1px solid #ddd;">
+                                            <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
+                                                <?php echo $rank; ?>
+                                            </td>
+                                            <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
+                                                <?php echo htmlspecialchars($part['part_name'] ?? '-'); ?>
+                                            </td>
+                                            <td style="padding: 12px; text-align: center;">
+                                                <?php echo number_format($part['total_quantity']); ?>개
+                                            </td>
+                                        </tr>
+                                        <?php $rank++; ?>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="3" style="padding: 20px; text-align: center; color: #999;">조회된 교체 자재가 없습니다.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
             <?php elseif ($current_tab === 'sales_analysis'): ?>
