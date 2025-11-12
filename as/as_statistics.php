@@ -211,7 +211,6 @@ function getCurrentYearMonthlySalesStats($connect)
     $current_year = date('Y');
     $query = "SELECT
         MONTH(s20_sell_out_date) as month,
-        DATE_FORMAT(s20_sell_out_date, '%m월') as month_label,
         SUM(COALESCE(s20_total_cost, 0)) as total_cost,
         COUNT(*) as count
         FROM step20_sell
@@ -1215,7 +1214,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
             // 올해 월별 판매액 데이터
             var monthlyLabels = [<?php
             for ($m = 1; $m <= 12; $m++) {
-                echo "'" . $m . "월'";
+                echo "'" . $m . "'";
                 if ($m < 12)
                     echo ",";
             }
@@ -1269,7 +1268,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                                 beginAtZero: true,
                                 ticks: {
                                     callback: function (value) {
-                                        return value.toLocaleString() + '원';
+                                        return value.toLocaleString();
                                     }
                                 }
                             }
