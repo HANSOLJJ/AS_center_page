@@ -28,15 +28,9 @@ $week_start = date('Y-m-d', strtotime('monday this week'));
 $month_start = date('Y-m-01');
 $year_start = date('Y-01-01');
 
-// start_date와 end_date가 있으면 사용자 지정 기간으로 처리
-if (isset($_GET['start_date']) && isset($_GET['end_date']) && !empty($_GET['start_date']) && !empty($_GET['end_date'])) {
-    // 사용자가 특정 날짜를 선택한 경우
-    $start_date = $_GET['start_date'];
-    $end_date = $_GET['end_date'];
-    $range = 'custom';  // 사용자 지정 기간임을 표시
-} else {
-    // 미리 정의된 기간 또는 기본값 사용
-    $range = isset($_GET['range']) ? $_GET['range'] : 'month';
+// range 파라미터가 명시적으로 설정되었으면 (버튼을 눌렀으면) 그것을 먼저 처리
+if (isset($_GET['range'])) {
+    $range = $_GET['range'];
 
     if ($range === 'today') {
         $start_date = $today;
@@ -59,6 +53,16 @@ if (isset($_GET['start_date']) && isset($_GET['end_date']) && !empty($_GET['star
         $start_date = '';
         $end_date = '';
     }
+} else if (isset($_GET['start_date']) && isset($_GET['end_date']) && !empty($_GET['start_date']) && !empty($_GET['end_date'])) {
+    // 사용자가 직접 날짜를 입력한 경우 (버튼이 아닌 date input에서)
+    $start_date = $_GET['start_date'];
+    $end_date = $_GET['end_date'];
+    $range = 'custom';  // 사용자 지정 기간임을 표시
+} else {
+    // 기본값: 금월
+    $range = 'month';
+    $start_date = $month_start;
+    $end_date = $today;
 }
 
 // 통계 데이터 조회 함수
