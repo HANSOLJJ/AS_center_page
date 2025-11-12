@@ -284,12 +284,12 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
 
     <div class="nav-bar">
         <a href="dashboard.php" class="nav-item <?php echo $current_page === 'dashboard' ? 'active' : ''; ?>">대시보드</a>
-        <a href="as_requests.php" class="nav-item">AS 작업</a>
-        <a href="orders.php" class="nav-item">자재 판매</a>
-        <a href="parts.php" class="nav-item">자재 관리</a>
-        <a href="members.php" class="nav-item">고객 관리</a>
-        <a href="products.php" class="nav-item">제품 관리</a>
-        <a href="statistics.php" class="nav-item">통계/분석</a>
+        <a href="./as_task/as_requests.php" class="nav-item">AS 작업</a>
+        <a href="./orders/orders.php" class="nav-item">자재 판매</a>
+        <a href="./parts/parts.php" class="nav-item">자재 관리</a>
+        <a href="./customers/members.php" class="nav-item">고객 관리</a>
+        <a href="./products/products.php" class="nav-item">제품 관리</a>
+        <a href="./stat/statistics.php" class="nav-item">통계/분석</a>
     </div>
 
     <div class="container">
@@ -318,17 +318,17 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
         <div class="menu-grid-wrapper">
             <!-- 왼쪽 그룹 -->
             <div class="menu-grid left-grid">
-                <a href="as_requests.php" class="menu-card featured-card">
+                <a href="./as_task/as_requests.php" class="menu-card featured-card">
                     <h3>🔧 AS 작업</h3>
                     <p>AS 요청 및 처리 현황을 관리합니다.</p>
                 </a>
 
-                <a href="orders.php" class="menu-card featured-card">
+                <a href="./orders/orders.php" class="menu-card featured-card">
                     <h3>🔋 자재 판매</h3>
                     <p>자재 판매 현황을 조회 및 관리합니다.</p>
                 </a>
 
-                <a href="statistics.php" class="menu-card featured-card">
+                <a href="./stat/statistics.php" class="menu-card featured-card">
                     <h3>📊 통계/분석</h3>
                     <p>AS 및 판매 통계를 분석합니다.</p>
                 </a>
@@ -336,17 +336,17 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
 
             <!-- 오른쪽 그룹 -->
             <div class="menu-grid right-grid">
-                <a href="parts.php" class="menu-card">
+                <a href="./parts/parts.php" class="menu-card">
                     <h3>📦 자재 관리</h3>
                     <p>부품 정보를 등록 및 수정합니다.</p>
                 </a>
 
-                <a href="products.php" class="menu-card">
+                <a href="./products/products.php" class="menu-card">
                     <h3>🎤 제품 관리</h3>
                     <p>AS 제품 정보를 등록 및 수정합니다.</p>
                 </a>
 
-                <a href="members.php" class="menu-card">
+                <a href="./customers/members.php" class="menu-card">
                     <h3>👥 고객 관리</h3>
                     <p>고객 정보를 조회 및 관리합니다.</p>
                 </a>
