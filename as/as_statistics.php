@@ -1268,7 +1268,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                                 beginAtZero: true,
                                 ticks: {
                                     callback: function (value) {
-                                        return value.toLocaleString();
+                                        return Math.round(value / 10000).toLocaleString();
                                     }
                                 }
                             }
