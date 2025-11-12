@@ -774,8 +774,9 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
             <!-- 기간 필터 -->
             <?php if ($current_tab === 'monthly_report'): ?>
                 <!-- 월간 리포트 탭: 연도/월 선택 -->
-                <div class="date-filter-controls" style="display: flex; align-items: center; gap: 10px;">
-                    <label style="font-weight: 500; margin: 0;">기간 선택:</label>
+                <div class="date-filter">
+                    <div class="date-filter-controls">
+                        <label style="font-weight: 500; margin-right: 10px;">기간 선택:</label>
 
                     <!-- 연도 선택 -->
                     <select id="report_year_select"
@@ -804,9 +805,10 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         ?>
                     </select>
 
-                    <button type="button" onclick="downloadMonthlyReport()"
-                        style="padding: 8px 20px; background: #8b5cf6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; margin-left: auto;">📥
-                        월간 종합 리포트</button>
+                        <button type="button" onclick="downloadMonthlyReport()"
+                            style="padding: 8px 20px; background: #8b5cf6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; margin-left: auto;">📥
+                            월간 종합 리포트</button>
+                    </div>
                 </div>
             <?php elseif ($current_tab === 'overview'): ?>
                 <!-- 개요 탭: 기존 기간 필터 + 리포트 버튼 -->
