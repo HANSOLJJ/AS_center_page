@@ -677,7 +677,9 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     <label style="font-weight: 500; margin: 0;">기간 선택:</label>
 
                     <!-- 연도 선택 -->
-                    <select id="report_year_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 120px; min-width: 120px;" onchange="updateMonthlyReport()">
+                    <select id="report_year_select"
+                        style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 120px; min-width: 120px;"
+                        onchange="updateMonthlyReport()">
                         <?php
                         $current_year = intval(date('Y'));
                         for ($y = $current_year; $y >= 2012; $y--) {
@@ -689,7 +691,9 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     </select>
 
                     <!-- 월 선택 -->
-                    <select id="report_month_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 100px; min-width: 100px;" onchange="updateMonthlyReport()">
+                    <select id="report_month_select"
+                        style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 100px; min-width: 100px;"
+                        onchange="updateMonthlyReport()">
                         <?php
                         $current_month = date('m');
                         for ($m = 1; $m <= 12; $m++) {
@@ -700,7 +704,8 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     </select>
 
                     <button type="button" onclick="downloadMonthlyReport()"
-                        style="padding: 8px 20px; background: #8b5cf6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; margin-left: auto;">📥 월간 종합 리포트</button>
+                        style="padding: 8px 20px; background: #8b5cf6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; margin-left: auto;">📥
+                        월간 종합 리포트</button>
                 </div>
             <?php elseif ($current_tab === 'overview'): ?>
                 <!-- 개요 탭: 기존 기간 필터 + 리포트 버튼 -->
@@ -724,12 +729,15 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
                         <span style="color: #999;">~</span>
                         <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
-                        <input type="hidden" id="range-input-stat" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                        <input type="hidden" id="range-input-stat" name="range"
+                            value="<?php echo htmlspecialchars($range); ?>">
                         <button type="submit">검색</button>
                         <button type="button" onclick="downloadReport('export_as_report.php')"
-                            style="margin-left: 10px; padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 AS 리포트</button>
+                            style="margin-left: 10px; padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥
+                            AS 리포트</button>
                         <button type="button" onclick="downloadReport('export_sales_report.php')"
-                            style="margin-left: 5px; padding: 8px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 판매 리포트</button>
+                            style="margin-left: 5px; padding: 8px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥
+                            판매 리포트</button>
                     </div>
                 </form>
             <?php else: ?>
@@ -754,7 +762,8 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
                         <span style="color: #999;">~</span>
                         <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
-                        <input type="hidden" id="range-input-stat" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                        <input type="hidden" id="range-input-stat" name="range"
+                            value="<?php echo htmlspecialchars($range); ?>">
                         <button type="submit">검색</button>
                     </div>
                 </form>
@@ -768,8 +777,8 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     const range = document.getElementById('range-input-stat').value;
 
                     const url = filename + '?start_date=' + encodeURIComponent(startDate) +
-                                '&end_date=' + encodeURIComponent(endDate) +
-                                '&range=' + encodeURIComponent(range);
+                        '&end_date=' + encodeURIComponent(endDate) +
+                        '&range=' + encodeURIComponent(range);
 
                     // 브라우저 다운로드 다이얼로그 표시 (열기/저장 선택 가능)
                     const link = document.createElement('a');
@@ -793,7 +802,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     const reportMonth = document.getElementById('report_month_select').value;
 
                     const url = 'export_monthly_report.php?report_year=' + encodeURIComponent(reportYear) +
-                                '&report_month=' + encodeURIComponent(reportMonth);
+                        '&report_month=' + encodeURIComponent(reportMonth);
 
                     // 브라우저 다운로드 다이얼로그 표시
                     const link = document.createElement('a');
@@ -840,10 +849,10 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 }
 
                 // form 제출 시 range 값이 설정되지 않은 경우 초기화
-                document.addEventListener('DOMContentLoaded', function() {
+                document.addEventListener('DOMContentLoaded', function () {
                     const dateForm = document.querySelector('.date-filter');
                     if (dateForm) {
-                        dateForm.addEventListener('submit', function(e) {
+                        dateForm.addEventListener('submit', function (e) {
                             // 사용자가 직접 입력한 날짜는 range를 초기화
                             if (document.activeElement.name === 'start_date' ||
                                 document.activeElement.name === 'end_date' ||
@@ -984,12 +993,15 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
             <?php elseif ($current_tab === 'monthly_report'): ?>
                 <!-- 월간 리포트 탭 -->
                 <h3 style="color: #667eea; margin-bottom: 20px; font-size: 16px;">📅 월간 리포트</h3>
-                <p style="color: #666; margin-bottom: 20px; font-size: 14px;">위의 연도/월을 선택하고 "📥 월간 종합 리포트" 버튼을 클릭하여 리포트를 다운로드하세요.</p>
+                <p style="color: #666; margin-bottom: 20px; font-size: 14px;">위의 연도/월을 선택하고 "📥 월간 종합 리포트" 버튼을 클릭하여 리포트를
+                    다운로드하세요.</p>
 
                 <!-- 월간 종합 매출 결과 테이블 -->
                 <div class="table-section">
                     <h3>월간 종합 매출 결과</h3>
-                    <p style="color: #999; font-size: 12px; margin-bottom: 10px;"><?php echo $report_year; ?>년 <?php echo intval($report_month); ?>월</p>
+                    <p style="color: #999; font-size: 12px; margin-bottom: 10px;"><?php echo $report_year; ?>년
+                        <?php echo intval($report_month); ?>월
+                    </p>
                     <table>
                         <thead>
                             <tr>
@@ -1007,10 +1019,15 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                                 <td>1</td>
                                 <td>본사</td>
                                 <td class="text-right"><?php echo number_format($monthly_report_data['as_count']); ?></td>
-                                <td class="text-right"><?php echo number_format($monthly_report_data['as_total_cost']); ?> 원</td>
+                                <td class="text-right"><?php echo number_format($monthly_report_data['as_total_cost']); ?> 원
+                                </td>
                                 <td class="text-right"><?php echo number_format($monthly_report_data['sell_count']); ?></td>
-                                <td class="text-right"><?php echo number_format($monthly_report_data['sell_total_cost']); ?> 원</td>
-                                <td class="text-right" style="font-weight: bold;"><?php echo number_format($monthly_report_data['as_total_cost'] + $monthly_report_data['sell_total_cost']); ?> 원</td>
+                                <td class="text-right"><?php echo number_format($monthly_report_data['sell_total_cost']); ?>
+                                    원</td>
+                                <td class="text-right" style="font-weight: bold;">
+                                    <?php echo number_format($monthly_report_data['as_total_cost'] + $monthly_report_data['sell_total_cost']); ?>
+                                    원
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -1081,14 +1098,17 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 <!-- 판매액 그래프 -->
                 <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
                     <!-- 연도별 판매액 그래프 -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div
+                        style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📈 연도별 총 판매액 (2012년~)</h4>
                         <canvas id="yearlyChart" style="max-height: 300px;"></canvas>
                     </div>
 
                     <!-- 올해 월별 판매액 그래프 -->
-                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 월별 판매액</h4>
+                    <div
+                        style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 월별 판매액
+                        </h4>
                         <canvas id="monthlyChart" style="max-height: 300px;"></canvas>
                     </div>
                 </div>
@@ -1096,7 +1116,8 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 <!-- TOP10 판매 자재 테이블 -->
                 <div style="margin-top: 30px;">
                     <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📦 TOP10 판매 자재</h4>
-                    <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <table
+                        style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <thead>
                             <tr style="background: #667eea; color: white;">
                                 <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">No</th>
@@ -1109,15 +1130,22 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                                 <?php $rank = 1; ?>
                                 <?php foreach ($top_sale_parts as $part): ?>
                                     <tr style="border-bottom: 1px solid #ddd;">
-                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;"><?php echo $rank; ?></td>
-                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;"><?php echo htmlspecialchars($part['cost_name']); ?></td>
-                                        <td style="padding: 12px; text-align: center;"><?php echo number_format($part['total_qty']); ?>개</td>
+                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
+                                            <?php echo $rank; ?>
+                                        </td>
+                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
+                                            <?php echo htmlspecialchars($part['cost_name']); ?>
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <?php echo number_format($part['total_qty']); ?>개
+                                        </td>
                                     </tr>
                                     <?php $rank++; ?>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="3" style="padding: 20px; text-align: center; color: #999;">조회된 판매 자재가 없습니다.</td>
+                                    <td colspan="3" style="padding: 20px; text-align: center; color: #999;">조회된 판매 자재가 없습니다.
+                                    </td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -1128,125 +1156,130 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
         </div>
     </div>
 
-<script>
-// 판매분석 탭 그래프 렌더링
-<?php if ($current_tab === 'sales_analysis'): ?>
+    <script>
+        // 판매분석 탭 그래프 렌더링
+        <?php if ($current_tab === 'sales_analysis'): ?>
 
-    // 연도별 판매액 데이터
-    var yearlyLabels = [<?php echo implode(',', array_map(function($item) { return "'" . $item['year'] . "년'"; }, $yearly_sales)); ?>];
-    var yearlyCosts = [<?php echo implode(',', array_map(function($item) { return intval($item['total_cost']); }, $yearly_sales)); ?>];
+            // 연도별 판매액 데이터
+            var yearlyLabels = [<?php echo implode(',', array_map(function ($item) {
+                return "'" . $item['year'] . "'";
+            }, $yearly_sales)); ?>];
+            var yearlyCosts = [<?php echo implode(',', array_map(function ($item) {
+                return intval($item['total_cost']);
+            }, $yearly_sales)); ?>];
 
-    // 연도별 그래프
-    if (document.getElementById('yearlyChart')) {
-        var yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
-        var yearlyChart = new Chart(yearlyCtx, {
-            type: 'line',
-            data: {
-                labels: yearlyLabels,
-                datasets: [{
-                    label: '총 판매액 (원)',
-                    data: yearlyCosts,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#667eea',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return (value / 10000).toFixed(0) + '만원';
+            // 연도별 그래프
+            if (document.getElementById('yearlyChart')) {
+                var yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
+                var yearlyChart = new Chart(yearlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: yearlyLabels,
+                        datasets: [{
+                            label: '총 판매액 (만원)',
+                            data: yearlyCosts,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#667eea',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) {
+                                        return Math.round(value / 10000).toLocaleString();
+                                    }
+                                }
                             }
                         }
                     }
-                }
+                });
             }
-        });
-    }
 
-    // 올해 월별 판매액 데이터
-    var monthlyLabels = [<?php
-        for ($m = 1; $m <= 12; $m++) {
-            echo "'" . $m . "월'";
-            if ($m < 12) echo ",";
-        }
-    ?>];
+            // 올해 월별 판매액 데이터
+            var monthlyLabels = [<?php
+            for ($m = 1; $m <= 12; $m++) {
+                echo "'" . $m . "월'";
+                if ($m < 12)
+                    echo ",";
+            }
+            ?>];
 
-    // 월별 데이터 직접 생성 (모든 월을 0으로 초기화)
-    var monthlyCosts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            // 월별 데이터 직접 생성 (모든 월을 0으로 초기화)
+            var monthlyCosts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-    // PHP에서 생성한 월별 데이터
-    <?php
-    $monthly_map = array();
-    foreach ($current_year_monthly_sales as $item) {
-        $month = intval($item['month']);
-        $cost = intval($item['total_cost']);
-        echo "monthlyCosts[" . ($month - 1) . "] = " . $cost . ";\n";
-    }
-    ?>
+            // PHP에서 생성한 월별 데이터
+            <?php
+            $monthly_map = array();
+            foreach ($current_year_monthly_sales as $item) {
+                $month = intval($item['month']);
+                $cost = intval($item['total_cost']);
+                echo "monthlyCosts[" . ($month - 1) . "] = " . $cost . ";\n";
+            }
+            ?>
 
-    // 올해 월별 그래프
-    if (document.getElementById('monthlyChart')) {
-        var monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-        var monthlyChart = new Chart(monthlyCtx, {
-            type: 'line',
-            data: {
-                labels: monthlyLabels,
-                datasets: [{
-                    label: '총 판매액 (원)',
-                    data: monthlyCosts,
-                    borderColor: '#06b6d4',
-                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#06b6d4',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return value.toLocaleString() + '원';
+            // 올해 월별 그래프
+            if (document.getElementById('monthlyChart')) {
+                var monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+                var monthlyChart = new Chart(monthlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: monthlyLabels,
+                        datasets: [{
+                            label: '총 판매액 (만원)',
+                            data: monthlyCosts,
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#06b6d4',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) {
+                                        return value.toLocaleString() + '원';
+                                    }
+                                }
                             }
                         }
                     }
-                }
+                });
             }
-        });
-    }
 
-<?php endif; ?>
-</script>
+        <?php endif; ?>
+    </script>
 
 </body>
 
