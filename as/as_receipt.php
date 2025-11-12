@@ -382,15 +382,15 @@ $center_name = mysql_result($center_query, 0, 0);
                                             $n_parts_cost = number_format($parts_cost);
                                             ?>
                                             <tr>
-                                                <td align='left'>
+                                                <td align='left' width="50%">
                                                     &nbsp;-&nbsp;<?php echo $my_cost_name_part; ?>
                                                 </td>
-                                                <td align='right'>
-                                                    <font color='red'><b><?php echo $my_s18_quantity; ?>&nbsp;개</b>&nbsp;</font>
+                                                <td align='right' width="15%">
+                                                    <font color='red'><b><?php echo $my_s18_quantity; ?>&nbsp;개</b></font>
                                                 </td>
-                                                <td align='right'>
-                                                    <font color='red'><b><?php echo $my_cost; ?></b>&nbsp;X
-                                                        <?php echo $my_s18_quantity; ?> = <?php echo $n_parts_cost; ?>
+                                                <td align='right' width="35%">
+                                                    <font color='red'><b><?php echo $my_cost; ?>&nbsp;X
+                                                        <?php echo $my_s18_quantity; ?> = <?php echo $n_parts_cost; ?></b>
                                                     </font>
                                                 </td>
                                             </tr>
