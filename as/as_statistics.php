@@ -226,6 +226,47 @@ function getCurrentYearMonthlySalesStats($connect)
     return $data;
 }
 
+// 연도별 AS 통계 (step13_as에서 s13_total_cost 기준)
+function getYearlyASStats($connect)
+{
+    $query = "SELECT
+        YEAR(s13_as_out_date) as year,
+        SUM(COALESCE(s13_total_cost, 0)) as total_cost,
+        COUNT(*) as count
+        FROM step13_as
+        WHERE s13_as_level = '5' AND s13_as_out_date IS NOT NULL AND YEAR(s13_as_out_date) >= 2012
+        GROUP BY YEAR(s13_as_out_date)
+        ORDER BY year ASC";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
+// 올해 월별 AS 통계
+function getCurrentYearMonthlyASStats($connect)
+{
+    $current_year = date('Y');
+    $query = "SELECT
+        MONTH(s13_as_out_date) as month,
+        SUM(COALESCE(s13_total_cost, 0)) as total_cost,
+        COUNT(*) as count
+        FROM step13_as
+        WHERE s13_as_level = '5' AND s13_as_out_date IS NOT NULL AND YEAR(s13_as_out_date) = $current_year
+        GROUP BY MONTH(s13_as_out_date)
+        ORDER BY month ASC";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
 // TOP10 판매 자재 (step20_sell에서 판매 완료 기준, step21_sell_cart에서 수량 합산)
 function getTopSaleParts($connect, $start_date, $end_date)
 {
@@ -311,6 +352,10 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 // 판매분석용 그래프 데이터
 $yearly_sales = getYearlySalesStats($connect);
 $current_year_monthly_sales = getCurrentYearMonthlySalesStats($connect);
+
+// AS분석용 그래프 데이터
+$yearly_as = getYearlyASStats($connect);
+$current_year_monthly_as = getCurrentYearMonthlyASStats($connect);
 
 // 월간 리포트 탭 데이터 조회
 $report_year = isset($_GET['report_year']) ? intval($_GET['report_year']) : date('Y');
@@ -1048,7 +1093,22 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     </div>
                 </div>
 
-                <div class="table-section">
+                <!-- AS 비용 그래프 -->
+                <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <!-- 연도별 AS 비용 그래프 -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📈 연도별 총 AS비용 (2012년~)</h4>
+                        <canvas id="asYearlyChart" style="max-height: 300px;"></canvas>
+                    </div>
+
+                    <!-- 올해 월별 AS 비용 그래프 -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 월별 AS비용</h4>
+                        <canvas id="asMonthlyChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+
+                <div class="table-section" style="margin-top: 30px;">
                     <h3>고객별 AS 현황 (상위 10)</h3>
                     <table>
                         <thead>
@@ -1248,6 +1308,125 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                             fill: true,
                             tension: 0,
                             pointBackgroundColor: '#06b6d4',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) {
+                                        return Math.round(value / 10000).toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+        <?php elseif ($current_tab === 'as_analysis'): ?>
+
+            // 연도별 AS 비용 데이터
+            var asYearlyLabels = [<?php echo implode(',', array_map(function ($item) {
+                return "'" . $item['year'] . "'";
+            }, $yearly_as)); ?>];
+            var asYearlyCosts = [<?php echo implode(',', array_map(function ($item) {
+                return intval($item['total_cost']);
+            }, $yearly_as)); ?>];
+
+            // 연도별 AS 그래프
+            if (document.getElementById('asYearlyChart')) {
+                var asYearlyCtx = document.getElementById('asYearlyChart').getContext('2d');
+                var asYearlyChart = new Chart(asYearlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: asYearlyLabels,
+                        datasets: [{
+                            label: '총 AS비용 (만원)',
+                            data: asYearlyCosts,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            fill: true,
+                            tension: 0,
+                            pointBackgroundColor: '#f59e0b',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function (value) {
+                                        return Math.round(value / 10000).toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 올해 월별 AS 비용 데이터
+            var asMonthlyLabels = [<?php
+            for ($m = 1; $m <= 12; $m++) {
+                echo "'" . $m . "'";
+                if ($m < 12)
+                    echo ",";
+            }
+            ?>];
+
+            // 월별 데이터 직접 생성 (모든 월을 0으로 초기화)
+            var asMonthyCosts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+            // PHP에서 생성한 월별 데이터
+            <?php
+            foreach ($current_year_monthly_as as $item) {
+                $month = intval($item['month']);
+                $cost = intval($item['total_cost']);
+                echo "asMonthyCosts[" . ($month - 1) . "] = " . $cost . ";\n";
+            }
+            ?>
+
+            // 올해 월별 AS 그래프
+            if (document.getElementById('asMonthlyChart')) {
+                var asMonthlyCtx = document.getElementById('asMonthlyChart').getContext('2d');
+                var asMonthlyChart = new Chart(asMonthlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: asMonthlyLabels,
+                        datasets: [{
+                            label: '총 AS비용 (만원)',
+                            data: asMonthyCosts,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0,
+                            pointBackgroundColor: '#10b981',
                             pointBorderColor: '#fff',
                             pointBorderWidth: 2,
                             pointRadius: 5,
