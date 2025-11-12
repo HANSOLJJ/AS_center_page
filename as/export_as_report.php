@@ -303,7 +303,7 @@ $sheet->getStyle('M2:M' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0')
 $sheet->getRowDimension('1')->setRowHeight(25);
 
 // 파일명 생성
-$filename = 'AS_Report_' . date('YmdHis') . '.xlsx';
+$filename = 'AS처리 리포트' . date('Ymd') . '.xlsx';
 
 // 헤더 설정
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

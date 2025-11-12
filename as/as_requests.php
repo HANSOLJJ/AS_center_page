@@ -27,26 +27,6 @@ $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
-// 정렬 파라미터
-$sort_by = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'asid';
-$sort_order = isset($_GET['sort_order']) ? strtoupper($_GET['sort_order']) : 'DESC';
-
-// 허용된 정렬 컬럼 화이트리스트
-$allowed_sort_columns = array(
-    'asid' => 'a.s13_asid',
-    'date' => ($current_tab === 'completed') ? 'a.s13_as_out_date' : 'a.s13_as_in_date',
-    'company' => 'a.ex_company',
-    'cost' => 'a.s13_total_cost'
-);
-
-// 유효성 검증
-if (!isset($allowed_sort_columns[$sort_by])) {
-    $sort_by = 'asid';
-}
-if (!in_array($sort_order, array('ASC', 'DESC'))) {
-    $sort_order = 'DESC';
-}
-
 // 기간 필터 설정
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
@@ -216,14 +196,20 @@ $total_count = ($count_row && isset($count_row['total'])) ? intval($count_row['t
 $total_pages = ceil($total_count / $per_page);
 
 // 먼저 페이징을 위해 DISTINCT asid 조회
-// 동적 정렬: 선택된 컬럼으로 정렬하되, 보조 정렬은 asid
-$sort_column = $allowed_sort_columns[$sort_by];
-$secondary_sort = ($sort_by === 'asid') ? '' : ', a.s13_asid DESC';
-$asid_query = "SELECT a.s13_asid
-               FROM step13_as a
-               WHERE $where
-               ORDER BY $sort_column $sort_order$secondary_sort
-               LIMIT $per_page OFFSET $offset";
+// 탭별로 다른 정렬 기준 사용: 완료탭은 AS 완료일 기준, 나머지는 AS ID 역순
+if ($current_tab === 'completed') {
+    $asid_query = "SELECT a.s13_asid
+                   FROM step13_as a
+                   WHERE $where
+                   ORDER BY a.s13_as_out_date DESC, a.s13_asid DESC
+                   LIMIT $per_page OFFSET $offset";
+} else {
+    $asid_query = "SELECT a.s13_asid
+                   FROM step13_as a
+                   WHERE $where
+                   ORDER BY a.s13_asid DESC
+                   LIMIT $per_page OFFSET $offset";
+}
 
 $asid_result = @mysql_query($asid_query);
 $target_asids = array();
@@ -242,7 +228,7 @@ if (!empty($target_asids)) {
     // 실제 데이터 조회
     // working, completed 탭에서는 step18_as_cure_cart와 step19_as_result 조인 추가
     if ($current_tab === 'working' || $current_tab === 'completed') {
-        $order_by = "$sort_column $sort_order" . ($sort_by === 'asid' ? '' : ', a.s13_asid DESC');
+        $order_by = ($current_tab === 'completed') ? "a.s13_as_out_date DESC" : "a.s13_asid DESC";
         $query = "SELECT a.*,
                          b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.s14_cart, b.as_end_result,
                          md.s15_model_name, pd.s16_poor,
@@ -257,7 +243,6 @@ if (!empty($target_asids)) {
                   WHERE a.s13_asid IN ($asid_list)
                   ORDER BY $order_by, b.s14_aiid ASC, c.s18_accid ASC";
     } else {
-        $order_by = "$sort_column $sort_order" . ($sort_by === 'asid' ? '' : ', a.s13_asid DESC');
         $query = "SELECT a.*,
                          b.s14_aiid, b.s14_model, b.s14_poor, b.s14_asrid, b.as_end_result,
                          md.s15_model_name, pd.s16_poor,
@@ -268,7 +253,7 @@ if (!empty($target_asids)) {
                   LEFT JOIN step16_as_poor pd ON b.s14_poor = pd.s16_apid
                   LEFT JOIN step18_as_cure_cart c ON b.s14_aiid = c.s18_aiid
                   WHERE a.s13_asid IN ($asid_list)
-                  ORDER BY $order_by, b.s14_aiid ASC, c.s18_accid ASC";
+                  ORDER BY a.s13_asid DESC, b.s14_aiid ASC, c.s18_accid ASC";
     }
 
     $result = @mysql_query($query);
@@ -1011,30 +996,9 @@ function getStatusColor($level)
                     </colgroup>
                     <thead>
                         <tr>
-                            <th class="sortable" onclick="setSortColumn('asid')" style="cursor: pointer;">
-                                번호
-                                <?php if ($sort_by === 'asid'): ?>
-                                    <span style="font-size: 12px; margin-left: 4px;">
-                                        <?php echo ($sort_order === 'DESC') ? '▼' : '▲'; ?>
-                                    </span>
-                                <?php endif; ?>
-                            </th>
-                            <th class="sortable" onclick="setSortColumn('date')" style="cursor: pointer;">
-                                <?php echo ($current_tab === 'completed') ? 'AS 완료일' : '접수일자'; ?>
-                                <?php if ($sort_by === 'date'): ?>
-                                    <span style="font-size: 12px; margin-left: 4px;">
-                                        <?php echo ($sort_order === 'DESC') ? '▼' : '▲'; ?>
-                                    </span>
-                                <?php endif; ?>
-                            </th>
-                            <th class="sortable" onclick="setSortColumn('company')" style="cursor: pointer;">
-                                업체명
-                                <?php if ($sort_by === 'company'): ?>
-                                    <span style="font-size: 12px; margin-left: 4px;">
-                                        <?php echo ($sort_order === 'DESC') ? '▼' : '▲'; ?>
-                                    </span>
-                                <?php endif; ?>
-                            </th>
+                            <th>번호</th>
+                            <th><?php echo ($current_tab === 'completed') ? 'AS 완료일' : '접수일자'; ?></th>
+                            <th>업체명</th>
                             <th>연락처</th>
                             <th>수탁</th>
                             <th>입고품목</th>
@@ -1410,28 +1374,6 @@ function getStatusColor($level)
                 }
             }
         });
-
-        // 테이블 컬럼 정렬 함수
-        function setSortColumn(column) {
-            const url = new URL(window.location);
-            const currentSort = url.searchParams.get('sort_by');
-            const currentOrder = url.searchParams.get('sort_order');
-
-            // 같은 컬럼을 다시 클릭하면 정렬 방향 토글, 다른 컬럼을 클릭하면 DESC부터 시작
-            if (currentSort === column) {
-                // 토글: DESC ↔ ASC
-                url.searchParams.set('sort_order', currentOrder === 'DESC' ? 'ASC' : 'DESC');
-            } else {
-                // 새 컬럼: DESC부터 시작
-                url.searchParams.set('sort_by', column);
-                url.searchParams.set('sort_order', 'DESC');
-            }
-
-            // 페이지를 1로 리셋
-            url.searchParams.set('page', '1');
-
-            window.location = url.toString();
-        }
     </script>
 </body>
 

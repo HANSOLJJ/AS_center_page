@@ -277,7 +277,7 @@ $sheet->getStyle('I2:I' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0')
 $sheet->getRowDimension('1')->setRowHeight(25);
 
 // 파일명 생성
-$filename = 'Sales_Report_' . date('YmdHis') . '.xlsx';
+$filename = '판매리포트_' . date('Ymd') . '.xlsx';
 
 // 헤더 설정
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

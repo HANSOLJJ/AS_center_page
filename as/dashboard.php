@@ -173,11 +173,24 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
             line-height: 1.6;
         }
 
+        .menu-grid-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            /* 왼쪽/오른쪽 칼럼 */
+            gap: 20px;
+            /* 통계 카드와 동일 간격이면 20px 유지 */
+            margin-top: 30px;
+        }
+
         .menu-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
+            /* 각 그룹은 2열 */
+            /* 4열로 고정 */
             gap: 20px;
             margin-top: 30px;
+            box-sizing: border-box;
+
         }
 
         .menu-card {
@@ -190,6 +203,7 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
             text-decoration: none;
             color: #333;
             border-left: 4px solid #667eea;
+
         }
 
         .menu-card:hover {
@@ -301,37 +315,44 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
             </div>
         </div>
 
-        <div class="menu-grid">
-            <a href="as_requests.php" class="menu-card featured-card">
-                <h3>🔧 AS 작업</h3>
-                <p>AS 요청 및 처리 현황을 관리합니다.</p>
-            </a>
+        <div class="menu-grid-wrapper">
+            <!-- 왼쪽 그룹 -->
+            <div class="menu-grid left-grid">
+                <a href="as_requests.php" class="menu-card featured-card">
+                    <h3>🔧 AS 작업</h3>
+                    <p>AS 요청 및 처리 현황을 관리합니다.</p>
+                </a>
 
-            <a href="orders.php" class="menu-card featured-card">
-                <h3>🔋 자재 판매</h3>
-                <p>자재 판매 현황을 조회 및 관리합니다.</p>
-            </a>
+                <a href="orders.php" class="menu-card featured-card">
+                    <h3>🔋 자재 판매</h3>
+                    <p>자재 판매 현황을 조회 및 관리합니다.</p>
+                </a>
 
-            <a href="parts.php" class="menu-card">
-                <h3>📦 자재 관리</h3>
-                <p>부품 정보를 등록 및 수정합니다.</p>
-            </a>
+                <a href="as_statistics.php" class="menu-card featured-card">
+                    <h3>📊 통계/분석</h3>
+                    <p>AS 및 판매 통계를 분석합니다.</p>
+                </a>
+            </div>
 
-            <a href="members.php" class="menu-card">
-                <h3>👥 고객 관리</h3>
-                <p>고객 정보를 조회 및 관리합니다.</p>
-            </a>
+            <!-- 오른쪽 그룹 -->
+            <div class="menu-grid right-grid">
+                <a href="parts.php" class="menu-card">
+                    <h3>📦 자재 관리</h3>
+                    <p>부품 정보를 등록 및 수정합니다.</p>
+                </a>
 
-            <a href="products.php" class="menu-card">
-                <h3>🎤 제품 관리</h3>
-                <p>AS 제품 정보를 등록 및 수정합니다.</p>
-            </a>
+                <a href="products.php" class="menu-card">
+                    <h3>🎤 제품 관리</h3>
+                    <p>AS 제품 정보를 등록 및 수정합니다.</p>
+                </a>
 
-            <a href="as_statistics.php" class="menu-card featured-card">
-                <h3>📊 통계/분석</h3>
-                <p>AS 및 판매 통계를 분석합니다.</p>
-            </a>
+                <a href="members.php" class="menu-card">
+                    <h3>👥 고객 관리</h3>
+                    <p>고객 정보를 조회 및 관리합니다.</p>
+                </a>
+            </div>
         </div>
+
     </div>
 </body>
 

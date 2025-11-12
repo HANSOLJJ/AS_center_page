@@ -29,6 +29,7 @@ if (isset($_SESSION['login_success'])) {
 ?>
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -167,10 +168,11 @@ if (isset($_SESSION['login_success'])) {
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h1>AS System</h1>
+            <h1>디컴 AS System</h1>
             <p>Service Management</p>
         </div>
 
@@ -202,13 +204,14 @@ if (isset($_SESSION['login_success'])) {
 
         <div class="demo-info">
             <strong>기본 관리자 계정:</strong>
-            ID: raintrace<br>
-            비밀번호: (원본 DB 참조)
+            ID: center1<br>
+            비밀번호: 기존 참고
         </div>
 
         <div class="login-footer">
-            <p>&copy; 2024 AS System. All rights reserved.</p>
+            <p>&copy; 2025 D'com AS System.</p>
         </div>
     </div>
 </body>
+
 </html>

@@ -8,40 +8,44 @@
 ## 📋 변경 요약 (총 4개 Phase)
 
 ### Phase 1: 문자 인코딩 통일 (2025-11-03) ✅
-| 대상 | 변경 | 영향 범위 |
-|------|------|---------|
-| Database | EUC-KR → UTF-8MB4 (utf8mb4_unicode_ci) | 전체 테이블 |
-| 모든 테이블 | CHARACTER SET utf8mb4로 변환 | 57개 테이블 |
-| MySQL 연결 | collation_connection 명시 설정 | PHP mysql_compat.py |
-| 성능 인덱스 | 2개 인덱스 추가 | step20_sell, step21_sell_cart |
+
+| 대상        | 변경                                   | 영향 범위                     |
+| ----------- | -------------------------------------- | ----------------------------- |
+| Database    | EUC-KR → UTF-8MB4 (utf8mb4_unicode_ci) | 전체 테이블                   |
+| 모든 테이블 | CHARACTER SET utf8mb4로 변환           | 57개 테이블                   |
+| MySQL 연결  | collation_connection 명시 설정         | PHP mysql_compat.py           |
+| 성능 인덱스 | 2개 인덱스 추가                        | step20_sell, step21_sell_cart |
 
 ### Phase 2: 필드 타입 변환 (2025-11-03) ✅
-| 테이블 | 필드명 | 이전 타입 | 이후 타입 | 목적 |
-|--------|--------|----------|----------|------|
-| step20_sell | s20_sell_in_date | VARCHAR(255) | DATETIME | 접수일시 표준화 |
-| step20_sell | s20_bank_check | INT | DATETIME | 입금확인일 표준화 |
-| step20_sell | s20_as_out_date | VARCHAR(255) | DATETIME | 완료일 표준화 |
-| step14_asitem | s14_asid | VARCHAR(255) | INT(10) UNSIGNED | ID 타입 통일 |
-| step18_assale | s18_asid | VARCHAR(255) | INT(10) UNSIGNED | ID 타입 통일 |
-| step18_assale | s18_aiid | VARCHAR(255) | INT(10) UNSIGNED | ID 타입 통일 |
+
+| 테이블        | 필드명           | 이전 타입    | 이후 타입        | 목적              |
+| ------------- | ---------------- | ------------ | ---------------- | ----------------- |
+| step20_sell   | s20_sell_in_date | VARCHAR(255) | DATETIME         | 접수일시 표준화   |
+| step20_sell   | s20_bank_check   | INT          | DATETIME         | 입금확인일 표준화 |
+| step20_sell   | s20_as_out_date  | VARCHAR(255) | DATETIME         | 완료일 표준화     |
+| step14_asitem | s14_asid         | VARCHAR(255) | INT(10) UNSIGNED | ID 타입 통일      |
+| step18_assale | s18_asid         | VARCHAR(255) | INT(10) UNSIGNED | ID 타입 통일      |
+| step18_assale | s18_aiid         | VARCHAR(255) | INT(10) UNSIGNED | ID 타입 통일      |
 
 ### Phase 3: 필드명 표준화 (2025-11-05 ~ 2025-11-10) ✅
-| 테이블 | 이전 필드 | 이후 필드 | 변경 이유 |
-|--------|----------|----------|---------|
-| step13_as | s13_as_in_no | s13_as_out_no | 완료번호로 용도 변경 |
-| step13_as | s13_as_in_no2 | s13_as_out_no2 | 완료번호2로 용도 변경 |
-| step20_sell | s20_as_in_no | s20_as_out_no | 완료번호로 용도 변경 |
-| step20_sell | s20_as_in_no2 | s20_as_out_no2 | 완료번호2로 용도 변경 |
-| step20_sell | s20_as_time | s20_sell_time | 테이블명과 필드명 일관성 |
-| step20_sell | s20_as_out_no | s20_sell_out_no | 테이블명과 필드명 일관성 |
-| step20_sell | s20_as_out_no2 | s20_sell_out_no2 | 테이블명과 필드명 일관성 |
-| step20_sell | s20_as_center | s20_sell_center | 테이블명과 필드명 일관성 |
-| step20_sell | s20_as_level | s20_sell_level | 테이블명과 필드명 일관성 |
+
+| 테이블      | 이전 필드       | 이후 필드         | 변경 이유                |
+| ----------- | --------------- | ----------------- | ------------------------ |
+| step13_as   | s13_as_in_no    | s13_as_out_no     | 완료번호로 용도 변경     |
+| step13_as   | s13_as_in_no2   | s13_as_out_no2    | 완료번호2로 용도 변경    |
+| step20_sell | s20_as_in_no    | s20_as_out_no     | 완료번호로 용도 변경     |
+| step20_sell | s20_as_in_no2   | s20_as_out_no2    | 완료번호2로 용도 변경    |
+| step20_sell | s20_as_time     | s20_sell_time     | 테이블명과 필드명 일관성 |
+| step20_sell | s20_as_out_no   | s20_sell_out_no   | 테이블명과 필드명 일관성 |
+| step20_sell | s20_as_out_no2  | s20_sell_out_no2  | 테이블명과 필드명 일관성 |
+| step20_sell | s20_as_center   | s20_sell_center   | 테이블명과 필드명 일관성 |
+| step20_sell | s20_as_level    | s20_sell_level    | 테이블명과 필드명 일관성 |
 | step20_sell | s20_as_out_date | s20_sell_out_date | 테이블명과 필드명 일관성 |
 
 ### Phase 4: 필드명 통일화 (2025-11-11) ✅
-| 테이블 | 이전 필드 | 이후 필드 | 변경 이유 |
-|--------|----------|----------|---------|
+
+| 테이블    | 이전 필드            | 이후 필드             | 변경 이유          |
+| --------- | -------------------- | --------------------- | ------------------ |
 | step13_as | ex_total_cost (삭제) | s13_total_cost (기존) | 필드명 일관성 확보 |
 
 ---
@@ -190,17 +194,20 @@ ALTER TABLE step20_sell MODIFY COLUMN s20_as_out_date DATETIME DEFAULT NULL;
 ```
 
 **변환 예시**:
+
 ```
 이전: s20_sell_in_date = "1700000000" (Unix timestamp)
 이후: s20_sell_in_date = "2025-11-10 14:00:00" (DATETIME, 분/초는 :00:00)
 ```
 
 **영향받는 PHP 파일**:
+
 - `as/orders.php` - 날짜 필터링, 정렬, 출력
 - `as/order_payment.php` - 입금 확인/완료 날짜 기록
 - `as/receipt.php` - 영수증 출력
 
 **검증 SQL**:
+
 ```sql
 -- 변환 후 데이터 확인
 SELECT s20_sellid, s20_sell_in_date, s20_bank_check, s20_as_out_date
@@ -228,10 +235,12 @@ ALTER TABLE step18_assale CHANGE COLUMN s18_aiid s18_aiid INT(10) UNSIGNED NOT N
 ```
 
 **영향받는 PHP 파일**:
+
 - `as/as_requests.php` - step13_as와 step14_asitem JOIN
 - `as/as_request_view.php` - 아이템 조회
 
 **검증 SQL**:
+
 ```sql
 -- 변환 확인
 DESCRIBE step14_asitem;
@@ -263,10 +272,12 @@ ALTER TABLE step13_as CHANGE COLUMN s13_as_in_no2 s13_as_out_no2 varchar(12);
 ```
 
 **완료번호 생성 규칙**:
+
 - `s13_as_out_no`: "NO" + YYMMDD + "-" + 번호 (예: NO251110-001)
 - `s13_as_out_no2`: YYMMDD + 번호 (예: 251110001, 숫자만 - 성능 최적화용)
 
 **기존 데이터 마이그레이션**:
+
 ```sql
 -- 2025-11-08: 기존 데이터 업데이트 (s13_as_out_date 기준)
 UPDATE step13_as SET
@@ -281,6 +292,7 @@ WHERE s13_asid = 34486;
 ```
 
 **영향받는 PHP 파일**:
+
 - `as/as_request_handler.php` - 완료번호 생성 로직
 - `as/as_request_view.php` - 완료번호 조회/출력
 
@@ -295,67 +307,78 @@ ALTER TABLE step20_sell CHANGE COLUMN s20_as_in_no2 s20_as_out_no2 varchar(12);
 ```
 
 **영향받는 PHP 파일**:
+
 - `as/orders.php` - 완료번호 조회/출력
 - `as/order_payment.php` - 완료번호 생성/업데이트
 - `as/receipt.php` - 영수증에 완료번호 출력
 
 ---
 
-## 4️⃣ 필드명 표준화: s20_as_* → s20_sell_* (2025-11-10)
+## 4️⃣ 필드명 표준화: s20*as*_ → s20*sell*_ (2025-11-10)
 
 ### 4-1. 작업 목적
 
 - 테이블 이름(step20_sell)과 필드명 규칙 일관성 확보
-- 네이밍 컨벤션 표준화 (s20_as_* → s20_sell_*)
+- 네이밍 컨벤션 표준화 (s20*as*_ → s20*sell*_)
 - 테이블 목적 명확화 (자재 판매용 테이블)
 
 ### 4-2. 필드명 변경 목록 및 상세 정보
 
 #### 4-2-1. s20_as_time → s20_sell_time
+
 ```sql
 -- 2025-11-10: 접수시간 필드명 변경
 ALTER TABLE step20_sell CHANGE COLUMN s20_as_time s20_sell_time varchar(6);
 ```
+
 - **타입**: VARCHAR(6)
 - **포맷**: HHMMSS (예: 140000 = 14시)
 - **용도**: 접수 번호 생성 시 시간 정보 저장
 - **영향 PHP**: order_payment.php
 
 #### 4-2-2. s20_as_out_no → s20_sell_out_no
+
 ```sql
 -- 2025-11-10: 완료 번호 필드명 변경
 ALTER TABLE step20_sell CHANGE COLUMN s20_as_out_no s20_sell_out_no varchar(12);
 ```
+
 - **타입**: VARCHAR(12)
 - **포맷**: NO + YYMMDD + "-" + 번호 (예: NO251110-001)
 - **용도**: 판매 완료 영수증 번호
 - **영향 PHP**: receipt.php, order_payment.php, orders.php
 
 #### 4-2-3. s20_as_out_no2 → s20_sell_out_no2
+
 ```sql
 -- 2025-11-10: 완료 번호2 필드명 변경
 ALTER TABLE step20_sell CHANGE COLUMN s20_as_out_no2 s20_sell_out_no2 varchar(12);
 ```
+
 - **타입**: VARCHAR(12)
 - **포맷**: YYMMDD + 번호 (예: 251110001, 숫자만)
 - **용도**: 대체 완료 번호 (성능 최적화용)
 - **영향 PHP**: receipt.php, order_payment.php, orders.php
 
 #### 4-2-4. s20_as_center → s20_sell_center
+
 ```sql
 -- 2025-11-10: 센터명 필드명 변경
 ALTER TABLE step20_sell CHANGE COLUMN s20_as_center s20_sell_center varchar(255);
 ```
+
 - **타입**: VARCHAR(255)
 - **용도**: AS 센터명 또는 센터 ID
 - **참조**: step2_center.s2_center_id
 - **영향 PHP**: receipt.php, order_payment.php, orders.php
 
 #### 4-2-5. s20_as_level → s20_sell_level
+
 ```sql
 -- 2025-11-10: 판매 상태 필드명 변경
 ALTER TABLE step20_sell CHANGE COLUMN s20_as_level s20_sell_level enum('1','2','3','4');
 ```
+
 - **타입**: ENUM('1','2','3','4')
 - **상태 코드**:
   - '1': 판매요청 (부품 추가 중, 입금 미확인)
@@ -366,10 +389,12 @@ ALTER TABLE step20_sell CHANGE COLUMN s20_as_level s20_sell_level enum('1','2','
 - **영향 PHP**: receipt.php, order_payment.php, orders.php
 
 #### 4-2-6. s20_as_out_date → s20_sell_out_date
+
 ```sql
 -- 2025-11-10: 완료일 필드명 변경
 ALTER TABLE step20_sell CHANGE COLUMN s20_as_out_date s20_sell_out_date datetime;
 ```
+
 - **타입**: DATETIME
 - **포맷**: YYYY-MM-DD HH:00:00 (시간 단위로 저장)
 - **용도**: 판매 완료 날짜 기준 정렬, 완료번호 생성
@@ -430,6 +455,7 @@ ON step21_sell_cart(s21_sellid);
 ```
 
 **목적**:
+
 - orders.php의 탭별 필터링/정렬 성능 향상
 - step20_sell과 step21_sell_cart 간 JOIN 성능 개선
 
@@ -608,15 +634,15 @@ docker exec as_mysql mysql -u mic4u_user -pchange_me mic4u -e "SELECT COUNT(*) F
 
 ## 📊 변경 통계
 
-| 항목 | 수량 |
-|------|------|
-| 영향받은 테이블 | 57개 (전체) |
-| 문자 인코딩 변경 | 57개 테이블 |
-| 필드 타입 변경 | 6개 필드 |
-| 필드명 변경 | 10개 필드 |
-| 추가 인덱스 | 2개 |
-| 영향받은 PHP 파일 | 4개 |
-| 영향받은 쿼리/변수 | 30+ 개 |
+| 항목               | 수량        |
+| ------------------ | ----------- |
+| 영향받은 테이블    | 57개 (전체) |
+| 문자 인코딩 변경   | 57개 테이블 |
+| 필드 타입 변경     | 6개 필드    |
+| 필드명 변경        | 10개 필드   |
+| 추가 인덱스        | 2개         |
+| 영향받은 PHP 파일  | 4개         |
+| 영향받은 쿼리/변수 | 30+ 개      |
 
 ---
 
@@ -633,6 +659,7 @@ docker exec as_mysql mysql -u mic4u_user -pchange_me mic4u -e "SELECT COUNT(*) F
 ### 9-1. 목적
 
 step13_as 테이블의 필드명 일관성 확보:
+
 - **ex_total_cost**: 이전 필드 (삭제)
 - **s13_total_cost**: step13_as 테이블의 표준 필드명 (기존 필드 유지)
 
@@ -641,6 +668,7 @@ export_as_report.php, as_repair_handler.php 등에서 AS 수리 총비용을 조
 ### 9-2. DB 마이그레이션 SQL
 
 #### Step 1: s13_total_cost 필드 존재 확인
+
 ```sql
 -- 필드 존재 확인
 DESCRIBE step13_as;
@@ -649,10 +677,11 @@ ALTER TABLE step13_as ADD COLUMN s13_total_cost INT DEFAULT 0;
 ```
 
 #### Step 2: 원본 Backup에서 ex_total_cost 데이터 추출 및 복사
+
 ```sql
--- 원본 backup (E:\web_shadow\mic4u\database\migrations\mic4u41_utf8_fixed.sql)에서 
+-- 원본 backup (E:\web_shadow\mic4u\database\migrations\mic4u41_utf8_fixed.sql)에서
 -- ex_total_cost 데이터를 s13_asid 기준으로 추출하여 s13_total_cost에 적용
--- 
+--
 -- 추출 통계:
 -- - 원본 레코드: 32,936개
 -- - s13_asid 일치: 24,249개 (UPDATE 적용)
@@ -670,17 +699,19 @@ UPDATE step13_as SET s13_total_cost = 38000 WHERE s13_asid = 3;
 ```
 
 #### Step 3: ex_total_cost 필드 삭제
+
 ```sql
 -- 2025-11-11: 구식 필드 삭제 (데이터 복사 완료 후)
 ALTER TABLE step13_as DROP COLUMN ex_total_cost;
 ```
 
 #### Step 4: 데이터 검증
+
 ```sql
 -- 필드 목록 확인
 DESCRIBE step13_as;
 -- ex_total_cost는 없어야 하고, s13_total_cost가 있어야 함
-
+-- 여기서 원본 migration 시 원본의 s13_total_cost 삭제 후 ex_total_cost 필드를 s13_total_cost로 이름 변경
 -- 데이터 통계
 SELECT COUNT(*) as total_records,
        COUNT(CASE WHEN s13_total_cost IS NOT NULL AND s13_total_cost > 0 THEN 1 END) as with_cost,
