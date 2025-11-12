@@ -131,6 +131,33 @@ function getMonthlySalesStats($connect)
     return $data;
 }
 
+// TOP10 수리 모델 (step14_as_item에서 s14_model별 count, step13_as s13_as_out_date 기준)
+function getTopRepairModels($connect, $start_date, $end_date)
+{
+    $where_clause = (!empty($start_date) && !empty($end_date))
+        ? "WHERE a.s13_as_level = '5' AND DATE(a.s13_as_out_date) BETWEEN '$start_date' AND '$end_date'"
+        : "WHERE a.s13_as_level = '5'";
+
+    $query = "SELECT
+        b.s14_model,
+        m.s15_model_name as model_name,
+        COUNT(*) as repair_count
+        FROM step14_as_item b
+        LEFT JOIN step13_as a ON b.s14_asid = a.s13_asid
+        LEFT JOIN step15_as_model m ON b.s14_model = m.s15_amid
+        $where_clause
+        GROUP BY b.s14_model, m.s15_model_name
+        ORDER BY repair_count DESC
+        LIMIT 10";
+
+    $result = mysql_query($query);
+    $data = array();
+    while ($row = mysql_fetch_assoc($result)) {
+        $data[] = $row;
+    }
+    return $data;
+}
+
 // TOP3 수리 제품 (step14_as_item에서 s14_model별 count, step13_as s13_as_out_date 기준)
 function getTopRepairProducts($connect, $start_date, $end_date)
 {
@@ -345,6 +372,7 @@ function getMonthlyIntegratedReport($connect, $report_year, $report_month)
 $stats = getStatistics($connect, $start_date, $end_date);
 $monthly_as = getMonthlyASStats($connect);
 $monthly_sales = getMonthlySalesStats($connect);
+$top_repair_models = getTopRepairModels($connect, $start_date, $end_date);
 $top_products = getTopRepairProducts($connect, $start_date, $end_date);
 $top_parts = getTopRepairParts($connect, $start_date, $end_date);
 $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
@@ -1111,31 +1139,37 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     </div>
                 </div>
 
-                <div class="table-section" style="margin-top: 30px;">
-                    <h3>고객별 AS 현황 (상위 10)</h3>
-                    <table>
+                <div style="margin-top: 30px;">
+                    <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">🔧 TOP10 수리 모델</h4>
+                    <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <thead>
-                            <tr>
-                                <th>고객명</th>
-                                <th class="text-right">전체 AS</th>
-                                <th class="text-right">완료</th>
-                                <th class="text-right">총 비용</th>
+                            <tr style="background: #f59e0b; color: white;">
+                                <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">No</th>
+                                <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">모델명</th>
+                                <th style="padding: 12px; text-align: center;">수리건수</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($customer_as)): ?>
-                                <tr>
-                                    <td colspan="4" style="text-align: center; color: #999; padding: 30px;">데이터가 없습니다.</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($customer_as as $row): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($row['ex_company'] ?? '-'); ?></td>
-                                        <td class="text-right"><?php echo number_format($row['total']); ?></td>
-                                        <td class="text-right"><?php echo number_format($row['completed']); ?></td>
-                                        <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
+                            <?php if (!empty($top_repair_models)): ?>
+                                <?php $rank = 1; ?>
+                                <?php foreach ($top_repair_models as $model): ?>
+                                    <tr style="border-bottom: 1px solid #ddd;">
+                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
+                                            <?php echo $rank; ?>
+                                        </td>
+                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">
+                                            <?php echo htmlspecialchars($model['model_name'] ?? '-'); ?>
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <?php echo number_format($model['repair_count']); ?>건
+                                        </td>
                                     </tr>
+                                    <?php $rank++; ?>
                                 <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="3" style="padding: 20px; text-align: center; color: #999;">조회된 수리 모델이 없습니다.</td>
+                                </tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
