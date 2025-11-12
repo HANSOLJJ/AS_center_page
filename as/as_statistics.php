@@ -185,7 +185,7 @@ function getTopRepairParts($connect, $start_date, $end_date)
     return $data;
 }
 
-// TOP3 판매 자재 (step20_sell에서 판매 완료 기준, step21_sell_cart에서 수량 합산)
+// TOP10 판매 자재 (step20_sell에서 판매 완료 기준, step21_sell_cart에서 수량 합산)
 function getTopSaleParts($connect, $start_date, $end_date)
 {
     $where_clause = (!empty($start_date) && !empty($end_date))
@@ -202,7 +202,7 @@ function getTopSaleParts($connect, $start_date, $end_date)
         $where_clause
         GROUP BY c.s21_uid, c.cost_name
         ORDER BY total_qty DESC
-        LIMIT 3";
+        LIMIT 10";
 
     $result = mysql_query($query);
     $data = array();
@@ -219,6 +219,46 @@ function formatRevenue($cost)
     return '<div class="revenue-amount">' . number_format($cost) . '</div><div class="revenue-unit">원</div>';
 }
 
+// 월간 통합 리포트 데이터 조회 (본사만)
+function getMonthlyIntegratedReport($connect, $report_year, $report_month)
+{
+    $start_date = $report_year . '-' . $report_month . '-01';
+    $end_date = date('Y-m-t', strtotime($start_date));
+
+    // AS 데이터 조회 (본사만)
+    $as_query = "SELECT
+        COUNT(*) as as_count,
+        COALESCE(SUM(s13_total_cost), 0) as as_total_cost
+        FROM step13_as
+        WHERE s13_as_level = '5'
+        AND s13_as_center = 'center1283763850'
+        AND DATE(s13_as_out_date) BETWEEN '" . mysql_real_escape_string($start_date) . "'
+            AND '" . mysql_real_escape_string($end_date) . "'";
+
+    $as_result = mysql_query($as_query);
+    $as_data = mysql_fetch_assoc($as_result);
+
+    // 판매 데이터 조회 (본사만)
+    $sell_query = "SELECT
+        COUNT(*) as sell_count,
+        COALESCE(SUM(s20_total_cost), 0) as sell_total_cost
+        FROM step20_sell
+        WHERE s20_sell_level = '2'
+        AND s20_sell_center = 'center1283763850'
+        AND DATE(s20_sell_out_date) BETWEEN '" . mysql_real_escape_string($start_date) . "'
+            AND '" . mysql_real_escape_string($end_date) . "'";
+
+    $sell_result = mysql_query($sell_query);
+    $sell_data = mysql_fetch_assoc($sell_result);
+
+    return array(
+        'as_count' => intval($as_data['as_count']),
+        'as_total_cost' => intval($as_data['as_total_cost']),
+        'sell_count' => intval($sell_data['sell_count']),
+        'sell_total_cost' => intval($sell_data['sell_total_cost'])
+    );
+}
+
 // 통계 데이터 조회
 $stats = getStatistics($connect, $start_date, $end_date);
 $monthly_as = getMonthlyASStats($connect);
@@ -226,6 +266,14 @@ $monthly_sales = getMonthlySalesStats($connect);
 $top_products = getTopRepairProducts($connect, $start_date, $end_date);
 $top_parts = getTopRepairParts($connect, $start_date, $end_date);
 $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
+
+// 월간 리포트 탭 데이터 조회
+$report_year = isset($_GET['report_year']) ? intval($_GET['report_year']) : date('Y');
+$report_month = isset($_GET['report_month']) ? $_GET['report_month'] : date('m');
+if ($report_month < 1 || $report_month > 12) {
+    $report_month = date('m');
+}
+$monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $report_month);
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -582,18 +630,19 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     <label style="font-weight: 500; margin: 0;">기간 선택:</label>
 
                     <!-- 연도 선택 -->
-                    <select id="report_year_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                    <select id="report_year_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 120px; min-width: 120px;" onchange="updateMonthlyReport()">
                         <?php
-                        $current_year = date('Y');
-                        for ($y = $current_year; $y >= $current_year - 10; $y--) {
-                            $selected = (isset($_GET['report_year']) && $_GET['report_year'] == $y) ? 'selected' : '';
-                            echo "<option value=\"$y\" $selected>$y년</option>";
+                        $current_year = intval(date('Y'));
+                        for ($y = $current_year; $y >= 2012; $y--) {
+                            $isSelected = (isset($_GET['report_year']) && intval($_GET['report_year']) == $y) ? true : false;
+                            $selAttr = $isSelected ? ' selected="selected"' : '';
+                            echo '<option value="' . $y . '"' . $selAttr . '>' . $y . '년</option>' . "\n";
                         }
                         ?>
                     </select>
 
                     <!-- 월 선택 -->
-                    <select id="report_month_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                    <select id="report_month_select" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; width: 100px; min-width: 100px;" onchange="updateMonthlyReport()">
                         <?php
                         $current_month = date('m');
                         for ($m = 1; $m <= 12; $m++) {
@@ -606,8 +655,8 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     <button type="button" onclick="downloadMonthlyReport()"
                         style="padding: 8px 20px; background: #8b5cf6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; margin-left: auto;">📥 월간 종합 리포트</button>
                 </div>
-            <?php else: ?>
-                <!-- 다른 탭: 기존 기간 필터 -->
+            <?php elseif ($current_tab === 'overview'): ?>
+                <!-- 개요 탭: 기존 기간 필터 + 리포트 버튼 -->
                 <form method="GET" class="date-filter">
                     <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
 
@@ -636,6 +685,32 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                             style="margin-left: 5px; padding: 8px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; text-decoration: none; display: inline-block;">📥 판매 리포트</button>
                     </div>
                 </form>
+            <?php else: ?>
+                <!-- AS 분석, 판매 분석 탭: 기간 필터만 (리포트 버튼 없음) -->
+                <form method="GET" class="date-filter">
+                    <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
+
+                    <div class="date-filter-buttons">
+                        <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>"
+                            onclick="setDateRange('all', this.form); this.form.submit();">전체 기간</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>"
+                            onclick="setDateRange('today', this.form); this.form.submit();">오늘</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>"
+                            onclick="setDateRange('week', this.form); this.form.submit();">금주</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>"
+                            onclick="setDateRange('month', this.form); this.form.submit();">금월</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>"
+                            onclick="setDateRange('year', this.form); this.form.submit();">금년</button>
+                    </div>
+
+                    <div class="date-filter-controls">
+                        <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
+                        <span style="color: #999;">~</span>
+                        <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
+                        <input type="hidden" id="range-input-stat" name="range" value="<?php echo htmlspecialchars($range); ?>">
+                        <button type="submit">검색</button>
+                    </div>
+                </form>
             <?php endif; ?>
 
             <script>
@@ -656,6 +731,13 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
+                }
+
+                // 월간 리포트 기간 업데이트 함수 (페이지 새로고침)
+                function updateMonthlyReport() {
+                    const reportYear = document.getElementById('report_year_select').value;
+                    const reportMonth = document.getElementById('report_month_select').value;
+                    window.location.href = 'as_statistics.php?tab=monthly_report&report_year=' + reportYear + '&report_month=' + reportMonth;
                 }
 
                 // 월간 종합 리포트 다운로드 함수
@@ -855,61 +937,34 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
             <?php elseif ($current_tab === 'monthly_report'): ?>
                 <!-- 월간 리포트 탭 -->
                 <h3 style="color: #667eea; margin-bottom: 20px; font-size: 16px;">📅 월간 리포트</h3>
+                <p style="color: #666; margin-bottom: 20px; font-size: 14px;">위의 연도/월을 선택하고 "📥 월간 종합 리포트" 버튼을 클릭하여 리포트를 다운로드하세요.</p>
 
-                <!-- 월별 AS 현황 -->
+                <!-- 월간 종합 매출 결과 테이블 -->
                 <div class="table-section">
-                    <h3>월별 AS 현황</h3>
+                    <h3>월간 종합 매출 결과</h3>
+                    <p style="color: #999; font-size: 12px; margin-bottom: 10px;"><?php echo $report_year; ?>년 <?php echo intval($report_month); ?>월</p>
                     <table>
                         <thead>
                             <tr>
-                                <th>월</th>
-                                <th class="text-right">완료</th>
-                                <th class="text-right">매출</th>
+                                <th>No</th>
+                                <th>분류</th>
+                                <th class="text-right">수리건수</th>
+                                <th class="text-right">수리비</th>
+                                <th class="text-right">소모품 판매</th>
+                                <th class="text-right">소모품 판매비</th>
+                                <th class="text-right">합계(수리비 + 소모품)</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (count($monthly_as) > 0): ?>
-                                <?php foreach ($monthly_as as $row): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($row['month']); ?></td>
-                                        <td class="text-right"><?php echo number_format($row['completed']); ?></td>
-                                        <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr>
-                                    <td colspan="3" style="text-align: center; color: #999;">데이터 없음</td>
-                                </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 월별 판매 현황 -->
-                <div class="table-section">
-                    <h3>월별 판매 현황</h3>
-                    <table>
-                        <thead>
                             <tr>
-                                <th>월</th>
-                                <th class="text-right">완료</th>
-                                <th class="text-right">매출</th>
+                                <td>1</td>
+                                <td>본사</td>
+                                <td class="text-right"><?php echo number_format($monthly_report_data['as_count']); ?></td>
+                                <td class="text-right"><?php echo number_format($monthly_report_data['as_total_cost']); ?> 원</td>
+                                <td class="text-right"><?php echo number_format($monthly_report_data['sell_count']); ?></td>
+                                <td class="text-right"><?php echo number_format($monthly_report_data['sell_total_cost']); ?> 원</td>
+                                <td class="text-right" style="font-weight: bold;"><?php echo number_format($monthly_report_data['as_total_cost'] + $monthly_report_data['sell_total_cost']); ?> 원</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (count($monthly_sales) > 0): ?>
-                                <?php foreach ($monthly_sales as $row): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($row['month']); ?></td>
-                                        <td class="text-right"><?php echo number_format($row['completed']); ?></td>
-                                        <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr>
-                                    <td colspan="3" style="text-align: center; color: #999;">데이터 없음</td>
-                                </tr>
-                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -921,28 +976,12 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h4>전체 AS</h4>
-                        <div class="number"><?php echo number_format($stats['as']['total_as'] ?? 0); ?></div>
+                        <div class="number"><?php echo number_format($stats['as']['as_completed'] ?? 0); ?></div>
+                        <div class="label">건</div>
                     </div>
                     <div class="stat-card">
-                        <h4>완료율</h4>
-                        <div class="number">
-                            <?php
-                            $total = intval($stats['as']['total_as'] ?? 0);
-                            $completed = intval($stats['as']['as_completed'] ?? 0);
-                            echo $total > 0 ? round(($completed / $total) * 100) : 0;
-                            ?>%
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>평균 비용</h4>
-                        <div class="number">
-                            <?php
-                            $total = intval($stats['as']['total_as'] ?? 0);
-                            $cost = intval($stats['as']['total_as_cost'] ?? 0);
-                            echo $total > 0 ? number_format(intval($cost / $total)) : 0;
-                            ?>
-                        </div>
-                        <div class="label">원</div>
+                        <h4>총 매출</h4>
+                        <?php echo formatRevenue($stats['as']['total_as_cost'] ?? 0); ?>
                     </div>
                 </div>
 
@@ -983,51 +1022,42 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h4>전체 판매</h4>
-                        <div class="number"><?php echo number_format($stats['sales']['total_sales'] ?? 0); ?></div>
+                        <div class="number"><?php echo number_format($stats['sales']['sales_completed'] ?? 0); ?></div>
+                        <div class="label">건</div>
                     </div>
                     <div class="stat-card">
-                        <h4>완료율</h4>
-                        <div class="number">
-                            <?php
-                            $total = intval($stats['sales']['total_sales'] ?? 0);
-                            $completed = intval($stats['sales']['sales_completed'] ?? 0);
-                            echo $total > 0 ? round(($completed / $total) * 100) : 0;
-                            ?>%
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>평균 판매액</h4>
-                        <div class="number">
-                            <?php
-                            $total = intval($stats['sales']['total_sales'] ?? 0);
-                            $cost = intval($stats['sales']['total_sales_cost'] ?? 0);
-                            echo $total > 0 ? number_format(intval($cost / $total)) : 0;
-                            ?>
-                        </div>
-                        <div class="label">원</div>
+                        <h4>총 판매액</h4>
+                        <?php echo formatRevenue($stats['sales']['total_sales_cost'] ?? 0); ?>
                     </div>
                 </div>
 
-                <div class="table-section">
-                    <h3>월별 판매 추이</h3>
-                    <table>
+                <!-- TOP10 판매 자재 테이블 -->
+                <div style="margin-top: 30px;">
+                    <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📦 TOP10 판매 자재</h4>
+                    <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <thead>
-                            <tr>
-                                <th>월</th>
-                                <th class="text-right">전체</th>
-                                <th class="text-right">완료</th>
-                                <th class="text-right">총 매출</th>
+                            <tr style="background: #667eea; color: white;">
+                                <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">No</th>
+                                <th style="padding: 12px; text-align: center; border-right: 1px solid #ddd;">자재명</th>
+                                <th style="padding: 12px; text-align: center;">판매수량</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($monthly_sales as $row): ?>
+                            <?php if (!empty($top_sale_parts)): ?>
+                                <?php $rank = 1; ?>
+                                <?php foreach ($top_sale_parts as $part): ?>
+                                    <tr style="border-bottom: 1px solid #ddd;">
+                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;"><?php echo $rank; ?></td>
+                                        <td style="padding: 12px; text-align: center; border-right: 1px solid #ddd;"><?php echo htmlspecialchars($part['cost_name']); ?></td>
+                                        <td style="padding: 12px; text-align: center;"><?php echo number_format($part['total_qty']); ?>개</td>
+                                    </tr>
+                                    <?php $rank++; ?>
+                                <?php endforeach; ?>
+                            <?php else: ?>
                                 <tr>
-                                    <td><?php echo htmlspecialchars($row['month']); ?></td>
-                                    <td class="text-right"><?php echo number_format($row['total']); ?></td>
-                                    <td class="text-right"><?php echo number_format($row['completed']); ?></td>
-                                    <td class="text-right"><?php echo number_format(intval($row['total_cost'])); ?> 원</td>
+                                    <td colspan="3" style="padding: 20px; text-align: center; color: #999;">조회된 판매 자재가 없습니다.</td>
                                 </tr>
-                            <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
