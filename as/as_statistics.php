@@ -1171,7 +1171,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return value.toLocaleString() + '원';
+                                return (value / 10000).toFixed(0) + '만원';
                             }
                         }
                     }
@@ -1187,18 +1187,19 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
             if ($m < 12) echo ",";
         }
     ?>];
-    var monthlyCosts = [];
-    var monthlyDataMap = {};
 
-    // 월별 데이터 맵 생성
-    <?php foreach ($current_year_monthly_sales as $item): ?>
-        monthlyDataMap[<?php echo intval($item['month']); ?>] = <?php echo intval($item['total_cost']); ?>;
-    <?php endforeach; ?>
+    // 월별 데이터 직접 생성 (모든 월을 0으로 초기화)
+    var monthlyCosts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-    // 모든 월에 대해 데이터 설정 (없으면 0)
-    for (var i = 1; i <= 12; i++) {
-        monthlyCosts.push(monthlyDataMap[i] || 0);
+    // PHP에서 생성한 월별 데이터
+    <?php
+    $monthly_map = array();
+    foreach ($current_year_monthly_sales as $item) {
+        $month = intval($item['month']);
+        $cost = intval($item['total_cost']);
+        echo "monthlyCosts[" . ($month - 1) . "] = " . $cost . ";\n";
     }
+    ?>
 
     // 올해 월별 그래프
     if (document.getElementById('monthlyChart')) {
