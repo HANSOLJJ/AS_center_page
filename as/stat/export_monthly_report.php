@@ -23,12 +23,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 // 파라미터
 $report_year = isset($_GET['report_year']) ? intval($_GET['report_year']) : date('Y');
@@ -39,8 +34,19 @@ if ($report_month < 1 || $report_month > 12) {
     $report_month = date('m');
 }
 
-$start_date = $report_year . '-' . $report_month . '-01';
-$end_date = date('Y-m-t', strtotime($start_date));
+// 금월: 전월 26일 ~ 당월 25일
+// 예: 2월 선택 → 1월 26일 ~ 2월 25일
+$report_month_int = intval($report_month);
+$end_date = $report_year . '-' . str_pad($report_month_int, 2, '0', STR_PAD_LEFT) . '-25';
+
+// 전월 계산
+$prev_month = $report_month_int - 1;
+$prev_year = $report_year;
+if ($prev_month < 1) {
+    $prev_month = 12;
+    $prev_year--;
+}
+$start_date = $prev_year . '-' . str_pad($prev_month, 2, '0', STR_PAD_LEFT) . '-26';
 
 // ========================================
 // AS 데이터 조회 (본사만)
@@ -86,7 +92,7 @@ $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('월간 종합 리포트');
 
 // 제목 행
-$sheet->setCellValue('A1', $report_year . '년 ' . $report_month . '월 본사 통합 리포트');
+$sheet->setCellValue('A1', $report_year . '년 ' . $report_month . '월 본사 통합 리포트 (' . $start_date . ' ~ ' . $end_date . ')');
 $sheet->mergeCells('A1:G1');
 $sheet->getStyle('A1')->getFont()->setSize(14)->setBold(true);
 $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);

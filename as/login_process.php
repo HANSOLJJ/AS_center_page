@@ -22,18 +22,8 @@ if (empty($admin_id) || empty($admin_password)) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once 'mysql_compat.php';
-
 // 데이터베이스 연결
-$connect = @mysql_connect('mysql', 'mic4u_user', 'change_me');
-if (!$connect) {
-    $_SESSION['login_error'] = '데이터베이스 연결 오류가 발생했습니다.';
-    header('Location: login.php');
-    exit;
-}
-
-@mysql_select_db('mic4u', $connect);
+require_once 'db_config.php';
 
 // 관리자 정보 조회 - 2010_admin_member 테이블
 $query = "SELECT `id`, `passwd`, `userlevel` FROM `2010_admin_member` WHERE `id` = '$admin_id' LIMIT 1";

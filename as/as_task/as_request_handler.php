@@ -8,12 +8,7 @@ if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 $user_name = $_SESSION['member_id'];
 $current_page = 'as_requests';
@@ -525,11 +520,13 @@ if ($action === 'completeAS') {
     $now = date('Y-m-d H:i:s');
     $date_part = date('ymd'); // yymmdd 형식
 
-    // 같은 날짜의 이전 레코드 개수 + 1 = 순번
-    $count_query = "SELECT COUNT(*) as cnt FROM step13_as WHERE DATE(s13_as_out_date) = DATE('$now') AND s13_as_out_no IS NOT NULL";
-    $count_result = @mysql_query($count_query);
-    $count_row = @mysql_fetch_assoc($count_result);
-    $seq = intval($count_row['cnt']) + 1;
+    // 같은 날짜의 최대 순번 조회 (순번 중복 방지)
+    $max_query = "SELECT MAX(CAST(SUBSTRING(s13_as_out_no2, 7) AS UNSIGNED)) as max_seq
+                  FROM step13_as
+                  WHERE s13_as_out_no2 LIKE '{$date_part}%' AND s13_as_out_no2 IS NOT NULL AND s13_as_out_no2 != ''";
+    $max_result = @mysql_query($max_query);
+    $max_row = @mysql_fetch_assoc($max_result);
+    $seq = (intval($max_row['max_seq'] ?? 0)) + 1;
     $seq_str = str_pad($seq, 3, '0', STR_PAD_LEFT);
 
     // s13_as_out_no: "NOyymmdd-SSS" 형식

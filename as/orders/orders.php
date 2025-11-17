@@ -8,12 +8,7 @@ if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 $user_name = $_SESSION['member_id'];
 $current_page = 'orders';
@@ -35,7 +30,15 @@ $offset = ($page - 1) * $limit;
 // 기간 필터 설정
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
-$month_start = date('Y-m-01');
+// 금월: 전월 26일 ~ 당월 25일 (오늘이 26일 이상이면 당월 26일 ~ 다음달 25일)
+$day_of_month = (int)date('d');
+if ($day_of_month >= 26) {
+    $month_start = date('Y-m-26');
+    $month_end = date('Y-m-25', strtotime('+1 month'));
+} else {
+    $month_start = date('Y-m-26', strtotime('-1 month'));
+    $month_end = date('Y-m-25');
+}
 $year_start = date('Y-01-01');
 
 // 검색 조건 (GET으로 받아서 검색 유지)
@@ -57,7 +60,7 @@ if (isset($_GET['range']) && !empty($_GET['range'])) {
         $search_end_date = $today;
     } elseif ($range === 'month') {
         $search_start_date = $month_start;
-        $search_end_date = $today;
+        $search_end_date = $month_end;
     } elseif ($range === 'year') {
         $search_start_date = $year_start;
         $search_end_date = $today;
@@ -818,8 +821,27 @@ if (!empty($sellid_list)) {
                             startDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
                             endDate = todayStr;
                         } else if (range === 'month') {
-                            startDate = year + '-' + month + '-01';
-                            endDate = todayStr;
+                            // 금월: 전월 26일 ~ 당월 25일 (오늘이 26일 이상이면 당월 26일 ~ 다음달 25일)
+                            const currentDay = parseInt(day);
+                            if (currentDay >= 26) {
+                                // 당월 26일 ~ 다음달 25일
+                                startDate = year + '-' + month + '-26';
+                                const nextMonth = new Date(today);
+                                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                                nextMonth.setDate(25);
+                                const nextYear = nextMonth.getFullYear();
+                                const nextMonthStr = String(nextMonth.getMonth() + 1).padStart(2, '0');
+                                endDate = nextYear + '-' + nextMonthStr + '-25';
+                            } else {
+                                // 전월 26일 ~ 당월 25일
+                                const prevMonth = new Date(today);
+                                prevMonth.setMonth(prevMonth.getMonth() - 1);
+                                prevMonth.setDate(26);
+                                const prevYear = prevMonth.getFullYear();
+                                const prevMonthStr = String(prevMonth.getMonth() + 1).padStart(2, '0');
+                                startDate = prevYear + '-' + prevMonthStr + '-26';
+                                endDate = year + '-' + month + '-25';
+                            }
                         } else if (range === 'year') {
                             startDate = year + '-01-01';
                             endDate = todayStr;

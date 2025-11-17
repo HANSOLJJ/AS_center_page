@@ -24,12 +24,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 // 날짜 범위 파라미터
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
@@ -91,7 +86,7 @@ LEFT JOIN step14_as_item i ON a.s13_asid = i.s14_asid
 LEFT JOIN step18_as_cure_cart c ON i.s14_aiid = c.s18_aiid
 WHERE a.s13_as_level = '5'
 $where_clause
-ORDER BY a.s13_asid, i.s14_aiid, c.s18_accid";
+ORDER BY a.s13_as_out_date DESC, a.s13_asid DESC, i.s14_aiid, c.s18_accid";
 
 $result = mysql_query($query);
 
@@ -228,7 +223,7 @@ foreach ($data_array as $asid => $data) {
             $sheet->setCellValue('H' . $row, $is_first ? $product_name : '');
             $sheet->setCellValue('I' . $row, $is_first ? $end_result : '');
             $sheet->setCellValue('J' . $row, $part['part_cost_name'] ?? '');
-            $sheet->setCellValue('K' . $row, (isset($part['s18_quantity']) ? $part['s18_quantity'] . '개' : ''));
+            $sheet->setCellValue('K' . $row, (isset($part['s18_quantity']) ? $part['s18_quantity'] : ''));
             $sheet->setCellValue('L' . $row, (int) $part_price);
             $sheet->setCellValue('M' . $row, $is_first ? (isset($as['s13_total_cost']) ? (int) $as['s13_total_cost'] : '') : '');
             $sheet->setCellValue('N' . $row, $is_first ? $payment_method : '');

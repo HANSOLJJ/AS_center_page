@@ -8,12 +8,7 @@ if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 $sellid = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
@@ -401,7 +396,7 @@ if (!empty($items)) {
 <body>
     <div class="receipt-container">
         <div class="logo">
-            <img src="logo1.jpg" width="100" alt="Logo">
+            <img src="../logo1.jpg" width="100" alt="Logo">
         </div>
 
         <table border="0" width="100%">

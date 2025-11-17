@@ -24,12 +24,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 // 날짜 범위 파라미터
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
@@ -86,7 +81,7 @@ FROM step20_sell s
 LEFT JOIN step21_sell_cart c ON s.s20_sellid = c.s21_sellid
 WHERE s.s20_sell_level = '2'
 $where_clause
-ORDER BY s.s20_sellid, c.s21_accid";
+ORDER BY s.s20_sell_out_date DESC, s.s20_sellid DESC, c.s21_accid";
 
 $result = mysql_query($query);
 
@@ -208,7 +203,7 @@ foreach ($data_array as $sellid => $data) {
             $sheet->setCellValue('D' . $row, $is_first ? ($sale['ex_company'] ?? '') : '');
             $sheet->setCellValue('E' . $row, $is_first ? ($sale['ex_sec1'] ?? '') : '');
             $sheet->setCellValue('F' . $row, $cart['cost_name'] ?? '');
-            $sheet->setCellValue('G' . $row, (isset($cart['s21_quantity']) ? $cart['s21_quantity'] . '개' : ''));
+            $sheet->setCellValue('G' . $row, (isset($cart['s21_quantity']) ? $cart['s21_quantity'] : ''));
             $sheet->setCellValue('H' . $row, (int) $item_price);
             $sheet->setCellValue('I' . $row, $is_first ? (isset($sale['s20_total_cost']) ? (int) $sale['s20_total_cost'] : '') : '');
             $sheet->setCellValue('J' . $row, $is_first ? ($sale['ex_address'] ?? '') : '');

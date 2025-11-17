@@ -8,12 +8,7 @@ if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 $response = array('success' => false, 'message' => '');
 
@@ -46,7 +41,7 @@ if ($action === 'restore') {
     // ======================================
     if ($current_tab === 'completed') {
         // 완료 탭에서의 이전: 완료 관련 필드 초기화 + level을 2로 변경
-        $reset_as_query = "UPDATE step13_as SET s13_as_level = '2', s13_as_out_date = NULL, s13_bank_check = NULL, s13_bankcheck_w = '', s13_total_cost = NULL, s13_as_out_no = NULL, s13_as_out_no2 = NULL WHERE s13_asid = $asid";
+        $reset_as_query = "UPDATE step13_as SET s13_as_level = '2', s13_as_out_date = NULL, s13_bank_check = NULL, s13_bankcheck_w = '', s13_total_cost = 0, s13_as_out_no = NULL, s13_as_out_no2 = NULL WHERE s13_asid = $asid";
         mysql_query($reset_as_query);
 
         // 완료 탭으로 리다이렉트

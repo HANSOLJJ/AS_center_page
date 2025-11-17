@@ -8,12 +8,7 @@ if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 $user_name = $_SESSION['member_id'];
 $current_page = 'statistics';
@@ -25,18 +20,19 @@ $current_tab = in_array($tab, ['overview', 'monthly_report', 'as_analysis', 'sal
 // 기간 설정
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
-$month_start = date('Y-m-01');
+// 금월: 전월 26일 ~ 당월 25일 (오늘이 26일 이상이면 당월 26일 ~ 다음달 25일)
+$day_of_month = (int)date('d');
+if ($day_of_month >= 26) {
+    $month_start = date('Y-m-26');
+    $month_end = date('Y-m-25', strtotime('+1 month'));
+} else {
+    $month_start = date('Y-m-26', strtotime('-1 month'));
+    $month_end = date('Y-m-25');
+}
 $year_start = date('Y-01-01');
 
-// 1순위: 사용자가 직접 입력한 날짜 (date input) → 이것이 가장 명시적인 선택
-if (isset($_GET['start_date']) && isset($_GET['end_date']) && !empty($_GET['start_date']) && !empty($_GET['end_date'])) {
-    // 사용자가 직접 날짜를 입력한 경우 (버튼이 아닌 date input에서)
-    $start_date = $_GET['start_date'];
-    $end_date = $_GET['end_date'];
-    $range = 'custom';  // 사용자 지정 기간임을 표시
-}
-// 2순위: range 파라미터가 설정되고 'custom'이 아닌 경우 (버튼 클릭)
-else if (isset($_GET['range']) && !empty($_GET['range']) && $_GET['range'] !== 'custom') {
+// ✅ 1순위: range 파라미터(버튼 선택)
+if (isset($_GET['range']) && $_GET['range'] !== '') {
     $range = $_GET['range'];
 
     if ($range === 'today') {
@@ -47,27 +43,32 @@ else if (isset($_GET['range']) && !empty($_GET['range']) && $_GET['range'] !== '
         $end_date = $today;
     } elseif ($range === 'month') {
         $start_date = $month_start;
-        $end_date = $today;
+        $end_date = $month_end;
     } elseif ($range === 'year') {
         $start_date = $year_start;
         $end_date = $today;
-    } elseif ($range === '' || $range === 'all') {
-        // 전체 기간: 날짜 제한 없음
+    } elseif ($range === 'all') {
         $start_date = '';
         $end_date = '';
     } else {
-        // 기타 경우: 전체 기간
+        // 알 수 없는 값 → 전체
+        $range = 'all';
         $start_date = '';
         $end_date = '';
     }
 }
-// 3순위: 기본값
+// ✅ 2순위: 사용자가 직접 입력한 날짜 (date input)
+elseif (!empty($_GET['start_date']) && !empty($_GET['end_date'])) {
+    $start_date = $_GET['start_date'];
+    $end_date = $_GET['end_date'];
+    $range = 'custom';
+}
+// ✅ 3순위: 기본값(금월)
 else {
     $range = 'month';
     $start_date = $month_start;
-    $end_date = $today;
+    $end_date = $month_end;
 }
-
 // 통계 데이터 조회 함수
 function getStatistics($connect, $start_date, $end_date)
 {
@@ -377,8 +378,18 @@ function formatRevenue($cost)
 // 월간 통합 리포트 데이터 조회 (본사만)
 function getMonthlyIntegratedReport($connect, $report_year, $report_month)
 {
-    $start_date = $report_year . '-' . $report_month . '-01';
-    $end_date = date('Y-m-t', strtotime($start_date));
+    // 금월: 전월 26일 ~ 당월 25일
+    // 예: 2월 선택 → 1월 26일 ~ 2월 25일
+    $end_date = $report_year . '-' . str_pad($report_month, 2, '0', STR_PAD_LEFT) . '-25';
+
+    // 전월 계산
+    $prev_month = $report_month - 1;
+    $prev_year = $report_year;
+    if ($prev_month < 1) {
+        $prev_month = 12;
+        $prev_year--;
+    }
+    $start_date = $prev_year . '-' . str_pad($prev_month, 2, '0', STR_PAD_LEFT) . '-26';
 
     // AS 데이터 조회 (본사만)
     $as_query = "SELECT
@@ -439,6 +450,17 @@ if ($report_month < 1 || $report_month > 12) {
     $report_month = date('m');
 }
 $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $report_month);
+
+// 월간 리포트 기간 계산 (표시용)
+$report_month_int = intval($report_month);
+$report_end_date = $report_year . '-' . str_pad($report_month_int, 2, '0', STR_PAD_LEFT) . '-25';
+$prev_month = $report_month_int - 1;
+$prev_year = $report_year;
+if ($prev_month < 1) {
+    $prev_month = 12;
+    $prev_year--;
+}
+$report_start_date = $prev_year . '-' . str_pad($prev_month, 2, '0', STR_PAD_LEFT) . '-26';
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -832,27 +854,28 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 </div>
             <?php elseif ($current_tab === 'overview'): ?>
                 <!-- 개요 탭: 기존 기간 필터 + 리포트 버튼 -->
-                <form method="GET" class="date-filter">
+                <!-- DEBUG: range = <?php echo htmlspecialchars($range); ?> -->
+                <form method="GET" class="date-filter" id="stat-form-overview">
                     <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
 
                     <div class="date-filter-buttons">
-                        <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>"
-                            onclick="setDateRange('all', this.form); this.form.submit();">전체 기간</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'all' ? 'active' : ''; ?>"
+                            onclick="setStatDateRange('all', 'stat-form-overview');">전체 기간</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>"
-                            onclick="setDateRange('today', this.form); this.form.submit();">오늘</button>
+                            onclick="setStatDateRange('today', 'stat-form-overview');">오늘</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>"
-                            onclick="setDateRange('week', this.form); this.form.submit();">금주</button>
+                            onclick="setStatDateRange('week', 'stat-form-overview');">금주</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>"
-                            onclick="setDateRange('month', this.form); this.form.submit();">금월</button>
+                            onclick="setStatDateRange('month', 'stat-form-overview');">금월</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>"
-                            onclick="setDateRange('year', this.form); this.form.submit();">금년</button>
+                            onclick="setStatDateRange('year', 'stat-form-overview');">금년</button>
                     </div>
 
                     <div class="date-filter-controls">
                         <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
                         <span style="color: #999;">~</span>
                         <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
-                        <input type="hidden" id="range-input-stat" name="range"
+                        <input type="hidden" class="range-input" name="range"
                             value="<?php echo htmlspecialchars($range); ?>">
                         <button type="submit">검색</button>
                         <button type="button" onclick="downloadReport('export_as_report.php')"
@@ -865,27 +888,27 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 </form>
             <?php else: ?>
                 <!-- AS 분석, 판매 분석 탭: 기간 필터만 (리포트 버튼 없음) -->
-                <form method="GET" class="date-filter">
+                <form method="GET" class="date-filter" id="stat-form-<?php echo $current_tab; ?>">
                     <input type="hidden" name="tab" value="<?php echo htmlspecialchars($current_tab); ?>">
 
                     <div class="date-filter-buttons">
-                        <button type="button" class="date-filter-btn <?php echo $range === '' ? 'active' : ''; ?>"
-                            onclick="setDateRange('all', this.form); this.form.submit();">전체 기간</button>
+                        <button type="button" class="date-filter-btn <?php echo $range === 'all' ? 'active' : ''; ?>"
+                            onclick="setStatDateRange('all', 'stat-form-<?php echo $current_tab; ?>');">전체 기간</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'today' ? 'active' : ''; ?>"
-                            onclick="setDateRange('today', this.form); this.form.submit();">오늘</button>
+                            onclick="setStatDateRange('today', 'stat-form-<?php echo $current_tab; ?>');">오늘</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'week' ? 'active' : ''; ?>"
-                            onclick="setDateRange('week', this.form); this.form.submit();">금주</button>
+                            onclick="setStatDateRange('week', 'stat-form-<?php echo $current_tab; ?>');">금주</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'month' ? 'active' : ''; ?>"
-                            onclick="setDateRange('month', this.form); this.form.submit();">금월</button>
+                            onclick="setStatDateRange('month', 'stat-form-<?php echo $current_tab; ?>');">금월</button>
                         <button type="button" class="date-filter-btn <?php echo $range === 'year' ? 'active' : ''; ?>"
-                            onclick="setDateRange('year', this.form); this.form.submit();">금년</button>
+                            onclick="setStatDateRange('year', 'stat-form-<?php echo $current_tab; ?>');">금년</button>
                     </div>
 
                     <div class="date-filter-controls">
                         <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>">
                         <span style="color: #999;">~</span>
                         <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>">
-                        <input type="hidden" id="range-input-stat" name="range"
+                        <input type="hidden" class="range-input" name="range"
                             value="<?php echo htmlspecialchars($range); ?>">
                         <button type="submit">검색</button>
                     </div>
@@ -897,7 +920,7 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 function downloadReport(filename) {
                     const startDate = document.querySelector('input[name="start_date"]').value;
                     const endDate = document.querySelector('input[name="end_date"]').value;
-                    const range = document.getElementById('range-input-stat').value;
+                    const range = document.querySelector('.range-input')?.value || '';
 
                     const url = filename + '?start_date=' + encodeURIComponent(startDate) +
                         '&end_date=' + encodeURIComponent(endDate) +
@@ -936,7 +959,8 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                     document.body.removeChild(link);
                 }
 
-                function setDateRange(range, form) {
+                function setStatDateRange(range, formId) {
+                    const form = document.getElementById(formId);
                     const today = new Date();
                     let startDate, endDate;
 
@@ -955,8 +979,27 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                         startDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
                         endDate = todayStr;
                     } else if (range === 'month') {
-                        startDate = year + '-' + month + '-01';
-                        endDate = todayStr;
+                        // 금월: 전월 26일 ~ 당월 25일 (오늘이 26일 이상이면 당월 26일 ~ 다음달 25일)
+                        const currentDay = parseInt(day);
+                        if (currentDay >= 26) {
+                            // 당월 26일 ~ 다음달 25일
+                            startDate = year + '-' + month + '-26';
+                            const nextMonth = new Date(today);
+                            nextMonth.setMonth(nextMonth.getMonth() + 1);
+                            nextMonth.setDate(25);
+                            const nextYear = nextMonth.getFullYear();
+                            const nextMonthStr = String(nextMonth.getMonth() + 1).padStart(2, '0');
+                            endDate = nextYear + '-' + nextMonthStr + '-25';
+                        } else {
+                            // 전월 26일 ~ 당월 25일
+                            const prevMonth = new Date(today);
+                            prevMonth.setMonth(prevMonth.getMonth() - 1);
+                            prevMonth.setDate(26);
+                            const prevYear = prevMonth.getFullYear();
+                            const prevMonthStr = String(prevMonth.getMonth() + 1).padStart(2, '0');
+                            startDate = prevYear + '-' + prevMonthStr + '-26';
+                            endDate = year + '-' + month + '-25';
+                        }
                     } else if (range === 'year') {
                         startDate = year + '-01-01';
                         endDate = todayStr;
@@ -967,8 +1010,8 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
 
                     form.start_date.value = startDate;
                     form.end_date.value = endDate;
-                    document.getElementById('range-input-stat').value = (range === 'all' ? '' : range);
-                    // range 버튼 시 자동 submit하지 않음
+                    form.querySelector('.range-input').value = range;
+                    form.submit();
                 }
 
                 // form 제출 시 range 값이 설정되지 않은 경우 초기화
@@ -1122,8 +1165,9 @@ $monthly_report_data = getMonthlyIntegratedReport($connect, $report_year, $repor
                 <!-- 월간 종합 매출 결과 테이블 -->
                 <div class="table-section">
                     <h3>월간 종합 매출 결과</h3>
-                    <p style="color: #999; font-size: 12px; margin-bottom: 10px;"><?php echo $report_year; ?>년
-                        <?php echo intval($report_month); ?>월
+                    <p style="color: #999; font-size: 12px; margin-bottom: 10px;">
+                        <?php echo $report_year; ?>년 <?php echo intval($report_month); ?>월
+                        (<?php echo $report_start_date; ?> ~ <?php echo $report_end_date; ?>)
                     </p>
                     <table>
                         <thead>

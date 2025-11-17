@@ -8,12 +8,7 @@ if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $action = isset($_GET['action']) ? $_GET['action'] : '';
@@ -40,11 +35,13 @@ if ($action === 'complete') {
     $date_part = date('ymd', strtotime($sell_out_data));
     $as_time = $date_part; // s20_sell_time에 저장할 값 (예: 120413)
 
-    // 같은 날짜의 주문 개수 조회 (순번 결정)
-    $count_query = "SELECT COUNT(*) as cnt FROM step20_sell WHERE DATE(s20_sell_out_date) = DATE('$sell_out_data')";
-    $count_result = @mysql_query($count_query);
-    $count_row = mysql_fetch_assoc($count_result);
-    $seq_no = ($count_row['cnt'] + 1); // 1부터 시작
+    // 같은 날짜의 최대 순번 조회 (순번 중복 방지)
+    $max_query = "SELECT MAX(CAST(SUBSTRING(s20_sell_out_no2, 7) AS UNSIGNED)) as max_seq
+                  FROM step20_sell
+                  WHERE s20_sell_out_no2 LIKE '{$date_part}%' AND s20_sell_out_no2 IS NOT NULL AND s20_sell_out_no2 != ''";
+    $max_result = @mysql_query($max_query);
+    $max_row = mysql_fetch_assoc($max_result);
+    $seq_no = ($max_row['max_seq'] ?? 0) + 1; // 최대값 + 1
     $seq_no_str = str_pad($seq_no, 3, '0', STR_PAD_LEFT); // 3자리 제로패딩 (001, 002, ...)
 
     // s20_sell_out_no2: YYMMDD + 순번 (예: 120413001)
@@ -57,9 +54,16 @@ if ($action === 'complete') {
     $as_out_no2_esc = mysql_real_escape_string($as_out_no2);
     $as_time_esc = mysql_real_escape_string($as_time);
 
+    // 총액 재계산 (완료 시점의 정확한 금액 반영)
+    $total_query = "SELECT COALESCE(SUM(cost1 * s21_quantity), 0) as total FROM step21_sell_cart WHERE s21_sellid = $id";
+    $total_result = mysql_query($total_query);
+    $total_cost = 0;
+    if ($total_result) {
+        $total_row = mysql_fetch_assoc($total_result);
+        $total_cost = intval($total_row['total'] ?? 0);
+    }
 
-
-    $update_query = "UPDATE step20_sell SET s20_sell_level = '2', s20_sell_time='$as_time_esc', s20_sell_out_no='$as_out_no_esc', s20_sell_out_no2='$as_out_no2_esc', s20_bank_check = '$now', s20_sell_out_date = '$now', s20_bankcheck_w = 'center' WHERE s20_sellid = $id";
+    $update_query = "UPDATE step20_sell SET s20_sell_level = '2', s20_sell_time='$as_time_esc', s20_sell_out_no='$as_out_no_esc', s20_sell_out_no2='$as_out_no2_esc', s20_bank_check = '$now', s20_sell_out_date = '$now', s20_bankcheck_w = 'center', s20_total_cost = $total_cost WHERE s20_sellid = $id";
     $result = mysql_query($update_query);
 
     // step21_sell_cart의 s21_signdate를 s20_sell_out_date와 동기화 (입금 확인 시간 동기화)

@@ -8,12 +8,7 @@ if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 $user_name = $_SESSION['member_id'];
 $current_page = 'orders';
@@ -120,24 +115,39 @@ if ($action === 'update_quantity') {
 
         // 수량 업데이트
         $update_query = "UPDATE step21_sell_cart SET s21_quantity = $quantity WHERE s21_accid = $accid_int";
-        $update_result = @mysql_query($update_query);
+        $update_result = mysql_query($update_query);
+        $affected_rows = mysql_affected_rows();
 
         if ($update_result) {
             $response['success'] = true;
 
             // 총액 재계산
             $total_query = "SELECT SUM(cost1 * s21_quantity) as total FROM step21_sell_cart WHERE s21_sellid = $sell_id";
-            $total_result = @mysql_query($total_query);
+            $total_result = mysql_query($total_query);
             if ($total_result) {
                 $total_row = mysql_fetch_assoc($total_result);
                 $new_total = $total_row['total'] ?? 0;
 
                 // step20_sell의 총액 업데이트
-                @mysql_query("UPDATE step20_sell SET s20_total_cost = $new_total WHERE s20_sellid = $sell_id");
+                $update_total_query = "UPDATE step20_sell SET s20_total_cost = $new_total WHERE s20_sellid = $sell_id";
+                $update_total_result = mysql_query($update_total_query);
+                $affected_rows_total = mysql_affected_rows();
+
                 $response['new_total'] = $new_total;
+                $response['debug'] = array(
+                    'accid' => $accid_int,
+                    'quantity' => $quantity,
+                    'update_query' => $update_query,
+                    'affected_rows' => $affected_rows,
+                    'total_query' => $total_query,
+                    'new_total' => $new_total,
+                    'total_update_query' => $update_total_query,
+                    'total_affected_rows' => $affected_rows_total,
+                    'total_update_error' => $update_total_result ? '' : mysql_error()
+                );
             }
         } else {
-            $response['message'] = '업데이트 중 오류가 발생했습니다.';
+            $response['message'] = '업데이트 중 오류가 발생했습니다: ' . mysql_error();
         }
     } else {
         // 임시 ID (아직 DB에 저장되지 않은 항목) - 클라이언트에서만 처리
@@ -649,7 +659,7 @@ if ($action === 'get_parts') {
         function initializeCategories() {
             const categoryContainer = document.getElementById('categoryButtons');
 
-            fetch('parts.php?action=get_categories', {
+            fetch('../parts/parts.php?action=get_categories', {
                 method: 'GET'
             })
                 .then(r => r.json())

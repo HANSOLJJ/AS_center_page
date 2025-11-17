@@ -8,41 +8,8 @@ if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
     exit;
 }
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
+require_once '../db_config.php';
 
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
-
-// AJAX 삭제 요청 처리
-if (isset($_POST['action']) && $_POST['action'] === 'delete') {
-    ob_start();
-    header('Content-Type: application/json; charset=utf-8');
-
-    $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-
-    $success = false;
-    $message = '삭제에 실패했습니다.';
-
-    if ($id > 0) {
-        // 외래 키 제약 비활성화
-        mysql_query("SET FOREIGN_KEY_CHECKS = 0");
-
-        $delete_result = mysql_query("DELETE FROM step11_member WHERE s11_meid = $id");
-        if ($delete_result !== false && mysql_affected_rows() > 0) {
-            $success = true;
-            $message = '고객 정보가 정상적으로 삭제되었습니다.';
-        }
-
-        // 외래 키 제약 다시 활성화
-        mysql_query("SET FOREIGN_KEY_CHECKS = 1");
-    }
-
-    ob_end_clean();
-    echo json_encode(array('success' => $success, 'message' => $message));
-    exit;
-}
 
 $user_name = $_SESSION['member_id'];
 $success_message = '';
@@ -488,7 +455,7 @@ $result = mysql_query("
                             echo "<a href='member_edit.php?id=" . $row['s11_meid'] . "' class='action-link edit-link'>수정</a>";
                             echo "</td>";
                             echo "<td>";
-                            echo "<a href='#' class='action-link delete-link' data-id='" . $row['s11_meid'] . "' onclick='return deleteItem(this);'>삭제</a>";
+                            echo "<a href='member_delete.php?id=" . $row['s11_meid'] . "' class='action-link delete-link' onclick=\"return confirm('정말 삭제하시겠습니까?');\">삭제</a>";
                             echo "</td>";
                             echo "</tr>";
                             $row_number--;
@@ -621,88 +588,21 @@ $result = mysql_query("
             color: #721c24;
         }
     </style>
-    <script>
-        // 로딩 표시
-        function showLoading() {
-            var $loading = $('<div class="loading show">' +
-                '<div class="loading-content">' +
-                '<div class="spinner"></div>' +
-                '<h3>처리 중...</h3>' +
-                '<p>삭제 중입니다.</p>' +
-                '</div>' +
-                '</div>');
-            $('body').append($loading);
-            return $loading;
-        }
+            messageDiv.className = messageClass;
+            messageDiv.textContent = (type === 'error' ? '✗ ' : '✓ ') + message;
+            
+            var content = document.querySelector('.content');
+            content.insertBefore(messageDiv, content.firstChild);
 
-        // 로딩 숨기기
-        function hideLoading($loading) {
-            if ($loading) {
-                $loading.remove();
-            }
-        }
-
-        // AJAX 삭제 함수
-        function deleteItem(el) {
-            if (!confirm('정말 삭제하시겠습니까?')) {
-                return false;
-            }
-
-            var id = $(el).data('id');
-            var $el = $(el);
-
-            // 로딩 표시
-            var $loading = showLoading();
-
-            $.ajax({
-                url: 'members.php',
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    action: 'delete',
-                    id: id
-                },
-                success: function (response) {
-                    hideLoading($loading);
-
-                    if (response.success) {
-                        // 행 제거 애니메이션
-                        $el.closest('tr').fadeOut(300, function () {
-                            $(this).remove();
-
-                            // 성공 메시지 표시
-                            showMessage(response.message, 'success');
-
-                            // 1초 후 페이지 새로고침
-                            setTimeout(function () {
-                                location.reload();
-                            }, 1000);
-                        });
-                    } else {
-                        showMessage(response.message, 'error');
+            setTimeout(function() {
+                messageDiv.style.opacity = '0';
+                messageDiv.style.transition = 'opacity 0.3s';
+                
+                setTimeout(function() {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
                     }
-                },
-                error: function () {
-                    hideLoading($loading);
-                    showMessage('삭제 중 오류가 발생했습니다.', 'error');
-                }
-            });
-
-            return false;
-        }
-
-        // 메시지 표시 함수
-        function showMessage(message, type) {
-            var messageClass = type === 'error' ? 'error' : '';
-            var $message = $('<div class="message ' + messageClass + '"></div>')
-                .text((type === 'error' ? '✗ ' : '✓ ') + message)
-                .prependTo('.content')
-                .fadeIn();
-
-            setTimeout(function () {
-                $message.fadeOut(300, function () {
-                    $(this).remove();
-                });
+                }, 300);
             }, 3000);
         }
     </script>

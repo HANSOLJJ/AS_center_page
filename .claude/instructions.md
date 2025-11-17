@@ -1,5 +1,37 @@
 # AS 센터 관리 시스템 - Claude Code 프로젝트 지침
 
+## 🚨 긴급 작업 (2025-11-12 진행 중)
+
+### 호스팅 서버 포팅 작업
+
+**SSH 접속 정보**:
+- 도메인: dcom.co.kr
+- 포트: 22
+- 사용자명: dcom2000
+- 비밀번호: Noblein12!!
+
+**작업 목표**: 로컬 개발 프로젝트를 호스팅 서버로 포팅
+
+**작업 순서**:
+1. SSH 서버 접속 및 기본 정보 확인 (OS, 디렉토리 구조)
+2. 서버 환경 파악 (PHP 버전, MySQL 버전, 웹서버 종류)
+3. 프로젝트 디렉토리 구조 확인 및 백업
+4. 데이터베이스 설정 확인 (DB명, 사용자, 권한)
+5. 프로젝트 파일 업로드 및 설정 (DB 연결, 경로 등)
+6. 테스트 및 검증
+
+**MCP 도구 사용**:
+- SSH MCP 서버가 설치됨 (@fangjunjie/ssh-mcp-server by classfang)
+- 비밀번호 인증 지원 (name=dcom 연결로 설정됨)
+- 새 세션에서 SSH MCP 도구가 자동 로드됨
+- 사용 가능한 도구:
+  - `execute-command`: SSH 명령 실행 (cmdString, connectionName="dcom")
+  - `upload`: 로컬 파일을 원격 서버로 업로드
+  - `download`: 원격 서버 파일을 로컬로 다운로드
+  - `list-servers`: 사용 가능한 SSH 서버 목록 조회
+
+---
+
 ## 📌 세션 시작 시 필독 사항
 
 **이 파일은 세션이 열릴 때마다 자동으로 로드됩니다.**
@@ -15,7 +47,119 @@
 
 ## 📅 최근 작업 현황
 
-### 2025-11-08 작업 (오늘 완료)
+### 2025-11-17 작업 (오늘 완료)
+
+#### 1. VSCode 원격 편집 환경 구축 (✅ 완료)
+
+**목표**: dcom.co.kr 서버의 AS 파일들을 로컬 VSCode에서 편집
+
+**시도 및 결과**:
+
+1. **VSCode Remote-SSH 시도** (❌ 실패)
+   - SSH config 파일 생성: `C:\Users\noble\.ssh\config`
+   - Host 설정: dcom (dcom.co.kr:22, user: dcom2000)
+   - 실패 원인: 서버의 glibc/libstdc++ 버전이 VSCode Server 요구사항 미충족
+   - 서버 환경: Cafe24 공유 호스팅, PHP 7.0.0 (2016년 빌드), 오래된 Linux
+
+2. **SFTP 설정으로 전환** (✅ 성공)
+   - `.vscode/sftp.json` 생성
+   - 설정:
+     - uploadOnSave: true (저장 시 자동 업로드)
+     - downloadOnOpen: false (수동 다운로드만)
+     - syncMode: "update" (기존 파일만 업데이트)
+   - ignore 설정:
+     - .git, DOCS, .claude, *.md (문서 파일)
+     - as/db_config.local.php (로컬 전용 DB 설정)
+     - .vscode (설정 파일)
+   - 원격 경로: `/home/hosting_users/dcom2000/www`
+
+3. **DB 설정 파일 분리**
+   - `as/db_config.php` → `as/db_config.local.php` (로컬 전용)
+   - 서버의 `db_config.php` 다운로드 (프로덕션 설정: localhost, dcom2000, Basserd2@@)
+   - SFTP에서 `db_config.local.php` ignore 처리
+
+**사용 방법**:
+- VSCode SFTP 확장 설치 (SFTP by Natizyskunk)
+- 파일 편집 후 Ctrl+S → 자동으로 서버에 업로드
+- 새 파일: 우클릭 → "Upload" (수동 업로드)
+
+**커밋**: 예정
+**상태**: ✅ 완료
+
+---
+
+### 2025-11-13 작업 (이전 완료)
+
+#### 1. 데이터베이스 설정 중앙화 (✅ 완료)
+
+**목표**: 31개 PHP 파일의 하드코딩된 DB 연결 정보를 단일 db_config.php로 통합
+
+**작업 내용**:
+
+1. **db_config.php 생성**
+   - MySQL 호환성 레이어 로드 (mysql_compat.php)
+   - 데이터베이스 연결 정보 정의 (DB_HOST, DB_USER, DB_PASS, DB_NAME)
+   - 자동 연결 및 DB 선택
+   - 전역 변수로 연결 저장 ($GLOBALS['db_connect'])
+
+2. **31개 PHP 파일 수정**
+   - 기존 개별 DB 연결 코드 제거
+   - `require_once '../db_config.php';` 또는 `require_once 'db_config.php';`로 변경
+   - 수정된 파일:
+     - dashboard.php, login_process.php
+     - orders/*.php (orders.php, order_handler.php, order_payment.php, order_receipt.php)
+     - parts/*.php (parts.php, parts_add.php, parts_edit.php, category_add.php, category_edit.php)
+     - products/*.php (products.php, model_add.php, model_edit.php, poor_add.php, poor_edit.php, result_add.php, result_edit.php)
+     - customers/*.php (members.php, member_add.php, member_edit.php)
+     - stat/*.php (statistics.php, export_statistics.php)
+     - as_task/*.php (as_requests.php, as_request_handler.php, as_request_view.php, as_receipt.php, as_repair.php, as_repair_handler.php, close_as.php, cancel_as.php)
+
+3. **설정 분리**
+   - **로컬 (테스트 서버)**: mysql, mic4u_user, change_me, mic4u
+   - **프로덕션 (dcom.co.kr)**: localhost, dcom2000, Basserd2@@, dcom2000
+
+**커밋**: 예정
+**상태**: ✅ 완료
+
+#### 2. 서버 배포 (dcom.co.kr) (✅ 완료)
+
+**목표**: 로컬 프로젝트를 Cafe24 호스팅 서버로 포팅
+
+**작업 내용**:
+
+1. **파일 업로드**
+   - as/ 디렉토리 압축 (as.tar.gz, 125KB) 및 업로드
+   - vendor/ 디렉토리 압축 (vendor.tar.gz, 1.3MB) 및 업로드
+   - 서버에서 압축 해제 및 권한 설정 (755)
+
+2. **데이터베이스 마이그레이션**
+   - 로컬 MySQL에서 AS 시스템 관련 13개 테이블 덤프
+   - schema_as_only.sql (구조), data_as_only.sql (데이터, 38MB → 4.7MB 압축)
+   - 서버 MariaDB에 임포트 완료
+   - 데이터: 874명 고객, 32,936건 AS 요청, 405개 자재
+
+3. **누락 테이블 추가**
+   - step2_center 테이블 발견 및 추가
+   - 4개 센터: 을지로, 영등포, 본사, 용산
+   - as_receipt.php, order_receipt.php에서 센터명 조회 시 필요
+
+4. **수정 파일 서버 업로드**
+   - statistics.php (날짜 범위 버튼 수정본)
+   - 기타 db_config.php 사용 파일들 (초기 배포에 포함됨)
+
+**서버 환경**:
+- 호스트: dcom.co.kr
+- Web PHP: 7.4.5p1
+- CLI PHP: 7.0.0
+- DB: MariaDB 10.1.13
+- 접속 URL: https://dcom.co.kr/as/
+
+**커밋**: 예정
+**상태**: ✅ 완료
+
+---
+
+### 2025-11-08 작업 (이전 완료)
 
 #### 1. as_requests.php, orders.php, as_statistics.php "전체 기간" 버튼 구현 (✅ 완료)
 
@@ -256,8 +400,17 @@ WHERE a.s14_aiid >= 84767;
 ```
 원격 저장소: https://github.com/HANSOLJJ/AS_center_page.git
 Branch: main (master는 삭제됨)
-최신 태그: v0.5.1-20251105
+최신 태그: v0.5.1-20251105 (곧 v0.6.0-20251113 예정)
 최신 커밋: 2a657a5 - feat: Add shopping cart functionality to Step 3 and sort products by s15_amid DESC
+커밋 예정: db_config.php 중앙화 및 서버 배포 완료
+```
+
+### 최근 작업 파일 (커밋 예정)
+
+```
+- as/db_config.php (새로 생성)
+- as/statistics.php (날짜 버튼 수정)
+- 31개 PHP 파일 (db_config.php 사용)
 ```
 
 ### 최근 커밋 히스토리
@@ -274,9 +427,53 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ---
 
-## 📋 다음 작업 예정 (2025-11-09)
+## 📋 다음 작업 예정 (2025-11-14)
 
-### 1️⃣ as_statistics.php 그래프 기능 추가 (우선순위: 높음)
+### 1️⃣ 최신 데이터베이스 마이그레이션 (우선순위: 긴급)
+
+**목표**: 옛날 호스팅 서버에 있는 최신 DB를 로컬 및 dcom.co.kr로 이전
+
+**작업 순서**:
+
+1. **옛날 호스팅 서버에서 최신 DB 덤프**
+   - AS 시스템 관련 13개 테이블 전체 덤프
+   - 고객 데이터, AS 요청 데이터, 자재 데이터 등 포함
+
+2. **로컬 테스트 서버로 임포트**
+   - 현재 로컬 DB의 AS 관련 데이터 삭제 (TRUNCATE 또는 DROP)
+   - 최신 DB 데이터 임포트
+   - 동작 테스트 (로그인, AS 조회, 통계 등)
+
+3. **이상 없을 시 dcom.co.kr로 이전**
+   - 현재 dcom.co.kr DB의 AS 관련 데이터 삭제
+   - 최신 DB 데이터 임포트
+   - 브라우저에서 동작 확인
+
+**주의사항**:
+- 현재 로컬 및 dcom.co.kr의 프로젝트 관련 DB 데이터는 삭제 필요
+- 백업 필수 (만약을 대비)
+- 13개 테이블 전체 확인:
+  - 2010_admin_member
+  - step1_parts
+  - step2_center
+  - step5_category
+  - step11_member
+  - step13_as
+  - step14_as_item
+  - step15_as_model
+  - step16_as_poor
+  - step18_as_cure_cart
+  - step19_as_result
+  - step20_sell
+  - step21_sell_cart
+
+**예상 파일**:
+- old_server_dump.sql (옛날 서버 덤프)
+- 임포트 스크립트
+
+---
+
+### 2️⃣ as_statistics.php 그래프 기능 추가 (우선순위: 높음)
 
 **목표**: AS 분석 및 판매 분석 탭에서 고객별, 제품별, 자재별 통계를 그래프로 시각화
 
@@ -378,6 +575,9 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ### ✅ 해결됨
 
+- [2025-11-13] 데이터베이스 설정 중앙화 완료 (db_config.php로 31개 파일 통합)
+- [2025-11-13] dcom.co.kr 서버 배포 완료 (as/, vendor/ 디렉토리 + DB 마이그레이션)
+- [2025-11-13] step2_center 테이블 누락 발견 및 추가 (센터명 조회 기능)
 - [2025-11-08] as_requests.php, orders.php, as_statistics.php "전체 기간" 버튼 구현 (기간 제한 없이 전체 데이터 조회 가능)
 - [2025-11-08] as_statistics.php SQL 쿼리 4개 함수 업데이트 (빈 날짜 값 처리 추가)
 - [2025-11-07] receipt.php & as_request_view.php 1970년 날짜 문제 해결 (datetime validation 추가)
@@ -397,8 +597,9 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ### 📌 향후 예정
 
-- as_statistics.php 그래프 기능 (내일 우선순위 1)
-- as_statistics.php 월간 리포트 XLSX 내보내기 (내일 우선순위 2)
+- 옛날 호스팅 서버 최신 DB 마이그레이션 (내일 우선순위 1 - 긴급)
+- as_statistics.php 그래프 기능 (우선순위 2)
+- as_statistics.php 월간 리포트 XLSX 내보내기 (우선순위 3)
 - as_repair.php 추가 기능 개선 (필요시)
 - as_center/ 페이지들과의 연동 (추후)
 - parts.php Tab3-5 기능 구현 (추후)
@@ -411,9 +612,10 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 | 파일명                        | 용도                           | 최근 수정일 |
 | ----------------------------- | ------------------------------ | ----------- |
-| `.claude/instructions.md`     | 프로젝트 지침 (현재 파일)      | 2025-11-08  |
+| `.claude/instructions.md`     | 프로젝트 지침 (현재 파일)      | 2025-11-13  |
 | `CLAUDE.md`                   | 전체 프로젝트 문서             | 2025-11-04  |
-| `as/as_statistics.php`        | 통계/분석 (기간 필터 완료)     | 2025-11-08  |
+| `as/db_config.php`            | DB 설정 중앙화 (신규 생성)     | 2025-11-13  |
+| `as/as_statistics.php`        | 통계/분석 (기간 필터 완료)     | 2025-11-13  |
 | `as/as_requests.php`          | AS 요청 관리 (기간 필터 완료)  | 2025-11-08  |
 | `as/orders.php`               | 자재 판매 관리 (기간 필터 완료)| 2025-11-08  |
 | `as/as_request_handler.php`   | AS 요청 신청 (Step 3 완료)     | 2025-11-05  |
@@ -435,24 +637,52 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 - Collation: utf8mb4_unicode_ci
 - MySQL 연결: mysql_compat.php에서 설정
 
-**주요 테이블**:
+**로컬 환경 (테스트 서버)**:
+- Host: mysql (Docker 컨테이너)
+- User: mic4u_user
+- Password: change_me
+- Database: mic4u
 
+**프로덕션 환경 (dcom.co.kr)**:
+- Host: localhost
+- User: dcom2000
+- Password: Basserd2@@
+- Database: dcom2000
+- DB Server: MariaDB 10.1.13
+
+**AS 시스템 테이블 (13개)**:
+
+- 2010_admin_member (관리자)
 - step1_parts (자재)
+- step2_center (센터)
 - step5_category (카테고리)
+- step11_member (회원)
+- step13_as (AS 요청)
+- step14_as_item (AS 항목)
+- step15_as_model (모델)
 - step16_as_poor (불량증상)
+- step18_as_cure_cart (수리 자재)
 - step19_as_result (AS 결과)
 - step20_sell (자재 판매)
 - step21_sell_cart (판매 항목)
-- step11_member (회원)
-- step15_as_model (모델)
 
 ---
 
 ---
 
-## 🔒 주의 사항 (2025-11-07)
+## 🔒 주의 사항
 
-### 1. 날짜 필드 처리
+### 1. 데이터베이스 설정 관리 (2025-11-13)
+- **db_config.php**: 모든 DB 연결은 이 파일을 통해 관리
+  - 로컬과 프로덕션 설정이 다름 (주석 참고)
+  - 새 PHP 파일 생성 시 `require_once 'db_config.php';` 또는 `require_once '../db_config.php';` 필수
+  - 직접 DB 연결 코드 작성 금지
+- **환경 분리**:
+  - 로컬: mysql, mic4u_user, change_me, mic4u
+  - 프로덕션: localhost, dcom2000, Basserd2@@, dcom2000
+- **서버 배포 시**: db_config.php만 프로덕션 설정으로 변경하면 됨
+
+### 2. 날짜 필드 처리 (2025-11-07)
 - **receipt.php**: 모든 날짜 필드에서 `format_date()` 사용하지 않음 (인라인 로직)
   - 향후 리팩토링 시 함수로 통일할 것
 - **as_request_view.php**: `format_date()` 함수로 통일
@@ -462,23 +692,23 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
   - 문자열 datetime: `strtotime()` 실패 시 원본값 표시
   - 빈값(NULL/0): 빈 문자열 반환
 
-### 2. s18_accid 관리
+### 3. s18_accid 관리 (2025-11-07)
 - DELETE 후 INSERT하면 s18_accid가 새로 생성됨
 - 기존 자재 수정 시 UPDATE/INSERT 조합 전략 필수
   - `part_id => s18_accid` 매핑으로 관리
   - 들어온 데이터와 기존 데이터 비교하여 UPDATE/INSERT/DELETE 구분
 
-### 3. s14_cart 업데이트
+### 4. s14_cart 업데이트 (2025-11-07)
 - 자재 저장 완료 후 COUNT로 자재 종류의 개수 계산
 - 모든 경우에 s14_cart 업데이트 (제품 ID 미선택 시에도)
 - 레거시 데이터: 일괄 업데이트 필요 (이미 완료: s14_aiid >= 84767)
 
-### 4. Step 3 select 필드 처리
+### 5. Step 3 select 필드 처리 (2025-11-05)
 - 제품 선택(product_name) = s15_amid (제품 ID, 숫자)
 - 수리 방법 선택(as_end_result) = s19_result (문자열)
 - JavaScript에서 querySelector 선택자 변경 필수 (input vs select)
 
 ---
 
-**마지막 업데이트**: 2025-11-08 (오늘)
-**최신 작업**: "전체 기간" 버튼 구현 완료 (as_requests/orders/as_statistics)
+**마지막 업데이트**: 2025-11-13 (오늘)
+**최신 작업**: 데이터베이스 설정 중앙화 및 dcom.co.kr 서버 배포 완료

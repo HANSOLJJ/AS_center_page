@@ -13,12 +13,8 @@ $user_level = $_SESSION['member_level'] ?? '';
 $user_name = $_SESSION['user_name'] ?? $user_id;
 $current_page = 'dashboard';
 
-// MySQL 호환성 레이어 로드
-require_once 'mysql_compat.php';
-
 // 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once 'db_config.php';
 
 // 사용자 정보 조회
 $result = mysql_query("SELECT * FROM `2010_admin_member` WHERE `id` = '$user_id' LIMIT 1");
@@ -294,7 +290,7 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
 
     <div class="container">
         <div class="welcome-box">
-            <h2>환영합니다!</h2>
+            <h2>환영합니다!!</h2>
             <p><?php echo htmlspecialchars($user_name); ?>님의 계정으로 로그인하셨습니다. 아래 메뉴를 통해 AS 시스템을 관리하실 수 있습니다.</p>
         </div>
 

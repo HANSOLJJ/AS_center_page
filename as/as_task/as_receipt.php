@@ -2,12 +2,7 @@
 header('Content-Type: text/html; charset=utf-8');
 session_start();
 
-// MySQL 호환성 레이어 로드
-require_once '../mysql_compat.php';
-
-// 데이터베이스 연결
-$connect = mysql_connect('mysql', 'mic4u_user', 'change_me');
-mysql_select_db('mic4u', $connect);
+require_once '../db_config.php';
 
 // URL 파라미터 처리
 $number = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -175,7 +170,7 @@ $center_name = mysql_result($center_query, 0, 0);
         }
     </script>
 
-    <p align='left'><img src='logo1.jpg' width='100' class='logo-img'></p>
+    <p align='left'><img src='../logo1.jpg' width='100' class='logo-img'></p>
     <table border="0" width="100%">
         <tr>
             <td width="40%" valign="top">
