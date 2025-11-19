@@ -26,7 +26,7 @@ $offset = ($page - 1) * $per_page;
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 // 금월: 전월 26일 ~ 당월 25일 (오늘이 26일 이상이면 당월 26일 ~ 다음달 25일)
-$day_of_month = (int)date('d');
+$day_of_month = (int) date('d');
 if ($day_of_month >= 26) {
     $month_start = date('Y-m-26');
     $month_end = date('Y-m-25', strtotime('+1 month'));
@@ -168,11 +168,12 @@ switch ($current_tab) {
 // 요청/작업: s13_as_in_date (접수일자), 완료: s13_as_out_date (출고일)
 $date_field = ($current_tab == 'completed') ? 's13_as_out_date' : 's13_as_in_date';
 
+// 인덱스 사용을 위해 DATE() 함수 제거 (컬럼에 함수 적용 시 인덱스 사용 불가)
 if (!empty($search_start_date)) {
-    $where_conditions[] = "DATE($date_field) >= '" . mysql_real_escape_string($search_start_date) . "'";
+    $where_conditions[] = "$date_field >= '" . mysql_real_escape_string($search_start_date) . " 00:00:00'";
 }
 if (!empty($search_end_date)) {
-    $where_conditions[] = "DATE($date_field) <= '" . mysql_real_escape_string($search_end_date) . "'";
+    $where_conditions[] = "$date_field <= '" . mysql_real_escape_string($search_end_date) . " 23:59:59'";
 }
 
 // 고객명 검색
@@ -856,31 +857,36 @@ function getStatusColor($level)
                 </div>
             <?php endif; ?>
 
+            <?php
+            // 탭 카운트 통합 쿼리 (성능 최적화: 3개 쿼리 → 1개 쿼리)
+            $tab_count_query = "
+                SELECT
+                    SUM(CASE WHEN s13_as_level NOT IN ('2','3','4','5') THEN 1 ELSE 0 END) as request_count,
+                    SUM(CASE WHEN s13_as_level IN ('2','3','4') THEN 1 ELSE 0 END) as working_count,
+                    SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as completed_count
+                FROM step13_as
+            ";
+            $tab_count_result = @mysql_query($tab_count_query);
+            $tab_counts = ($tab_count_result && is_object($tab_count_result)) ? mysql_fetch_assoc($tab_count_result) : array();
+
+            $request_count = isset($tab_counts['request_count']) ? intval($tab_counts['request_count']) : 0;
+            $working_count = isset($tab_counts['working_count']) ? intval($tab_counts['working_count']) : 0;
+            $completed_count = isset($tab_counts['completed_count']) ? intval($tab_counts['completed_count']) : 0;
+            ?>
+
             <!-- 탭 -->
             <div class="tabs">
                 <button class="tab-btn <?php echo $current_tab === 'request' ? 'active' : ''; ?>"
                     onclick="location.href='as_requests.php?tab=request'">
-                    AS 요청 (<?php
-                    $req_count = @mysql_query("SELECT COUNT(*) as cnt FROM step13_as WHERE s13_as_level NOT IN ('2','3','4','5')");
-                    $req_row = ($req_count && is_object($req_count)) ? mysql_fetch_assoc($req_count) : array();
-                    echo $req_row['cnt'] ?? 0;
-                    ?>)
+                    AS 요청 (<?php echo $request_count; ?>)
                 </button>
                 <button class="tab-btn <?php echo $current_tab === 'working' ? 'active' : ''; ?>"
                     onclick="location.href='as_requests.php?tab=working'">
-                    AS 진행 (<?php
-                    $work_count = @mysql_query("SELECT COUNT(*) as cnt FROM step13_as WHERE s13_as_level IN ('2','3','4')");
-                    $work_row = ($work_count && is_object($work_count)) ? mysql_fetch_assoc($work_count) : array();
-                    echo $work_row['cnt'] ?? 0;
-                    ?>)
+                    AS 진행 (<?php echo $working_count; ?>)
                 </button>
                 <button class="tab-btn <?php echo $current_tab === 'completed' ? 'active' : ''; ?>"
                     onclick="location.href='as_requests.php?tab=completed'">
-                    AS 완료 (<?php
-                    $comp_count = @mysql_query("SELECT COUNT(*) as cnt FROM step13_as WHERE s13_as_level='5'");
-                    $comp_row = ($comp_count && is_object($comp_count)) ? mysql_fetch_assoc($comp_count) : array();
-                    echo $comp_row['cnt'] ?? 0;
-                    ?>)
+                    AS 완료 (<?php echo $completed_count; ?>)
                 </button>
             </div>
 

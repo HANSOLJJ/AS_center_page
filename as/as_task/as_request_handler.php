@@ -520,13 +520,24 @@ if ($action === 'completeAS') {
     $now = date('Y-m-d H:i:s');
     $date_part = date('ymd'); // yymmdd 형식
 
-    // 같은 날짜의 최대 순번 조회 (순번 중복 방지)
-    $max_query = "SELECT MAX(CAST(SUBSTRING(s13_as_out_no2, 7) AS UNSIGNED)) as max_seq
+    // 같은 날짜의 최대 순번 조회 (BETWEEN 방식으로 인덱스 사용 최적화)
+    $start_range = $date_part . '000'; // 예: 251119000
+    $end_range = $date_part . '999';   // 예: 251119999
+
+    $max_query = "SELECT s13_as_out_no2
                   FROM step13_as
-                  WHERE s13_as_out_no2 LIKE '{$date_part}%' AND s13_as_out_no2 IS NOT NULL AND s13_as_out_no2 != ''";
+                  WHERE s13_as_out_no2 BETWEEN '$start_range' AND '$end_range'
+                  ORDER BY s13_as_out_no2 DESC
+                  LIMIT 1";
     $max_result = @mysql_query($max_query);
     $max_row = @mysql_fetch_assoc($max_result);
-    $seq = (intval($max_row['max_seq'] ?? 0)) + 1;
+
+    if ($max_row && !empty($max_row['s13_as_out_no2'])) {
+        // 마지막 3자리 추출 (일련번호)
+        $seq = intval(substr($max_row['s13_as_out_no2'], 6)) + 1;
+    } else {
+        $seq = 1; // 오늘 첫 번째
+    }
     $seq_str = str_pad($seq, 3, '0', STR_PAD_LEFT);
 
     // s13_as_out_no: "NOyymmdd-SSS" 형식

@@ -167,6 +167,11 @@ if (!empty($items)) {
             padding: 0;
         }
 
+        /* 테이블 내 p 태그 margin 명시적 제거 (height 속성이 제대로 적용되도록) */
+        table p {
+            margin: 0 !important;
+        }
+
         body {
             font-family: Arial, sans-serif;
             font-size: 12px;
@@ -405,7 +410,7 @@ if (!empty($items)) {
                     <!-- 좌측: 공급자 정보 -->
                     <table border="1" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
                         <tr>
-                            <td colspan="3" height="50"
+                            <td colspan="3" height="30"
                                 style="border: 1px solid #000; text-align: center; vertical-align: middle;">
                                 <p style="font-size: 14px; font-weight: bold;">소모품 신청 처리 내역서</p>
                             </td>
@@ -467,7 +472,7 @@ if (!empty($items)) {
                         </tr>
                         <tr>
 
-                            <td width="15%" rowspan="4" style="border: 1px solid #000;
+                            <td width="15%" rowspan="3" style="border: 1px solid #000;
                                     text-align: center;
                                     vertical-align: middle;
                                     font-weight: bold;
@@ -475,7 +480,7 @@ if (!empty($items)) {
                                 접수<br>신청<br>
                             </td>
 
-                            <td width="25%" height="35" style="border: 1px solid #000;
+                            <td width="25%" height="30" style="border: 1px solid #000;
                                     text-align: center;
                                     vertical-align: middle;
                                     font-weight: bold;
@@ -490,7 +495,7 @@ if (!empty($items)) {
                             </td>
                         </tr>
                         <tr>
-                            <td height="35" style="border: 1px solid #000;
+                            <td height="30" style="border: 1px solid #000;
                                         text-align: center;
                                         vertical-align: middle;
                                         font-weight: bold;
@@ -505,7 +510,7 @@ if (!empty($items)) {
                             </td>
                         </tr>
                         <tr>
-                            <td height="35" style="border: 1px solid #000;
+                            <td height="30" style="border: 1px solid #000;
                                             text-align: center;
                                             vertical-align: middle;
                                              font-weight: bold;
@@ -517,21 +522,6 @@ if (!empty($items)) {
                                     padding-left: 12px;
                                     vertical-align: middle;">
                                 <?php echo htmlspecialchars($tax_on); ?>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td height="35" style="border: 1px solid #000;
-                                        text-align: center;
-                                        vertical-align: middle;
-                                        font-weight: bold;
-                                        background: #fafafa;">
-                                사업자등록번호
-                            </td>
-                            <td style="border: 1px solid #000;
-                                        text-align: left;
-                                        padding-left: 12px;
-                                        vertical-align: middle;">
-                                <?php echo htmlspecialchars($order['ex_company_no']); ?>
                             </td>
                         </tr>
 
@@ -656,18 +646,13 @@ if (!empty($items)) {
                     <table border="1" width="100%" cellspacing="0" cellpadding="0"
                         style="border-collapse:collapse; margin-top: 20px;">
                         <tr>
-                            <td width="100%" colspan="3" height="30"
+                            <td width="10%" height="30"
                                 style="border: 1px solid #000; text-align: center; vertical-align: middle; font-weight: bold;">
-                                디지탈컴 A/S 센터</td>
-                        </tr>
-                        <tr>
-                            <td width="15%" height="30"
-                                style="border: 1px solid #000; text-align: center; vertical-align: middle; font-weight: bold;">
-                                지점</td>
-                            <td width="60%"
+                                A/S센터 지점</td>
+                            <td width="75%"
                                 style="border: 1px solid #000; text-align: center; vertical-align: middle; font-weight: bold;">
                                 주소</td>
-                            <td width="25%"
+                            <td width="15%"
                                 style="border: 1px solid #000; text-align: center; vertical-align: middle; font-weight: bold;">
                                 전화번호</td>
                         </tr>

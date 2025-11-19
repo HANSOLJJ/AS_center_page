@@ -105,6 +105,11 @@ $center_name = mysql_result($center_query, 0, 0);
     <meta charset="utf-8">
     <title>AS 접수 내역서</title>
     <style>
+        /* 테이블 내 p 태그 margin 제거하여 height 속성이 제대로 적용되도록 함 */
+        table p {
+            margin: 0 !important;
+        }
+
         .button-group {
             text-align: right;
             margin-top: 20px;
@@ -173,12 +178,12 @@ $center_name = mysql_result($center_query, 0, 0);
     <p align='left'><img src='../logo1.jpg' width='100' class='logo-img'></p>
     <table border="0" width="100%">
         <tr>
-            <td width="40%" valign="top">
+            <td width="50%" valign="top">
                 <table border="1" width="100%" cellspacing="0" bordercolordark="black" bordercolorlight="black">
                     <tr>
-                        <td colspan="3" width="100%" height='50'>
+                        <td colspan="3" width="100%" height='30'>
                             <p align='center'>
-                                <font size='4'><b>A/S 접수 및 처리 내역서</b></font>
+                                <b>A/S 접수 및 처리 내역서</b>
                             </p>
                         </td>
                     </tr>
@@ -219,7 +224,7 @@ $center_name = mysql_result($center_query, 0, 0);
                     </tr>
                 </table>
             </td>
-            <td width="60%" valign="top">
+            <td width="50%" valign="top">
                 <table border="1" width="100%" cellspacing="0" bordercolordark="black" bordercolorlight="black">
                     <tr>
                         <td colspan="2" width="50%" height='30'>
@@ -238,7 +243,7 @@ $center_name = mysql_result($center_query, 0, 0);
                         </td>
                     </tr>
                     <tr>
-                        <td width="10%" rowspan="4">
+                        <td width="10%" rowspan="3">
                             <p align='center'><b>접수<br></vr>신청</b></p>
                         </td>
                         <td width="30%" height='30'>
@@ -262,14 +267,6 @@ $center_name = mysql_result($center_query, 0, 0);
                         </td>
                         <td width="60%">
                             <p align='center'><? echo "$tax_on"; ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td width="30%" height='30'>
-                            <p align='center'><b>사업자등록번호</b></p>
-                        </td>
-                        <td width="60%">
-                            <p align='center'><? echo "$my_ex_company_no"; ?></p>
                         </td>
                     </tr>
                 </table>
@@ -450,7 +447,8 @@ $center_name = mysql_result($center_query, 0, 0);
         </tr>
         <tr>
             <td colspan="2">
-                <table border="1" width="100%" cellspacing="0" bordercolordark="black" bordercolorlight="black">
+                <table border="1" width="100%" cellspacing="0" bordercolordark="black" bordercolorlight="black"
+                    style=" margin-top: 20px;">
                     <tr>
                         <td width="25%" height='30'>
                             <p align='center'><b>입금계좌번호</b></p>
@@ -492,20 +490,18 @@ $center_name = mysql_result($center_query, 0, 0);
         </tr>
         <tr>
             <td colspan="2">
-                <table border="1" width="100%" cellspacing="0" bordercolordark="black" bordercolorlight="black">
+                <table border="1" width="100%" cellspacing="0" bordercolordark="black" bordercolorlight="black"
+                    style=" margin-top: 20px;">
+
+
                     <tr>
-                        <td width="100%" colspan="3" height='30'>
-                            <p align='center'><b>디지탈컴 A/S 센터</b></p>
+                        <td width="10%" height='30'>
+                            <p align='center'><b>A/S센터 지점</b></p>
                         </td>
-                    </tr>
-                    <tr>
-                        <td width="15%" height='30'>
-                            <p align='center'><b>지점</b></p>
-                        </td>
-                        <td width="60%">
+                        <td width="75%">
                             <p align='center'><b>주소</b></p>
                         </td>
-                        <td width="25%">
+                        <td width="15%">
                             <p align='center'><b>전화번호</b></p>
                         </td>
                     </tr>
