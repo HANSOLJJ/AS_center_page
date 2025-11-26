@@ -5,6 +5,7 @@
 ### 호스팅 서버 포팅 작업
 
 **SSH 접속 정보**:
+
 - 도메인: dcom.co.kr
 - 포트: 22
 - 사용자명: dcom2000
@@ -13,6 +14,7 @@
 **작업 목표**: 로컬 개발 프로젝트를 호스팅 서버로 포팅
 
 **작업 순서**:
+
 1. SSH 서버 접속 및 기본 정보 확인 (OS, 디렉토리 구조)
 2. 서버 환경 파악 (PHP 버전, MySQL 버전, 웹서버 종류)
 3. 프로젝트 디렉토리 구조 확인 및 백업
@@ -21,6 +23,7 @@
 6. 테스트 및 검증
 
 **MCP 도구 사용**:
+
 - SSH MCP 서버가 설치됨 (@fangjunjie/ssh-mcp-server by classfang)
 - 비밀번호 인증 지원 (name=dcom 연결로 설정됨)
 - 새 세션에서 SSH MCP 도구가 자동 로드됨
@@ -29,6 +32,52 @@
   - `upload`: 로컬 파일을 원격 서버로 업로드
   - `download`: 원격 서버 파일을 로컬로 다운로드
   - `list-servers`: 사용 가능한 SSH 서버 목록 조회
+
+---
+
+## ⚠️ 🚨 절대 규칙 - 코드 수정 범위 엄수 🚨 ⚠️
+
+### 🔴 as_requests.php와 orders.php 독립성 (매우 중요!)
+
+**절대 절대 절대 지켜야 할 규칙**:
+
+1. **as_requests.php와 orders.php는 비슷한 구조이지만 완전히 독립적**
+2. **하나를 수정할 때 다른 하나를 절대 건들지 말 것**
+3. **사용자가 명시적으로 지정한 파일만 수정**
+4. **"일관성" 또는 "비슷한 구조"를 이유로 다른 파일 수정 금지**
+
+**잘못된 예시** ❌:
+- "orders.php의 가격 기준을 수정했으니 as_requests.php도 같이 수정해야겠다"
+- "금월 기간 계산을 orders.php에서 바꿨으니 as_requests.php도 바꿔야 일관성이 있다"
+- "두 파일이 비슷하니까 같이 수정하자"
+
+**올바른 예시** ✅:
+- "orders.php만 수정. as_requests.php는 절대 건들지 않음"
+- "사용자가 지정한 as_repair.php만 수정"
+- "명시된 파일 외에는 어떤 파일도 수정하지 않음"
+
+**과거 문제 사례**:
+- orders.php 수정 시 as_requests.php도 같이 수정해서 as_requests.php가 꼬임
+- 사용자가 지정하지 않은 파일을 멋대로 수정해서 문제 발생
+
+### 🔴 코드 수정 범위 절대 엄수
+
+**규칙**:
+1. 사용자가 명시한 파일과 범위만 수정
+2. "관련 파일", "비슷한 파일"이라도 사용자가 지정하지 않으면 **절대 수정 금지**
+3. 추측하지 말고 정확히 지정된 범위만 작업
+4. 불확실하면 사용자에게 물어볼 것
+
+**절대 하지 말아야 할 것**:
+- ❌ 사용자가 지정하지 않은 파일 수정
+- ❌ "일관성"을 이유로 여러 파일 수정
+- ❌ "비슷한 구조"라는 이유로 다른 파일도 수정
+- ❌ 멋대로 판단해서 범위 확대
+
+**반드시 해야 할 것**:
+- ✅ 사용자가 명시한 파일만 수정
+- ✅ 지정된 범위 내에서만 작업
+- ✅ 불확실하면 사용자에게 확인
 
 ---
 
@@ -47,28 +96,244 @@
 
 ## 📅 최근 작업 현황
 
-### 2025-11-17 작업 (오늘 완료)
+### 2025-11-18 작업 (오늘 완료)
 
-#### 1. VSCode 원격 편집 환경 구축 (✅ 완료)
+#### 0. 절대 규칙 추가 (✅ 완료)
+
+**목표**: 코드 수정 범위 엄수 규칙 명문화
+
+**추가 내용**:
+- as_requests.php와 orders.php 독립성 규칙
+- 사용자가 지정한 파일만 수정
+- "일관성" 핑계로 여러 파일 수정 금지
+
+**수정 파일**:
+- `.claude/instructions.md` (라인 38-82)
+
+---
+
+#### 1. as_repair.php 자재 가격 기준 변경 (✅ 완료)
+
+**목표**: AS 수리 시 자재 가격을 고객 타입에 따라 수리 가격으로 표시
+
+**변경 내용**:
+- **as_repair_get_parts.php** 파일 신규 생성 (AS 수리 전용 자재 검색 핸들러)
+- as_repair.php에서 order_handler.php 대신 as_repair_get_parts.php 호출
+- 가격 기준:
+  - 일반 고객: `s1_cost_n_2` (수리 가격)
+  - 대리점: `s1_cost_a_2` (수리 가격)
+  - 딜러: `s1_cost_c_1` (AS센터 공급가)
+
+**중요**:
+- **orders.php와 order_handler.php는 절대 수정하지 않음**
+- as_repair.php만 독립적으로 처리
+
+**수정 파일**:
+- `as/as_task/as_repair_get_parts.php` (신규)
+- `as/as_task/as_repair.php` (라인 676)
+
+**서버 업로드**: ✅ 완료 (dcom.co.kr)
+
+---
+
+#### 2. as_repair.php 검색 엔터키 기능 추가 (✅ 완료)
+
+**목표**: 검색 입력란에서 엔터키 누르면 검색 실행
+
+**변경 내용**:
+- 검색 input에 `onkeypress` 이벤트 추가
+- Enter키 감지 시 `searchParts()` 호출
+- form submit 방지 (`event.preventDefault()`)
+
+**수정 파일**:
+- `as/as_task/as_repair.php` (라인 578)
+
+**서버 업로드**: ✅ 완료 (dcom.co.kr)
+
+---
+
+#### 3. s13_total_cost 업데이트 로직 개선 (✅ 완료)
+
+**목표**: AS 수리 작업 등록 시 자재 비용 자동 계산
+
+**변경 내용**:
+
+1. **save_repair_step 수정**:
+   - s13_as_level 1→2 변경 시 s13_total_cost 자동 계산 및 업데이트
+   - step18_as_cure_cart에서 자재 비용 합계 계산: `SUM(cost1 * s18_quantity)`
+
+2. **restore 액션 수정**:
+   - level 5→2 (완료→진행): s13_total_cost **유지** (초기화 제거)
+   - level 2→1 (진행→요청): s13_total_cost **초기화** (0으로 설정)
+
+**수정 파일**:
+- `as/as_task/as_repair_handler.php` (라인 246-264, 44, 51)
+
+**서버 업로드**: ✅ 완료 (dcom.co.kr)
+
+---
+
+#### 4. 기존 DB 데이터 일괄 업데이트 (✅ 완료)
+
+**목표**: dcom.co.kr DB의 s13_as_level 2,3인 레코드의 s13_total_cost 업데이트
+
+**작업 내용**:
+- s13_as_level IN ('2', '3')인 레코드 153개 업데이트
+- step18_as_cure_cart에서 자재 비용 합계 계산 후 업데이트
+
+**결과**:
+- level 2: 87개 레코드, 총 2,264,600원
+- level 3: 66개 레코드, 총 1,962,500원
+- **총 4,227,100원**
+
+**실행 쿼리**:
+```sql
+UPDATE step13_as a
+SET a.s13_total_cost = (
+    SELECT COALESCE(SUM(c.cost1 * c.s18_quantity), 0)
+    FROM step18_as_cure_cart c
+    WHERE c.s18_asid = a.s13_asid
+)
+WHERE a.s13_as_level IN ('2', '3');
+```
+
+---
+
+#### 5. statistics.php 총 비용 집계 조건 확인 (✅ 완료)
+
+**확인 내용**:
+- s13_total_cost: s13_as_level = '5' (완료)일 때만 집계 ✅
+- s20_total_cost: s20_sell_level = '2' (완료)일 때만 집계 ✅
+
+**결론**: 현재 코드가 올바르게 작동 중
+
+---
+
+### 2025-11-18 작업 (이전 완료)
+
+#### 1. statistics.php 월별 집계 기준 변경 (✅ 완료)
+
+**목표**: 월별 AS 현황 및 월별 판매 현황의 계산 기준을 전월 26일 ~ 당월 25일로 변경
+
+**기존 방식**:
+- 11월 데이터: 11월 1일 ~ 11월 30일
+- 단순히 `DATE_FORMAT(날짜, '%Y-%m')` 형식으로 월만 추출
+
+**변경 방식**:
+- 11월 데이터: **10월 26일 ~ 11월 25일**
+- 12월 데이터: **11월 26일 ~ 12월 25일**
+- SQL CASE 문을 사용한 동적 월 계산
+
+**수정 내용**:
+
+1. **getMonthlyASStats() 함수** (라인 111-142)
+   ```sql
+   DATE_FORMAT(
+       CASE
+           WHEN DAY(s13_as_out_date) >= 26
+           THEN DATE_ADD(s13_as_out_date, INTERVAL 1 MONTH)
+           ELSE s13_as_out_date
+       END,
+       '%Y-%m'
+   ) as month
+   ```
+
+2. **getMonthlySalesStats() 함수** (라인 144-175)
+   - 동일한 로직을 `s20_sell_out_date`에 적용
+
+**계산 로직 설명**:
+- 날짜가 26일 이상: 다음 달로 계산 (예: 10월 26일 → 11월)
+- 날짜가 25일 이하: 현재 월 유지 (예: 11월 25일 → 11월)
+
+**적용 결과**:
+- 10월 26일 ~ 11월 25일 사이의 데이터 → "2025-11"로 표시
+- 11월 26일 ~ 12월 25일 사이의 데이터 → "2025-12"로 표시
+
+**수정 파일**:
+- `as/stat/statistics.php` (라인 111-175)
+
+**커밋**: 예정
+**상태**: ✅ 완료
+
+---
+
+### 2025-11-17 작업 (이전 완료)
+
+#### 1. order_edit.php 자재 가격 수정 (✅ 완료)
+
+**문제**: order_edit.php에서 자재 가격이 고객 타입과 무관하게 AS센터 공급가(s1_cost_c_1)만 표시됨
+
+**원인 분석 (Git History)**:
+
+- 8b26eb9 커밋(2025-11-12 리팩토링)에서 실수로 변경됨:
+  - Initial commit (dd640e7): 올바르게 개별판매 가격(\_1) 사용 ✅
+  - Refactor commit (8b26eb9): 수리 가격(\_2)으로 잘못 변경 ❌
+- order_edit.php는 처음부터 s1_cost_c_1만 사용 (회원 타입별 가격 선택 로직 없음)
+
+**수정 내용**:
+
+1. **회원 타입 조회** (line 24-30)
+
+   - step20_sell의 ex_sec1 컬럼에서 회원 타입 직접 조회 (JOIN 불필요)
+   - 처음 시도: member 테이블 JOIN → "해당 주문을 찾을 수 없습니다" 에러
+   - 최종 수정: ex_sec1 직접 조회로 해결
+
+2. **자재 추가 시 가격 필드 수정** (line 177-194)
+
+   - 개별판매 가격 필드(\_1) 조회: s1_cost_c_1, s1_cost_a_1, s1_cost_n_1
+   - 회원 구분에 따라 가격 선택:
+     - 일반: s1_cost_n_1
+     - 대리점: s1_cost_a_1
+     - 딜러: s1_cost_c_1
+
+3. **INSERT 문 수정** (line 230-234)
+
+   - cost_name: 자재명 추가 (이전: 빈 문자열)
+   - cost_sec: 고객 타입 추가 (이전: 누락)
+
+4. **get_parts 가격 조회 수정** (line 278-308)
+   - 모든 개별판매 가격 필드(\_1) 조회
+   - 회원 타입에 따라 적절한 가격 반환
+
+**수정 파일**:
+
+- `as/orders/order_edit.php`
+
+**서버 업로드**: ✅ 완료 (SSH MCP 도구 사용)
+
+**상태**: ✅ 완료 (고객 타입별 개별판매 가격 정확히 표시됨)
+
+**교훈**:
+
+- 코드 수정 전 반드시 기존 코드 제대로 분석
+- 관련 파일들(order_handler.php 등) 비교하여 일관성 확인
+- 추측으로 변경하지 말고 확인 후 수정
+- Git history로 변경 이력 파악 가능
+
+---
+
+#### 2. VSCode 원격 편집 환경 구축 (✅ 완료)
 
 **목표**: dcom.co.kr 서버의 AS 파일들을 로컬 VSCode에서 편집
 
 **시도 및 결과**:
 
 1. **VSCode Remote-SSH 시도** (❌ 실패)
+
    - SSH config 파일 생성: `C:\Users\noble\.ssh\config`
    - Host 설정: dcom (dcom.co.kr:22, user: dcom2000)
    - 실패 원인: 서버의 glibc/libstdc++ 버전이 VSCode Server 요구사항 미충족
    - 서버 환경: Cafe24 공유 호스팅, PHP 7.0.0 (2016년 빌드), 오래된 Linux
 
 2. **SFTP 설정으로 전환** (✅ 성공)
+
    - `.vscode/sftp.json` 생성
    - 설정:
      - uploadOnSave: true (저장 시 자동 업로드)
      - downloadOnOpen: false (수동 다운로드만)
      - syncMode: "update" (기존 파일만 업데이트)
    - ignore 설정:
-     - .git, DOCS, .claude, *.md (문서 파일)
+     - .git, DOCS, .claude, \*.md (문서 파일)
      - as/db_config.local.php (로컬 전용 DB 설정)
      - .vscode (설정 파일)
    - 원격 경로: `/home/hosting_users/dcom2000/www`
@@ -79,6 +344,7 @@
    - SFTP에서 `db_config.local.php` ignore 처리
 
 **사용 방법**:
+
 - VSCode SFTP 확장 설치 (SFTP by Natizyskunk)
 - 파일 편집 후 Ctrl+S → 자동으로 서버에 업로드
 - 새 파일: 우클릭 → "Upload" (수동 업로드)
@@ -97,22 +363,24 @@
 **작업 내용**:
 
 1. **db_config.php 생성**
+
    - MySQL 호환성 레이어 로드 (mysql_compat.php)
    - 데이터베이스 연결 정보 정의 (DB_HOST, DB_USER, DB_PASS, DB_NAME)
    - 자동 연결 및 DB 선택
    - 전역 변수로 연결 저장 ($GLOBALS['db_connect'])
 
 2. **31개 PHP 파일 수정**
+
    - 기존 개별 DB 연결 코드 제거
    - `require_once '../db_config.php';` 또는 `require_once 'db_config.php';`로 변경
    - 수정된 파일:
      - dashboard.php, login_process.php
-     - orders/*.php (orders.php, order_handler.php, order_payment.php, order_receipt.php)
-     - parts/*.php (parts.php, parts_add.php, parts_edit.php, category_add.php, category_edit.php)
-     - products/*.php (products.php, model_add.php, model_edit.php, poor_add.php, poor_edit.php, result_add.php, result_edit.php)
-     - customers/*.php (members.php, member_add.php, member_edit.php)
-     - stat/*.php (statistics.php, export_statistics.php)
-     - as_task/*.php (as_requests.php, as_request_handler.php, as_request_view.php, as_receipt.php, as_repair.php, as_repair_handler.php, close_as.php, cancel_as.php)
+     - orders/\*.php (orders.php, order_handler.php, order_payment.php, order_receipt.php)
+     - parts/\*.php (parts.php, parts_add.php, parts_edit.php, category_add.php, category_edit.php)
+     - products/\*.php (products.php, model_add.php, model_edit.php, poor_add.php, poor_edit.php, result_add.php, result_edit.php)
+     - customers/\*.php (members.php, member_add.php, member_edit.php)
+     - stat/\*.php (statistics.php, export_statistics.php)
+     - as_task/\*.php (as_requests.php, as_request_handler.php, as_request_view.php, as_receipt.php, as_repair.php, as_repair_handler.php, close_as.php, cancel_as.php)
 
 3. **설정 분리**
    - **로컬 (테스트 서버)**: mysql, mic4u_user, change_me, mic4u
@@ -128,17 +396,20 @@
 **작업 내용**:
 
 1. **파일 업로드**
+
    - as/ 디렉토리 압축 (as.tar.gz, 125KB) 및 업로드
    - vendor/ 디렉토리 압축 (vendor.tar.gz, 1.3MB) 및 업로드
    - 서버에서 압축 해제 및 권한 설정 (755)
 
 2. **데이터베이스 마이그레이션**
+
    - 로컬 MySQL에서 AS 시스템 관련 13개 테이블 덤프
    - schema_as_only.sql (구조), data_as_only.sql (데이터, 38MB → 4.7MB 압축)
    - 서버 MariaDB에 임포트 완료
    - 데이터: 874명 고객, 32,936건 AS 요청, 405개 자재
 
 3. **누락 테이블 추가**
+
    - step2_center 테이블 발견 및 추가
    - 4개 센터: 을지로, 영등포, 본사, 용산
    - as_receipt.php, order_receipt.php에서 센터명 조회 시 필요
@@ -148,6 +419,7 @@
    - 기타 db_config.php 사용 파일들 (초기 배포에 포함됨)
 
 **서버 환경**:
+
 - 호스트: dcom.co.kr
 - Web PHP: 7.4.5p1
 - CLI PHP: 7.0.0
@@ -168,12 +440,14 @@
 **작업 내용**:
 
 1. **as_requests.php**
+
    - 기본값 변경: `$range = ''` (전체 기간)
    - "전체 기간" 버튼을 첫 번째 옵션으로 추가
    - setSearchDateRange() 함수에 'all' 케이스 추가 (startDate, endDate = '')
    - 페이지네이션에 range 파라미터 추가
 
 2. **orders.php**
+
    - 기본값 변경: `$range = ''` (전체 기간)
    - 요청 탭(Tab1), 완료 탭(Tab2) 모두에 "전체 기간" 버튼 추가
    - setOrderDateRange() 함수에 'all' 케이스 추가 (startDate, endDate = '')
@@ -192,11 +466,13 @@
 **버튼 순서**: 전체 기간 → 오늘 → 금주 → 금월 → 금년
 
 **기본값 정책**:
+
 - `as_requests.php`: 전체 기간 (사용성 향상 - 모든 데이터 조회 기본)
 - `orders.php`: 전체 기간 (사용성 향상 - 모든 데이터 조회 기본)
 - `as_statistics.php`: 금월 (통계 조회 시 일반적인 습관)
 
 **수정 파일**:
+
 - `as/as_requests.php` (라인 31, 860-864, 884-918, 1189-1191)
 - `as/orders.php` (라인 36, 760-764, 1009-1013, 955-956, 1164-1165, setOrderDateRange 함수)
 - `as/as_statistics.php` (라인 25-26, 44-47, 57-89, 137-150, 163-178, 191-205, 561-562, 627-634)
@@ -214,11 +490,13 @@
 **목표**: AS 수리 등록 시 step15_as_model에서 제품을 선택하여 s14_model과 cost_name을 함께 업데이트
 
 **작업 내용**:
+
 - step15_as_model 제품 목록 조회 및 select dropdown 추가
 - 기존 제품 자동 선택 기능
 - 선택된 제품 ID로부터 모델명 조회 후 업데이트
 
 **수정 파일**:
+
 - `as_repair.php` (라인 61-68, 478-486): 제품 목록 조회 및 dropdown UI 추가
 - `as_repair_handler.php` (라인 99-113): 제품 ID로부터 모델명 조회 및 s14_model, cost_name 업데이트
 
@@ -229,12 +507,14 @@
 **문제**: 자재 수정 시 DELETE 후 INSERT하면 s18_accid가 새로 생성되어 기존 ID를 잃음
 
 **해결책**:
+
 - 기존 자재는 UPDATE로 처리 (s18_accid 유지)
 - 새로운 자재만 INSERT
 - 삭제된 자재만 DELETE
 - part_id별로 매핑하여 중복 없이 처리
 
 **수정 파일**:
+
 - `as_repair_handler.php` (라인 56-125): DELETE/INSERT 전략 → UPDATE/INSERT 조합 전략으로 변경
 
 **상태**: ✅ 완료
@@ -244,11 +524,13 @@
 **목표**: 수리 자재 등록 시 자재 종류의 개수를 s14_cart에 저장
 
 **작업 내용**:
+
 - 모든 자재 저장 완료 후 step18_as_cure_cart의 자재 개수를 COUNT
 - s14_cart 필드 업데이트
 - 제품 ID 미선택 시에도 s14_cart 업데이트
 
 **수정 파일**:
+
 - `as_repair_handler.php` (라인 144-151, 155, 158): s14_cart 계산 및 UPDATE에 추가
 
 **상태**: ✅ 완료
@@ -258,10 +540,12 @@
 **목표**: 기존 데이터의 s14_cart 필드에 자재 개수 채우기
 
 **작업 내용**:
+
 - s14_aiid >= 84767부터 step18_as_cure_cart 조인으로 자재 개수 계산
 - 총 9개 레코드 중 3개가 자재 보유
 
 **실행 명령**:
+
 ```sql
 UPDATE step14_as_item a
 SET a.s14_cart = (SELECT COUNT(*) FROM step18_as_cure_cart WHERE s18_aiid = a.s14_aiid)
@@ -275,11 +559,13 @@ WHERE a.s14_aiid >= 84767;
 **문제**: 1970년 1월 1일로 표시되는 날짜들이 많음 (옛날 데이터일수록 심함)
 
 **원인**:
+
 - `strtotime()` 실패 시 false 반환 → `date(false)` = 1970-01-01
 - `is_numeric("0")` = true → `date(0)` = 1970-01-01
 - 레거시 데이터의 datetime 형식 불일치
 
 **해결책**:
+
 - 유닉스 타임스탐프 유효성 검사 (86400 이상, 1970-02-01 이후)
 - `strtotime()` 실패 시 원본값 표시
 - 필드 매핑 수정:
@@ -288,6 +574,7 @@ WHERE a.s14_aiid >= 84767;
   - "A/S 처리완료일" = s20_as_out_date (처리완료일)
 
 **수정 파일**:
+
 - `receipt.php` (라인 41-76, 470): 날짜 포맷팅 함수 추가 및 필드 매핑 수정
 
 **상태**: ✅ 완료
@@ -297,11 +584,13 @@ WHERE a.s14_aiid >= 84767;
 **문제**: receipt.php와 동일한 1970년 문제
 
 **해결책**:
+
 - `format_date()` 함수 추가 (라인 68-87)
 - receipt.php와 동일한 날짜 validation 로직 적용
 - s13_as_in_date, s13_bank_check, s13_as_out_date 세 필드 모두 처리
 
 **수정 파일**:
+
 - `as_request_view.php` (라인 68-91): format_date() 함수 추가 및 적용
 
 **상태**: ✅ 완료
@@ -317,12 +606,14 @@ WHERE a.s14_aiid >= 84767;
 **작업 내용**:
 
 1. **Step 3 UI 추가** (v0.5.0)
+
    - 제품 선택 드롭다운 (step15_as_model에서 데이터 로드)
    - 불량증상 선택 드롭다운 (step16_as_poor에서 데이터 로드)
    - 백엔드: `load_step3_data` AJAX 액션 추가
    - 동작: 업체명 선택 시 Step 3 자동 표시 및 데이터 로드
 
 2. **카트 기능 추가** (v0.5.1)
+
    - `selectedProducts[]` 배열로 제품 관리
    - **제품 추가** 버튼 구현
    - 추가된 제품 목록 테이블 표시 (제품명, 불량증상, 삭제 버튼)
@@ -337,12 +628,14 @@ WHERE a.s14_aiid >= 84767;
    - 최신 제품이 먼저 표시됨
 
 **커밋**:
+
 - `4a52fcc` - "feat: Add Step 3 (product and defect symptom selection)" (v0.5.0)
 - `2a657a5` - "feat: Add shopping cart functionality to Step 3 and sort products by s15_amid DESC" (v0.5.1)
 
 **상태**: ✅ 완료 (여러 제품 추가 가능, 제품/불량증상 선택 및 삭제 기능 구현)
 
 **주요 변경사항**:
+
 - `as/as_request_handler.php`: 121줄 + 95줄 추가 (총 216줄 추가)
 - 업체명 선택 → Step 2 표시 → Step 3 표시 (데이터 로드) → 제품 추가 가능한 흐름 완성
 
@@ -436,10 +729,12 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 **작업 순서**:
 
 1. **옛날 호스팅 서버에서 최신 DB 덤프**
+
    - AS 시스템 관련 13개 테이블 전체 덤프
    - 고객 데이터, AS 요청 데이터, 자재 데이터 등 포함
 
 2. **로컬 테스트 서버로 임포트**
+
    - 현재 로컬 DB의 AS 관련 데이터 삭제 (TRUNCATE 또는 DROP)
    - 최신 DB 데이터 임포트
    - 동작 테스트 (로그인, AS 조회, 통계 등)
@@ -450,6 +745,7 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
    - 브라우저에서 동작 확인
 
 **주의사항**:
+
 - 현재 로컬 및 dcom.co.kr의 프로젝트 관련 DB 데이터는 삭제 필요
 - 백업 필수 (만약을 대비)
 - 13개 테이블 전체 확인:
@@ -468,6 +764,7 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
   - step21_sell_cart
 
 **예상 파일**:
+
 - old_server_dump.sql (옛날 서버 덤프)
 - 임포트 스크립트
 
@@ -480,12 +777,14 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 **작업 내용**:
 
 1. **AS 분석 탭 (as_analysis)**
+
    - 제품별 AS 건수 (막대 그래프)
    - 불량증상별 AS 건수 (파이 차트)
    - 고객별 AS 건수 TOP 10 (막대 그래프)
    - 기간별 AS 추이 (선 그래프)
 
 2. **판매 분석 탭 (sales_analysis)**
+
    - 제품별 판매액 (막대 그래프)
    - 자재별 판매 수량 (파이 차트)
    - 고객별 판매액 TOP 10 (막대 그래프)
@@ -498,6 +797,7 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
    - 반응형 디자인
 
 **예상 파일**:
+
 - `as/as_statistics.php` (그래프 추가)
 - `as/get_graph_data.php` (AJAX 데이터 제공)
 
@@ -510,10 +810,12 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 **작업 내용**:
 
 1. **내보내기 버튼**
+
    - as_statistics.php에 "Excel 다운로드" 버튼 추가
    - 현재 선택된 기간의 모든 통계 데이터 포함
 
 2. **Excel 파일 구성** (Sheet 별):
+
    - Sheet1: 요약 통계 (AS 완료, 판매 완료, 매출 등)
    - Sheet2: 월별 AS 통계 (월, 완료건수, 매출)
    - Sheet3: 월별 판매 통계 (월, 완료건수, 매출)
@@ -524,6 +826,7 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
    - Sheet8: 상세 판매 목록 (고객명, 자재, 수량, 금액)
 
 3. **기술 스택**:
+
    - PHPExcel 또는 OpenSpout 라이브러리 사용
    - 한글 인코딩 UTF-8 유지
    - 통화 형식 (￥) 적용
@@ -532,10 +835,12 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 4. **파일명**: `AS_통계_YYYY-MM-DD_HH-MM-SS.xlsx`
 
 **예상 파일**:
+
 - `as/as_statistics.php` (내보내기 버튼 추가)
 - `as/export_statistics.php` (Excel 생성 및 다운로드)
 
 **예상 라이브러리**:
+
 - PHPExcel (또는 더 가벼운 OpenSpout)
 - composer로 설치 필요
 
@@ -610,22 +915,22 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ## 📚 참고 파일
 
-| 파일명                        | 용도                           | 최근 수정일 |
-| ----------------------------- | ------------------------------ | ----------- |
-| `.claude/instructions.md`     | 프로젝트 지침 (현재 파일)      | 2025-11-13  |
-| `CLAUDE.md`                   | 전체 프로젝트 문서             | 2025-11-04  |
-| `as/db_config.php`            | DB 설정 중앙화 (신규 생성)     | 2025-11-13  |
-| `as/as_statistics.php`        | 통계/분석 (기간 필터 완료)     | 2025-11-13  |
-| `as/as_requests.php`          | AS 요청 관리 (기간 필터 완료)  | 2025-11-08  |
-| `as/orders.php`               | 자재 판매 관리 (기간 필터 완료)| 2025-11-08  |
-| `as/as_request_handler.php`   | AS 요청 신청 (Step 3 완료)     | 2025-11-05  |
-| `as/order_handler.php`        | 자재 판매 신청 (참고용)        | 2025-11-05  |
-| `as/as_request_view.php`      | AS 상세 조회 (날짜 처리 개선)  | 2025-11-07  |
-| `as/as_repair.php`            | AS 수리 처리 (제품 선택 완료)  | 2025-11-07  |
-| `as/as_repair_handler.php`    | AS 수리 저장 (자재 관리 완료)  | 2025-11-07  |
-| `as/parts.php`                | 자재 관리 (참고용)             | 2025-11-04  |
-| `as/members.php`              | 고객 관리 (참고용)             | 2025-11-04  |
-| `as/products.php`             | 제품 관리 (참고용)             | 2025-11-04  |
+| 파일명                      | 용도                            | 최근 수정일 |
+| --------------------------- | ------------------------------- | ----------- |
+| `.claude/instructions.md`   | 프로젝트 지침 (현재 파일)       | 2025-11-13  |
+| `CLAUDE.md`                 | 전체 프로젝트 문서              | 2025-11-04  |
+| `as/db_config.php`          | DB 설정 중앙화 (신규 생성)      | 2025-11-13  |
+| `as/as_statistics.php`      | 통계/분석 (기간 필터 완료)      | 2025-11-13  |
+| `as/as_requests.php`        | AS 요청 관리 (기간 필터 완료)   | 2025-11-08  |
+| `as/orders.php`             | 자재 판매 관리 (기간 필터 완료) | 2025-11-08  |
+| `as/as_request_handler.php` | AS 요청 신청 (Step 3 완료)      | 2025-11-05  |
+| `as/order_handler.php`      | 자재 판매 신청 (참고용)         | 2025-11-05  |
+| `as/as_request_view.php`    | AS 상세 조회 (날짜 처리 개선)   | 2025-11-07  |
+| `as/as_repair.php`          | AS 수리 처리 (제품 선택 완료)   | 2025-11-07  |
+| `as/as_repair_handler.php`  | AS 수리 저장 (자재 관리 완료)   | 2025-11-07  |
+| `as/parts.php`              | 자재 관리 (참고용)              | 2025-11-04  |
+| `as/members.php`            | 고객 관리 (참고용)              | 2025-11-04  |
+| `as/products.php`           | 제품 관리 (참고용)              | 2025-11-04  |
 
 ---
 
@@ -638,12 +943,14 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 - MySQL 연결: mysql_compat.php에서 설정
 
 **로컬 환경 (테스트 서버)**:
+
 - Host: mysql (Docker 컨테이너)
 - User: mic4u_user
 - Password: change_me
 - Database: mic4u
 
 **프로덕션 환경 (dcom.co.kr)**:
+
 - Host: localhost
 - User: dcom2000
 - Password: Basserd2@@
@@ -672,7 +979,44 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 
 ## 🔒 주의 사항
 
-### 1. 데이터베이스 설정 관리 (2025-11-13)
+### 1. SFTP 자동 업로드 (2025-11-17)
+
+**중요**: 현재 프로젝트는 SFTP uploadOnSave 기능이 활성화되어 있습니다.
+
+**설정 정보** (`.vscode/sftp.json`):
+
+- uploadOnSave: true (저장 시 자동 업로드)
+- 서버: dcom.co.kr
+- 원격 경로: `/home/hosting_users/dcom2000/www`
+
+**작동 방식**:
+
+- VSCode에서 파일 저장(Ctrl+S) → 자동으로 서버에 업로드
+- 로컬과 서버가 실시간 동기화됨
+- 별도의 수동 업로드 불필요
+
+**주의사항**:
+
+- **저장 = 배포**: 파일을 저장하면 즉시 프로덕션 서버에 반영됨
+- 테스트 없이 저장하지 말 것
+- 중요한 변경사항은 로컬에서 충분히 테스트 후 저장
+- ignore 목록 파일은 자동 업로드 안됨:
+  - `.git`, `DOCS/**`, `.claude/**`, `*.md`
+  - `as/db_config.local.php` (로컬 전용 DB 설정)
+  - `.vscode/**` (설정 파일)
+
+**Claude Code에서 파일 수정 시**:
+
+- Edit/Write 도구 사용 후 파일이 자동으로 저장되지 않음
+- Claude가 수정한 파일을 서버에 반영하려면:
+  1. 방법1: VSCode에서 해당 파일 열고 Ctrl+S (자동 업로드)
+  2. 방법2: SSH MCP 도구의 upload 사용 (수동 업로드)
+  3. 방법3: SFTP 확장에서 우클릭 → "Upload" (수동 업로드)
+
+---
+
+### 2. 데이터베이스 설정 관리 (2025-11-13)
+
 - **db_config.php**: 모든 DB 연결은 이 파일을 통해 관리
   - 로컬과 프로덕션 설정이 다름 (주석 참고)
   - 새 PHP 파일 생성 시 `require_once 'db_config.php';` 또는 `require_once '../db_config.php';` 필수
@@ -683,6 +1027,7 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
 - **서버 배포 시**: db_config.php만 프로덕션 설정으로 변경하면 됨
 
 ### 2. 날짜 필드 처리 (2025-11-07)
+
 - **receipt.php**: 모든 날짜 필드에서 `format_date()` 사용하지 않음 (인라인 로직)
   - 향후 리팩토링 시 함수로 통일할 것
 - **as_request_view.php**: `format_date()` 함수로 통일
@@ -693,22 +1038,25 @@ f46b25c - refactor: Apply conditional step display to order_handler.php
   - 빈값(NULL/0): 빈 문자열 반환
 
 ### 3. s18_accid 관리 (2025-11-07)
+
 - DELETE 후 INSERT하면 s18_accid가 새로 생성됨
 - 기존 자재 수정 시 UPDATE/INSERT 조합 전략 필수
   - `part_id => s18_accid` 매핑으로 관리
   - 들어온 데이터와 기존 데이터 비교하여 UPDATE/INSERT/DELETE 구분
 
 ### 4. s14_cart 업데이트 (2025-11-07)
+
 - 자재 저장 완료 후 COUNT로 자재 종류의 개수 계산
 - 모든 경우에 s14_cart 업데이트 (제품 ID 미선택 시에도)
 - 레거시 데이터: 일괄 업데이트 필요 (이미 완료: s14_aiid >= 84767)
 
 ### 5. Step 3 select 필드 처리 (2025-11-05)
+
 - 제품 선택(product_name) = s15_amid (제품 ID, 숫자)
 - 수리 방법 선택(as_end_result) = s19_result (문자열)
 - JavaScript에서 querySelector 선택자 변경 필수 (input vs select)
 
 ---
 
-**마지막 업데이트**: 2025-11-13 (오늘)
-**최신 작업**: 데이터베이스 설정 중앙화 및 dcom.co.kr 서버 배포 완료
+**마지막 업데이트**: 2025-11-18 (오늘)
+**최신 작업**: statistics.php 월별 집계 기준 변경 완료 (전월 26일 ~ 당월 25일)

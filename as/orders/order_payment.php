@@ -66,12 +66,6 @@ if ($action === 'complete') {
     $update_query = "UPDATE step20_sell SET s20_sell_level = '2', s20_sell_time='$as_time_esc', s20_sell_out_no='$as_out_no_esc', s20_sell_out_no2='$as_out_no2_esc', s20_bank_check = '$now', s20_sell_out_date = '$now', s20_bankcheck_w = 'center', s20_total_cost = $total_cost WHERE s20_sellid = $id";
     $result = mysql_query($update_query);
 
-    // step21_sell_cart의 s21_signdate를 s20_sell_out_date와 동기화 (입금 확인 시간 동기화)
-    if ($result) {
-        $sync_query = "UPDATE step21_sell_cart SET s21_signdate = '$now' WHERE s21_sellid = $id";
-        @mysql_query($sync_query);
-    }
-
     if ($result) {
         // 성공하면 orders.php의 판매완료 탭으로 리다이렉트
         header('Location: orders.php?tab=completed');
@@ -105,12 +99,6 @@ if ($action === 'complete') {
         s20_bankcheck_w = ''
         WHERE s20_sellid = $id";
     $result = mysql_query($update_query);
-
-    // step21_sell_cart의 s21_signdate를 NULL로 리셋 (입금 취소 시 동기화)
-    if ($result) {
-        $sync_query = "UPDATE step21_sell_cart SET s21_signdate = NULL WHERE s21_sellid = $id";
-        @mysql_query($sync_query);
-    }
 
     if ($result) {
         // 성공하면 orders.php의 판매요청 탭으로 리다이렉트

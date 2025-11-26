@@ -20,13 +20,14 @@ if ($sell_id <= 0) {
     die('유효하지 않은 주문 ID입니다.');
 }
 
-// 주문 정보 조회
-$order_result = @mysql_query("SELECT s20_sellid, s20_meid, ex_company, s20_total_cost FROM step20_sell WHERE s20_sellid = $sell_id");
+// 주문 정보 조회 (회원 타입은 ex_sec1에 저장되어 있음)
+$order_result = @mysql_query("SELECT s20_sellid, s20_meid, ex_company, ex_sec1, s20_total_cost FROM step20_sell WHERE s20_sellid = $sell_id");
 if (!$order_result || mysql_num_rows($order_result) == 0) {
     die('해당 주문을 찾을 수 없습니다.');
 }
 
 $order = mysql_fetch_assoc($order_result);
+$mem_type = $order['ex_sec1'] ?? '일반'; // 기본값: 일반
 
 // 기존 카트 아이템 조회
 $items_result = @mysql_query("SELECT s21_accid, s21_uid, s21_quantity, cost1 FROM step21_sell_cart WHERE s21_sellid = $sell_id");
@@ -169,8 +170,8 @@ if ($action === 'add_part') {
         exit;
     }
 
-    // 자재 가격 조회
-    $part_query = @mysql_query("SELECT s1_cost_c_1 FROM step1_parts WHERE s1_uid = $part_id");
+    // 자재 가격 조회 (개별판매 가격)
+    $part_query = @mysql_query("SELECT s1_cost_c_1, s1_cost_a_1, s1_cost_n_1, s1_name FROM step1_parts WHERE s1_uid = $part_id");
     if (!$part_query || mysql_num_rows($part_query) == 0) {
         $response['message'] = '자재을 찾을 수 없습니다.';
         echo json_encode($response);
@@ -178,7 +179,16 @@ if ($action === 'add_part') {
     }
 
     $part_row = mysql_fetch_assoc($part_query);
-    $cost = floatval($part_row['s1_cost_c_1']);
+    $part_name = $part_row['s1_name'];
+
+    // 회원 구분에 따라 가격 선택 (개별판매 가격)
+    if ($mem_type === '일반') {
+        $cost = floatval($part_row['s1_cost_n_1']);
+    } elseif ($mem_type === '대리점') {
+        $cost = floatval($part_row['s1_cost_a_1']);
+    } else { // 딜러, AS센터공급가
+        $cost = floatval($part_row['s1_cost_c_1']);
+    }
 
     // 중복 체크: 같은 자재가 이미 존재하는지 확인
     $duplicate_query = "SELECT s21_accid, s21_quantity FROM step21_sell_cart WHERE s21_sellid = $sell_id AND s21_uid = $part_id";
@@ -214,8 +224,10 @@ if ($action === 'add_part') {
             $response['message'] = '수량 업데이트 중 오류가 발생했습니다.';
         }
     } else {
-        // 새로운 자재 - 카트에 추가
-        $insert_query = "INSERT INTO step21_sell_cart (s21_sellid, s21_uid, s21_quantity, cost1, cost_name) VALUES ($sell_id, $part_id, $quantity, $cost, '')";
+        // 새로운 자재 - 카트에 추가 (cost_name = 자재명, cost_sec = 고객 타입)
+        $part_name_esc = mysql_real_escape_string($part_name);
+        $mem_type_esc = mysql_real_escape_string($mem_type);
+        $insert_query = "INSERT INTO step21_sell_cart (s21_sellid, s21_uid, s21_quantity, cost1, cost_name, cost_sec) VALUES ($sell_id, $part_id, $quantity, $cost, '$part_name_esc', '$mem_type_esc')";
         $insert_result = @mysql_query($insert_query);
 
         if ($insert_result) {
@@ -260,7 +272,8 @@ if ($action === 'get_parts') {
         $where .= " AND p.s1_name LIKE '%$search_esc%'";
     }
 
-    $query = "SELECT p.s1_uid, p.s1_name, p.s1_caid, c.s5_category, p.s1_cost_c_1
+    $query = "SELECT p.s1_uid, p.s1_name, p.s1_caid, c.s5_category,
+                     p.s1_cost_c_1, p.s1_cost_a_1, p.s1_cost_n_1
               FROM step1_parts p
               LEFT JOIN step5_category c ON p.s1_caid = c.s5_caid
               WHERE $where
@@ -272,12 +285,21 @@ if ($action === 'get_parts') {
 
     if ($result && mysql_num_rows($result) > 0) {
         while ($row = mysql_fetch_assoc($result)) {
+            // 회원 구분에 따라 가격 선택 (개별판매 가격)
+            if ($mem_type === '일반') {
+                $price = floatval($row['s1_cost_n_1']);
+            } elseif ($mem_type === '대리점') {
+                $price = floatval($row['s1_cost_a_1']);
+            } else { // 딜러, AS센터공급가
+                $price = floatval($row['s1_cost_c_1']);
+            }
+
             $parts[] = array(
                 's1_uid' => $row['s1_uid'],
                 's1_name' => $row['s1_name'],
                 's1_caid' => $row['s1_caid'],
                 's5_category' => $row['s5_category'],
-                'price' => floatval($row['s1_cost_c_1'])
+                'price' => $price
             );
         }
     }

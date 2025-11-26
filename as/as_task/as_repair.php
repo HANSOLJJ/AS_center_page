@@ -575,6 +575,7 @@ $current_result = isset($item_info['as_end_result']) && !empty($item_info['as_en
                         <!-- 검색 -->
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <input type="text" id="partSearch" placeholder="자재명 검색"
+                                onkeypress="if(event.key === 'Enter') { event.preventDefault(); searchParts(); }"
                                 style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
                             <button type="button" onclick="searchParts()"
                                 style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; white-space: nowrap;">검색</button>
@@ -673,7 +674,7 @@ $current_result = isset($item_info['as_end_result']) && !empty($item_info['as_en
             const searchKey = document.getElementById('partSearch').value.trim();
             currentPage = page;
 
-            fetch('order_handler.php?action=get_parts', {
+            fetch('as_repair_get_parts.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'search_key=' + encodeURIComponent(searchKey) + '&category=' + encodeURIComponent(selectedCategory) + '&member_id=' + customerId + '&page=' + page

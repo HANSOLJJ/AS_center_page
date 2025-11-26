@@ -21,7 +21,7 @@ $current_tab = in_array($tab, ['overview', 'monthly_report', 'as_analysis', 'sal
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 // 금월: 전월 26일 ~ 당월 25일 (오늘이 26일 이상이면 당월 26일 ~ 다음달 25일)
-$day_of_month = (int)date('d');
+$day_of_month = (int) date('d');
 if ($day_of_month >= 26) {
     $month_start = date('Y-m-26');
     $month_end = date('Y-m-25', strtotime('+1 month'));
@@ -108,16 +108,28 @@ function getStatistics($connect, $start_date, $end_date)
     return array('as' => $as_stats, 'sales' => $sales_stats);
 }
 
-// 월별 AS 통계 (완료 기준)
+// 월별 AS 통계 (완료 기준, 전월 26일 ~ 당월 25일 기준)
 function getMonthlyASStats($connect)
 {
     $query = "SELECT
-        DATE_FORMAT(s13_as_out_date, '%Y-%m') as month,
+        DATE_FORMAT(
+            CASE
+                WHEN DAY(s13_as_out_date) >= 26 THEN DATE_ADD(s13_as_out_date, INTERVAL 1 MONTH)
+                ELSE s13_as_out_date
+            END,
+            '%Y-%m'
+        ) as month,
         SUM(CASE WHEN s13_as_level = '5' THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN s13_as_level = '5' THEN COALESCE(s13_total_cost, 0) ELSE 0 END) as total_cost
         FROM step13_as
         WHERE s13_as_level = '5' AND s13_as_out_date IS NOT NULL
-        GROUP BY DATE_FORMAT(s13_as_out_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(
+            CASE
+                WHEN DAY(s13_as_out_date) >= 26 THEN DATE_ADD(s13_as_out_date, INTERVAL 1 MONTH)
+                ELSE s13_as_out_date
+            END,
+            '%Y-%m'
+        )
         ORDER BY month DESC
         LIMIT 12";
 
@@ -129,16 +141,28 @@ function getMonthlyASStats($connect)
     return $data;
 }
 
-// 월별 판매 통계 (완료 기준)
+// 월별 판매 통계 (완료 기준, 전월 26일 ~ 당월 25일 기준)
 function getMonthlySalesStats($connect)
 {
     $query = "SELECT
-        DATE_FORMAT(s20_sell_out_date, '%Y-%m') as month,
+        DATE_FORMAT(
+            CASE
+                WHEN DAY(s20_sell_out_date) >= 26 THEN DATE_ADD(s20_sell_out_date, INTERVAL 1 MONTH)
+                ELSE s20_sell_out_date
+            END,
+            '%Y-%m'
+        ) as month,
         SUM(CASE WHEN s20_sell_level = '2' THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN s20_sell_level = '2' THEN COALESCE(s20_total_cost, 0) ELSE 0 END) as total_cost
         FROM step20_sell
         WHERE s20_sell_level = '2' AND s20_sell_out_date IS NOT NULL
-        GROUP BY DATE_FORMAT(s20_sell_out_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(
+            CASE
+                WHEN DAY(s20_sell_out_date) >= 26 THEN DATE_ADD(s20_sell_out_date, INTERVAL 1 MONTH)
+                ELSE s20_sell_out_date
+            END,
+            '%Y-%m'
+        )
         ORDER BY month DESC
         LIMIT 12";
 

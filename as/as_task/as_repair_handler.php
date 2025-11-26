@@ -40,15 +40,15 @@ if ($action === 'restore') {
     // 탭별 처리
     // ======================================
     if ($current_tab === 'completed') {
-        // 완료 탭에서의 이전: 완료 관련 필드 초기화 + level을 2로 변경
-        $reset_as_query = "UPDATE step13_as SET s13_as_level = '2', s13_as_out_date = NULL, s13_bank_check = NULL, s13_bankcheck_w = '', s13_total_cost = 0, s13_as_out_no = NULL, s13_as_out_no2 = NULL WHERE s13_asid = $asid";
+        // 완료 탭에서의 이전: 완료 관련 필드 초기화 + level을 2로 변경 (s13_total_cost는 유지)
+        $reset_as_query = "UPDATE step13_as SET s13_as_level = '2', s13_as_out_date = NULL, s13_bank_check = NULL, s13_bankcheck_w = '', s13_as_out_no = NULL, s13_as_out_no2 = NULL WHERE s13_asid = $asid";
         mysql_query($reset_as_query);
 
         // 완료 탭으로 리다이렉트
         header('Location: as_requests.php?tab=completed&restored=1');
     } elseif ($current_tab === 'working') {
-        // working 탭에서의 이전: level을 1로 변경 (request로)
-        $reset_as_query = "UPDATE step13_as SET s13_as_level = '1' WHERE s13_asid = $asid";
+        // working 탭에서의 이전: level을 1로 변경 (request로) + s13_total_cost 초기화
+        $reset_as_query = "UPDATE step13_as SET s13_as_level = '1', s13_total_cost = 0 WHERE s13_asid = $asid";
         mysql_query($reset_as_query);
 
         // request 탭으로 리다이렉트
@@ -243,9 +243,20 @@ if ($action === 'save_repair_step') {
                     }
                 }
 
-                // 모든 불량 모델의 수리가 완료되었으면 s13_as_level을 '2'(AS 진행)로 변경
+                // 모든 불량 모델의 수리가 완료되었으면 s13_as_level을 '2'(AS 진행)로 변경 + s13_total_cost 계산
                 if ($all_completed && $total_items > 0) {
-                    $update_as_level_query = "UPDATE step13_as SET s13_as_level = '2' WHERE s13_asid = $asid AND s13_as_level = '1'";
+                    // step18_as_cure_cart에서 해당 asid의 모든 자재 비용 합계 계산
+                    $total_cost_query = "SELECT SUM(cost1 * s18_quantity) as total_cost FROM step18_as_cure_cart WHERE s18_asid = $asid";
+                    $total_cost_result = @mysql_query($total_cost_query);
+                    $total_cost = 0;
+
+                    if ($total_cost_result) {
+                        $total_cost_row = mysql_fetch_assoc($total_cost_result);
+                        $total_cost = floatval($total_cost_row['total_cost']);
+                    }
+
+                    // s13_as_level을 2로 변경하고 s13_total_cost 업데이트
+                    $update_as_level_query = "UPDATE step13_as SET s13_as_level = '2', s13_total_cost = $total_cost WHERE s13_asid = $asid AND s13_as_level = '1'";
                     if (@mysql_query($update_as_level_query)) {
                         $response['auto_update'] = true;
                         $response['message'] .= ' [AS 상태가 "진행" 으로 자동 변경되었습니다]';
@@ -260,6 +271,92 @@ if ($action === 'save_repair_step') {
     }
 
     echo json_encode($response);
+    exit;
+}
+
+// ======================================
+// AS 수리 전용 자재 검색
+// ======================================
+if ($action === 'get_parts_for_repair') {
+    $search_key = isset($_POST['search_key']) ? trim($_POST['search_key']) : '';
+    $category = isset($_POST['category']) ? trim($_POST['category']) : 'all';
+    $member_id = isset($_POST['member_id']) ? intval($_POST['member_id']) : 0;
+    $page = isset($_POST['page']) ? max(1, intval($_POST['page'])) : 1;
+    $per_page = 10;
+    $offset = ($page - 1) * $per_page;
+
+    // 회원 구분 조회
+    $sec = '일반';  // 기본값
+    if ($member_id > 0) {
+        $member_query = @mysql_query("SELECT s11_sec FROM step11_member WHERE s11_meid = $member_id");
+        if ($member_query && mysql_num_rows($member_query) > 0) {
+            $member_row = mysql_fetch_assoc($member_query);
+            $sec = $member_row['s11_sec'];
+        }
+    }
+
+    // WHERE 조건 구성
+    $where = "1=1";
+
+    // 카테고리 필터
+    if ($category !== 'all' && !empty($category)) {
+        $where .= " AND p.s1_caid = '" . mysql_real_escape_string($category) . "'";
+    }
+
+    // 검색어
+    if (!empty($search_key)) {
+        $search_esc = mysql_real_escape_string($search_key);
+        $where .= " AND p.s1_name LIKE '%$search_esc%'";
+    }
+
+    // 총 개수 조회
+    $count_query = "SELECT COUNT(*) as total FROM step1_parts p WHERE $where";
+    $count_result = @mysql_query($count_query);
+    $count_row = mysql_fetch_assoc($count_result);
+    $total_count = intval($count_row['total']);
+    $total_pages = ceil($total_count / $per_page);
+
+    // 자재 조회 (AS 수리용 가격 필드)
+    $query = "SELECT p.s1_uid, p.s1_name, p.s1_caid, c.s5_category,
+                     p.s1_cost_c_1, p.s1_cost_a_2, p.s1_cost_n_2
+              FROM step1_parts p
+              LEFT JOIN step5_category c ON p.s1_caid = c.s5_caid
+              WHERE $where
+              ORDER BY p.s1_uid DESC
+              LIMIT $per_page OFFSET $offset";
+
+    $result = @mysql_query($query);
+    $parts = array();
+
+    if ($result && mysql_num_rows($result) > 0) {
+        while ($row = mysql_fetch_assoc($result)) {
+            // AS 수리용 가격 선택
+            $price = 0;
+            if ($sec === '일반') {
+                $price = floatval($row['s1_cost_n_2']);  // 일반 수리 가격
+            } elseif ($sec === '대리점') {
+                $price = floatval($row['s1_cost_a_2']);  // 대리점 수리 가격
+            } else {  // 딜러
+                $price = floatval($row['s1_cost_c_1']);  // AS센터 공급가
+            }
+
+            $parts[] = array(
+                's1_uid' => $row['s1_uid'],
+                's1_name' => $row['s1_name'],
+                's1_caid' => $row['s1_caid'],
+                's5_category' => $row['s5_category'],
+                'price' => $price
+            );
+        }
+    }
+
+    echo json_encode([
+        'success' => true,
+        'parts' => $parts,
+        'page' => $page,
+        'total_pages' => $total_pages,
+        'total_count' => $total_count
+    ]);
     exit;
 }
 

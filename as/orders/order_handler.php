@@ -175,33 +175,63 @@ if ($action === 'save_order') {
     $total_cost = 0;
 
     // 자재 항목 저장
+    error_log("자재 항목 저장 시작: items 배열 = " . print_r($items, true));
+    error_log("회원 구분: mem_type=$mem_type");
+
+    $cart_insert_count = 0;
     foreach ($items as $item) {
+        error_log("처리 중인 item: " . print_r($item, true));
+
         $part_id = intval($item['part_id']);
         $quantity = intval($item['quantity']);
 
-        if ($part_id <= 0 || $quantity <= 0)
-            continue;
+        error_log("part_id=$part_id, quantity=$quantity");
 
-        // step1_parts에서 가격, 부품명 조회
-        $part_query = @mysql_query("SELECT s1_cost_c_1, s1_name FROM step1_parts WHERE s1_uid = $part_id");
+        if ($part_id <= 0 || $quantity <= 0) {
+            error_log("스킵됨: part_id 또는 quantity가 0 이하");
+            continue;
+        }
+
+        // step1_parts에서 가격, 부품명 조회 (회원 구분에 따라 적절한 가격 필드 선택)
+        $part_query = @mysql_query("SELECT s1_cost_c_1, s1_cost_a_1, s1_cost_n_1, s1_name FROM step1_parts WHERE s1_uid = $part_id");
         $part_name = '';
         $cost = 0;
         if ($part_query && mysql_num_rows($part_query) > 0) {
             $part_row = mysql_fetch_assoc($part_query);
-            $cost = floatval($part_row['s1_cost_c_1']);
+
+            // 회원 구분에 따라 가격 선택 (개별판매 가격)
+            if ($mem_type === '일반') {
+                $cost = floatval($part_row['s1_cost_n_1']);
+            } elseif ($mem_type === '대리점') {
+                $cost = floatval($part_row['s1_cost_a_1']);
+            } else { // 딜러, AS센터공급가
+                $cost = floatval($part_row['s1_cost_c_1']);
+            }
+
             $part_name = mysql_real_escape_string($part_row['s1_name']);
+            error_log("자재 정보 조회 성공: name=$part_name, cost=$cost (mem_type=$mem_type)");
+        } else {
+            error_log("자재 정보 조회 실패: part_id=$part_id, query_error=" . mysql_error());
         }
 
         $item_total = $cost * $quantity;
         $total_cost += $item_total;
 
-        // step21_sell_cart에 저장 (s21_signdate는 NULL - 입금 확인 시 업데이트, cost_name은 부품명)
-        $cart_query = "INSERT INTO step21_sell_cart (s21_sellid, s21_uid, s21_quantity, s21_signdate, cost1, cost_name) VALUES ($sell_id, $part_id, $quantity, NULL, $cost, '$part_name')";
+        // step21_sell_cart에 저장 (cost_name = 자재명, cost_sec = 고객 타입)
+        $mem_type_esc = mysql_real_escape_string($mem_type);
+        $cart_query = "INSERT INTO step21_sell_cart (s21_sellid, s21_uid, s21_quantity, cost1, cost_name, cost_sec) VALUES ($sell_id, $part_id, $quantity, $cost, '$part_name', '$mem_type_esc')";
+        error_log("Cart insert query: $cart_query");
+
         $cart_result = @mysql_query($cart_query);
         if (!$cart_result) {
-            error_log("Cart insert error for sell_id=$sell_id, part_id=$part_id: " . mysql_error());
+            error_log("❌ Cart insert 실패 for sell_id=$sell_id, part_id=$part_id: " . mysql_error());
+        } else {
+            $cart_insert_count++;
+            error_log("✓ Cart insert 성공 for sell_id=$sell_id, part_id=$part_id, inserted_id=" . mysql_insert_id());
         }
     }
+
+    error_log("자재 항목 저장 완료: 총 $cart_insert_count 개 삽입됨");
 
     // 총액 업데이트
     $update_query = "UPDATE step20_sell SET s20_total_cost = $total_cost WHERE s20_sellid = $sell_id";
@@ -255,7 +285,7 @@ if ($action === 'get_parts') {
     $total_pages = ceil($total_count / $per_page);
 
     $query = "SELECT p.s1_uid, p.s1_name, p.s1_caid, c.s5_category,
-                     p.s1_cost_c_1, p.s1_cost_a_2, p.s1_cost_n_2
+                     p.s1_cost_c_1, p.s1_cost_a_1, p.s1_cost_n_1
               FROM step1_parts p
               LEFT JOIN step5_category c ON p.s1_caid = c.s5_caid
               WHERE $where
@@ -267,12 +297,12 @@ if ($action === 'get_parts') {
 
     if ($result && mysql_num_rows($result) > 0) {
         while ($row = mysql_fetch_assoc($result)) {
-            // 회원 구분에 따라 가격 선택
+            // 회원 구분에 따라 가격 선택 (개별판매 가격)
             $price = 0;
             if ($sec === '일반') {
-                $price = floatval($row['s1_cost_n_2']);
+                $price = floatval($row['s1_cost_n_1']);
             } elseif ($sec === '대리점') {
-                $price = floatval($row['s1_cost_a_2']);
+                $price = floatval($row['s1_cost_a_1']);
             } else { // 딜러, AS센터공급가
                 $price = floatval($row['s1_cost_c_1']);
             }
@@ -953,7 +983,7 @@ if ($action === 'get_parts') {
         function initializeCategories() {
             const categoryContainer = document.getElementById('categoryButtons');
 
-            fetch('parts.php?action=get_categories', {
+            fetch('../parts/parts.php?action=get_categories', {
                 method: 'GET'
             })
                 .then(r => r.json())
@@ -1197,24 +1227,50 @@ if ($action === 'get_parts') {
                 quantity: item.quantity
             }));
 
+            console.log('=== saveOrder 디버깅 ===');
+            console.log('selectedMemberId:', selectedMemberId);
+            console.log('selectedItems:', selectedItems);
+            console.log('itemsArray (전송할 데이터):', itemsArray);
+            console.log('itemsArray JSON:', JSON.stringify(itemsArray));
+
             // URL Encoded 형식으로 변환
             let body = 'member_id=' + encodeURIComponent(selectedMemberId) +
                 '&items=' + encodeURIComponent(JSON.stringify(itemsArray));
+
+            console.log('Request body:', body);
 
             fetch('order_handler.php?action=save_order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: body
             })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        setTimeout(() => {
-                            location.href = 'orders.php?tab=request';
-                        }, 1500);
-                    } else {
-                        alert('❌ ' + data.message);
+                .then(r => {
+                    console.log('Response status:', r.status);
+                    console.log('Response headers:', r.headers);
+                    return r.text();
+                })
+                .then(text => {
+                    console.log('Response text:', text);
+                    try {
+                        const data = JSON.parse(text);
+                        console.log('Response data:', data);
+                        if (data.success) {
+                            alert(data.message);
+                            setTimeout(() => {
+                                location.href = 'orders.php?tab=request';
+                            }, 1500);
+                        } else {
+                            alert('❌ ' + data.message);
+                            // 실패 시 버튼 복구
+                            submitBtn.disabled = false;
+                            submitBtn.style.opacity = '1';
+                            submitBtn.style.cursor = 'pointer';
+                            submitBtn.textContent = originalText;
+                        }
+                    } catch (e) {
+                        console.error('JSON 파싱 에러:', e);
+                        console.error('받은 응답:', text);
+                        alert('서버 응답을 파싱할 수 없습니다. 콘솔을 확인하세요.');
                         // 실패 시 버튼 복구
                         submitBtn.disabled = false;
                         submitBtn.style.opacity = '1';
@@ -1223,7 +1279,7 @@ if ($action === 'get_parts') {
                     }
                 })
                 .catch(error => {
-                    console.error('에러 발생:', error);
+                    console.error('Fetch 에러:', error);
                     alert('요청 중 오류가 발생했습니다: ' + error);
                     // 실패 시 버튼 복구
                     submitBtn.disabled = false;
