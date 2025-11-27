@@ -303,17 +303,18 @@ function getYearlySalesStats($connect)
     return $data;
 }
 
-// 올해 월별 판매액 통계
-function getCurrentYearMonthlySalesStats($connect)
+// 최근 12개월 월별 판매액 통계
+function getLast12MonthsSalesStats($connect)
 {
-    $current_year = date('Y');
     $query = "SELECT
-        MONTH(s20_sell_out_date) as month,
+        DATE_FORMAT(s20_sell_out_date, '%Y-%m') as month,
         SUM(COALESCE(s20_total_cost, 0)) as total_cost,
         COUNT(*) as count
         FROM step20_sell
-        WHERE s20_sell_level = '2' AND s20_sell_out_date IS NOT NULL AND YEAR(s20_sell_out_date) = $current_year
-        GROUP BY MONTH(s20_sell_out_date)
+        WHERE s20_sell_level = '2'
+        AND s20_sell_out_date IS NOT NULL
+        AND s20_sell_out_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(s20_sell_out_date, '%Y-%m')
         ORDER BY month ASC";
 
     $result = mysql_query($query);
@@ -344,17 +345,18 @@ function getYearlyASStats($connect)
     return $data;
 }
 
-// 올해 월별 AS 통계
-function getCurrentYearMonthlyASStats($connect)
+// 최근 12개월 월별 AS 통계
+function getLast12MonthsASStats($connect)
 {
-    $current_year = date('Y');
     $query = "SELECT
-        MONTH(s13_as_out_date) as month,
+        DATE_FORMAT(s13_as_out_date, '%Y-%m') as month,
         SUM(COALESCE(s13_total_cost, 0)) as total_cost,
         COUNT(*) as count
         FROM step13_as
-        WHERE s13_as_level = '5' AND s13_as_out_date IS NOT NULL AND YEAR(s13_as_out_date) = $current_year
-        GROUP BY MONTH(s13_as_out_date)
+        WHERE s13_as_level = '5'
+        AND s13_as_out_date IS NOT NULL
+        AND s13_as_out_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(s13_as_out_date, '%Y-%m')
         ORDER BY month ASC";
 
     $result = mysql_query($query);
@@ -461,11 +463,11 @@ $top_sale_parts = getTopSaleParts($connect, $start_date, $end_date);
 
 // 판매분석용 그래프 데이터
 $yearly_sales = getYearlySalesStats($connect);
-$current_year_monthly_sales = getCurrentYearMonthlySalesStats($connect);
+$last_12_months_sales = getLast12MonthsSalesStats($connect);
 
 // AS분석용 그래프 데이터
 $yearly_as = getYearlyASStats($connect);
-$current_year_monthly_as = getCurrentYearMonthlyASStats($connect);
+$last_12_months_as = getLast12MonthsASStats($connect);
 
 // 월간 리포트 탭 데이터 조회
 $report_year = isset($_GET['report_year']) ? intval($_GET['report_year']) : date('Y');
@@ -1249,10 +1251,10 @@ $report_start_date = $prev_year . '-' . str_pad($prev_month, 2, '0', STR_PAD_LEF
                         <canvas id="asYearlyChart" style="max-height: 300px;"></canvas>
                     </div>
 
-                    <!-- 올해 월별 AS 매출 그래프 -->
+                    <!-- 최근 12개월 AS 매출 그래프 -->
                     <div
                         style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 월별 AS 매출
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 최근 12개월 AS 매출
                         </h4>
                         <canvas id="asMonthlyChart" style="max-height: 300px;"></canvas>
                     </div>
@@ -1363,10 +1365,10 @@ $report_start_date = $prev_year . '-' . str_pad($prev_month, 2, '0', STR_PAD_LEF
                         <canvas id="yearlyChart" style="max-height: 300px;"></canvas>
                     </div>
 
-                    <!-- 올해 월별 판매액 그래프 -->
+                    <!-- 최근 12개월 판매액 그래프 -->
                     <div
                         style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 <?php echo date('Y'); ?>년 소모품 매출
+                        <h4 style="color: #333; margin-bottom: 15px; font-size: 14px;">📊 최근 12개월 소모품 매출
                         </h4>
                         <canvas id="monthlyChart" style="max-height: 300px;"></canvas>
                     </div>
@@ -1475,29 +1477,32 @@ $report_start_date = $prev_year . '-' . str_pad($prev_month, 2, '0', STR_PAD_LEF
                 });
             }
 
-            // 올해 월별 판매액 데이터
-            var monthlyLabels = [<?php
-            for ($m = 1; $m <= 12; $m++) {
-                echo "'" . $m . "'";
-                if ($m < 12)
-                    echo ",";
-            }
-            ?>];
-
-            // 월별 데이터 직접 생성 (모든 월을 0으로 초기화)
-            var monthlyCosts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-            // PHP에서 생성한 월별 데이터
+            // 최근 12개월 판매액 데이터
             <?php
-            $monthly_map = array();
-            foreach ($current_year_monthly_sales as $item) {
-                $month = intval($item['month']);
-                $cost = intval($item['total_cost']);
-                echo "monthlyCosts[" . ($month - 1) . "] = " . $cost . ";\n";
+            // 최근 12개월 라벨 및 데이터 생성
+            $sales_labels = array();
+            $sales_costs = array();
+
+            // DB 결과를 연월 키로 매핑
+            $sales_map = array();
+            foreach ($last_12_months_sales as $item) {
+                $sales_map[$item['month']] = intval($item['total_cost']);
+            }
+
+            // 최근 12개월 순회 (현재 월 기준)
+            for ($i = 11; $i >= 0; $i--) {
+                $target_date = strtotime("-$i months");
+                $year_month = date('Y-m', $target_date);
+                $month_num = date('n', $target_date);
+
+                $sales_labels[] = $month_num . '월';
+                $sales_costs[] = isset($sales_map[$year_month]) ? $sales_map[$year_month] : 0;
             }
             ?>
+            var monthlyLabels = <?php echo json_encode($sales_labels); ?>;
+            var monthlyCosts = <?php echo json_encode($sales_costs); ?>;
 
-            // 올해 월별 그래프
+            // 최근 12개월 그래프
             if (document.getElementById('monthlyChart')) {
                 var monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
                 var monthlyChart = new Chart(monthlyCtx, {
@@ -1603,28 +1608,32 @@ $report_start_date = $prev_year . '-' . str_pad($prev_month, 2, '0', STR_PAD_LEF
                 });
             }
 
-            // 올해 월별 AS 매출 데이터
-            var asMonthlyLabels = [<?php
-            for ($m = 1; $m <= 12; $m++) {
-                echo "'" . $m . "'";
-                if ($m < 12)
-                    echo ",";
-            }
-            ?>];
-
-            // 월별 데이터 직접 생성 (모든 월을 0으로 초기화)
-            var asMonthyCosts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-            // PHP에서 생성한 월별 데이터
+            // 최근 12개월 AS 매출 데이터
             <?php
-            foreach ($current_year_monthly_as as $item) {
-                $month = intval($item['month']);
-                $cost = intval($item['total_cost']);
-                echo "asMonthyCosts[" . ($month - 1) . "] = " . $cost . ";\n";
+            // 최근 12개월 라벨 및 데이터 생성
+            $as_labels = array();
+            $as_costs = array();
+
+            // DB 결과를 연월 키로 매핑
+            $as_map = array();
+            foreach ($last_12_months_as as $item) {
+                $as_map[$item['month']] = intval($item['total_cost']);
+            }
+
+            // 최근 12개월 순회 (현재 월 기준)
+            for ($i = 11; $i >= 0; $i--) {
+                $target_date = strtotime("-$i months");
+                $year_month = date('Y-m', $target_date);
+                $month_num = date('n', $target_date);
+
+                $as_labels[] = $month_num . '월';
+                $as_costs[] = isset($as_map[$year_month]) ? $as_map[$year_month] : 0;
             }
             ?>
+            var asMonthlyLabels = <?php echo json_encode($as_labels); ?>;
+            var asMonthyCosts = <?php echo json_encode($as_costs); ?>;
 
-            // 올해 월별 AS 그래프
+            // 최근 12개월 AS 그래프
             if (document.getElementById('asMonthlyChart')) {
                 var asMonthlyCtx = document.getElementById('asMonthlyChart').getContext('2d');
                 var asMonthlyChart = new Chart(asMonthlyCtx, {
