@@ -24,18 +24,17 @@ if ($result && mysql_num_rows($result) > 0) {
     $user = array();
 }
 
-// 이번 달의 시작일과 종료일 계산
-$today = new DateTime('now', new DateTimeZone('Asia/Seoul'));
-$month_start = clone $today;
-$month_start->modify('first day of this month');
-$month_start->setTime(0, 0, 0);
-
-$month_end = clone $today;
-$month_end->modify('last day of this month');
-$month_end->setTime(23, 59, 59);
-
-$month_start_str = $month_start->format('Y-m-d H:i:s');
-$month_end_str = $month_end->format('Y-m-d H:i:s');
+// 이번 달의 시작일과 종료일 계산 (회계 마감일 기준: 전월 26일 ~ 당월 25일)
+$day_of_month = (int) date('d');
+if ($day_of_month >= 26) {
+    // 당월 26일 ~ 다음달 25일
+    $month_start_str = date('Y-m-26 00:00:00');
+    $month_end_str = date('Y-m-25 23:59:59', strtotime('+1 month'));
+} else {
+    // 전월 26일 ~ 당월 25일
+    $month_start_str = date('Y-m-26 00:00:00', strtotime('-1 month'));
+    $month_end_str = date('Y-m-25 23:59:59');
+}
 
 // 이번달 AS 작업 완료수 (s13_as_level = '5')
 $as_query = "SELECT COUNT(*) as as_completed
