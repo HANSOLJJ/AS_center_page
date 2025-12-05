@@ -40,3 +40,12 @@ Thumbs.db
 $RECYCLE.BIN/
 Desktop.ini
 /vendor
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Debug/utility scripts
+as/add_indexes.php
+as/check_indexes.php
+as/orders/check_error_log.php
+as/orders/check_table.php
