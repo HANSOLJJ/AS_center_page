@@ -13,7 +13,8 @@
 | 구분 | 정보 |
 |------|------|
 | **운영 서버** | dcom.co.kr |
-| **DB Host** | localhost |
+| **SSH 접속** | dcom.co.kr:22 (user: dcom2000) |
+| **DB Host** | dcom.co.kr (내부 연결 시 localhost) |
 | **DB Name** | dcom2000 |
 | **Character Set** | UTF-8 (utf8mb4_unicode_ci) |
 | **PHP Version** | 5.x (mysql_* 호환 레이어 사용) |
