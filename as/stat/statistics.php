@@ -1119,7 +1119,7 @@ $report_start_date = $prev_year . '-' . str_pad($prev_month, 2, '0', STR_PAD_LEF
                             <h4>TOP3 판매 자재</h4>
                             <div class="top-list">
                                 <ol>
-                                    <?php foreach ($top_sale_parts as $idx => $part): ?>
+                                    <?php foreach (array_slice($top_sale_parts, 0, 3) as $idx => $part): ?>
                                         <li><?php echo htmlspecialchars($part['cost_name']); ?> <span
                                                 style="font-weight: bold; color: #059669;"><?php echo $part['total_qty']; ?>개</span>
                                         </li>
