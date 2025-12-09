@@ -1,26 +1,27 @@
 <?php
-header('Content-Type: text/html; charset=utf-8');
+header('Content-Type: application/json; charset=utf-8');
 session_start();
 
 // 로그인 확인
 if (empty($_SESSION['member_id']) || empty($_SESSION['member_sid'])) {
-    header('Location: ../login.php');
+    echo json_encode(['success' => false, 'message' => '로그인이 필요합니다.']);
     exit;
 }
 
 require_once '../db_config.php';
 
-$id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
-$action = isset($_GET['action']) ? $_GET['action'] : '';
-
-if (empty($id) || empty($action)) {
-    die('잘못된 요청입니다.');
+// POST 방식 우선, GET 방식도 지원
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+    $action = isset($_POST['action']) ? $_POST['action'] : '';
+} else {
+    $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+    $action = isset($_GET['action']) ? $_GET['action'] : '';
 }
 
-// POST 방식으로도 처리 가능하도록
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $id = isset($_POST['id']) ? (int) $_POST['id'] : $id;
-    $action = isset($_POST['action']) ? $_POST['action'] : $action;
+if (empty($id) || empty($action)) {
+    echo json_encode(['success' => false, 'message' => '잘못된 요청입니다.']);
+    exit;
 }
 
 if ($action === 'complete') {
@@ -67,11 +68,9 @@ if ($action === 'complete') {
     $result = mysql_query($update_query);
 
     if ($result) {
-        // 성공하면 orders.php의 판매완료 탭으로 리다이렉트
-        header('Location: orders.php?tab=completed');
-        exit;
+        echo json_encode(['success' => true, 'message' => '판매가 완료되었습니다.']);
     } else {
-        echo "업데이트 실패: " . mysql_error($connect);
+        echo json_encode(['success' => false, 'message' => '업데이트 실패: ' . mysql_error($connect)]);
     }
 } elseif ($action === 'confirm') {
     // 입금 확인: s20_bank_check를 현재 시간으로 업데이트
@@ -80,11 +79,9 @@ if ($action === 'complete') {
     $result = mysql_query($update_query);
 
     if ($result) {
-        // 성공하면 orders.php의 구매신청 탭으로 리다이렉트
-        header('Location: orders.php?tab=request');
-        exit;
+        echo json_encode(['success' => true, 'message' => '입금이 확인되었습니다.']);
     } else {
-        echo "업데이트 실패: " . mysql_error($connect);
+        echo json_encode(['success' => false, 'message' => '업데이트 실패: ' . mysql_error($connect)]);
     }
 } elseif ($action === 'cancel') {
     // 판매 완료 취소: 완료 시 업데이트된 모든 값들을 초기화
@@ -101,14 +98,12 @@ if ($action === 'complete') {
     $result = mysql_query($update_query);
 
     if ($result) {
-        // 성공하면 orders.php의 판매요청 탭으로 리다이렉트
-        header('Location: orders.php?tab=request');
-        exit;
+        echo json_encode(['success' => true, 'message' => '판매 완료가 취소되었습니다.']);
     } else {
-        echo "업데이트 실패: " . mysql_error($connect);
+        echo json_encode(['success' => false, 'message' => '업데이트 실패: ' . mysql_error($connect)]);
     }
 } else {
-    die('알 수 없는 동작입니다.');
+    echo json_encode(['success' => false, 'message' => '알 수 없는 동작입니다.']);
 }
 
 mysql_close($connect);

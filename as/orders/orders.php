@@ -31,7 +31,7 @@ $offset = ($page - 1) * $limit;
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
 // 금월: 전월 26일 ~ 당월 25일 (오늘이 26일 이상이면 당월 26일 ~ 다음달 25일)
-$day_of_month = (int)date('d');
+$day_of_month = (int) date('d');
 if ($day_of_month >= 26) {
     $month_start = date('Y-m-26');
     $month_end = date('Y-m-25', strtotime('+1 month'));
@@ -1305,13 +1305,53 @@ if (!empty($sellid_list)) {
 
         function completeSale(sellId) {
             if (confirm('확인하시겠습니까?')) {
-                window.location.href = 'order_payment.php?id=' + sellId + '&action=complete';
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', 'order_payment.php', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                alert('판매가 완료되었습니다.');
+                            } else {
+                                alert(response.message || '처리 중 오류가 발생했습니다.');
+                            }
+                        } catch (e) {
+                            alert('처리 중 오류가 발생했습니다.');
+                        }
+                        location.reload();
+                    } else {
+                        alert('오류가 발생했습니다.');
+                    }
+                };
+                xhr.send('id=' + sellId + '&action=complete');
             }
         }
 
         function cancelSale(sellId) {
             if (confirm('판매 완료를 취소하시겠습니까?')) {
-                window.location.href = 'order_payment.php?id=' + sellId + '&action=cancel';
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', 'order_payment.php', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                alert('판매 완료가 취소되었습니다.');
+                            } else {
+                                alert(response.message || '처리 중 오류가 발생했습니다.');
+                            }
+                        } catch (e) {
+                            alert('처리 중 오류가 발생했습니다.');
+                        }
+                        location.reload();
+                    } else {
+                        alert('오류가 발생했습니다.');
+                    }
+                };
+                xhr.send('id=' + sellId + '&action=cancel');
             }
         }
 
