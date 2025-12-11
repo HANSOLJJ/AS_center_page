@@ -10,6 +10,8 @@ backup/
 *.zip
 *.tar.gz
 *.sql
+*.backup
+*_backup/
 
 # Large backup folders
 www_backup_full/
@@ -22,13 +24,28 @@ session_*
 # Cache files
 *.cache
 .cache/
+tmp/
+temp/
+cache/
 
 # Log files
 *.log
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+mysql_data/
 
 # OS files
 .DS_Store
 Thumbs.db
+$RECYCLE.BIN/
+Desktop.ini
 
 # IDE files
 .vscode/
@@ -36,12 +53,17 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# System files
-$RECYCLE.BIN/
-Desktop.ini
+# Compiled files
+*.class
+*.o
+*.a
+
+# Dependencies
+node_modules/
 /vendor
 
 # Claude Code local settings
+.claude/config.json
 .claude/settings.local.json
 
 # Debug/utility scripts
