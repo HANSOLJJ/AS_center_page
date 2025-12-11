@@ -32,15 +32,32 @@ AS System은 PHP 기반 AS 및 서비스 관리 플랫폼입니다. 현재 dcom.
 └── README.md               # 이 파일
 ```
 
-## 서버 환경
+## 서버 환경 및 접속 정보
 
 | 항목 | 정보 |
 |------|------|
 | 호스팅 | dcom.co.kr |
 | 서버 경로 | `/home/hosting_users/dcom2000/www/as/` |
 | PHP 버전 | 7.x |
-| 데이터베이스 | MySQL (dcom2000) |
 | 문자 인코딩 | UTF-8 |
+
+### SSH 접속 정보
+
+| 항목 | 값 |
+|------|-----|
+| Host | dcom.co.kr |
+| Port | 22 |
+| Username | dcom2000 |
+| Password | `Noblein12!!` |
+
+### 데이터베이스 접속 정보
+
+| 항목 | 값 |
+|------|-----|
+| Host | localhost |
+| Database | dcom2000 |
+| Username | dcom2000 |
+| Password | `Basserd2@@` |
 
 ## 데이터베이스
 
