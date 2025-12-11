@@ -289,7 +289,7 @@ $sales_completed = intval($sales_stats['sales_completed'] ?? 0);
 
     <div class="container">
         <div class="welcome-box">
-            <h2>환영합니다!!!</h2>
+            <h2>환영합니다!!</h2>
             <p><?php echo htmlspecialchars($user_name); ?>님의 계정으로 로그인하셨습니다. 아래 메뉴를 통해 AS 시스템을 관리하실 수 있습니다.</p>
         </div>
 

@@ -48,7 +48,6 @@ $RECYCLE.BIN/
 Desktop.ini
 
 # IDE files
-.vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
