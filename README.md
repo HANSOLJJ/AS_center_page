@@ -12,17 +12,58 @@ AS System은 PHP 기반 AS 및 서비스 관리 플랫폼입니다. 현재 dcom.
 
 ```
 .
-├── as/                     # AS System (메인 애플리케이션)
-│   ├── db_config.php       # 데이터베이스 설정
-│   ├── dashboard.php       # 대시보드
-│   ├── as_requests.php     # AS 접수 관리
-│   ├── orders.php          # 주문 관리
-│   ├── members.php         # 회원 관리
-│   ├── products.php        # 제품/모델 관리
-│   ├── parts.php           # 자재 관리
-│   ├── orders/             # 주문 상세 모듈
-│   ├── lib/                # 공통 라이브러리
-│   └── css/                # 스타일시트
+├── as/                         # AS System (메인 애플리케이션)
+│   ├── index.php               # 진입점 (login.php로 리다이렉트)
+│   ├── login.php               # 로그인 페이지
+│   ├── login_process.php       # 로그인 처리 (인증 로직)
+│   ├── logout.php              # 로그아웃 처리
+│   ├── dashboard.php           # 대시보드 (메인 화면)
+│   ├── db_config.php           # DB 설정 (운영용)
+│   ├── db_config.local.php     # DB 설정 (로컬 개발용)
+│   ├── mysql_compat.php        # MySQL 호환성 레이어
+│   │
+│   ├── as_task/                # AS 접수/수리 모듈
+│   │   ├── as_requests.php     # AS 접수 목록 (검색, 필터링)
+│   │   ├── as_request_handler.php  # AS 접수 AJAX 처리
+│   │   ├── as_receipt.php      # AS 접수 등록/수정 폼
+│   │   ├── as_repair.php       # AS 수리 처리 화면
+│   │   ├── as_repair_handler.php   # AS 수리 AJAX 처리
+│   │   └── as_repair_get_parts.php # 자재 검색 API
+│   │
+│   ├── orders/                 # 주문/판매 모듈
+│   │   ├── orders.php          # 주문 목록 (검색, 필터링)
+│   │   ├── order_handler.php   # 주문 AJAX 처리
+│   │   ├── order_receipt.php   # 주문 등록/수정 폼
+│   │   ├── order_edit.php      # 주문 수정
+│   │   └── order_payment.php   # 결제 처리
+│   │
+│   ├── customers/              # 고객/회원 모듈
+│   │   ├── members.php         # 회원 목록
+│   │   ├── member_add.php      # 회원 등록
+│   │   ├── member_edit.php     # 회원 수정
+│   │   └── member_delete.php   # 회원 삭제 (AJAX)
+│   │
+│   ├── products/               # 제품 관리 모듈
+│   │   ├── products.php        # 제품 목록 (3탭: 모델/불량증상/AS결과)
+│   │   ├── product_add.php     # 모델 등록
+│   │   ├── product_edit.php    # 모델 수정
+│   │   ├── poor_add.php        # 불량증상 유형 등록
+│   │   ├── poor_edit.php       # 불량증상 유형 수정
+│   │   ├── result_add.php      # AS결과 유형 등록
+│   │   └── result_edit.php     # AS결과 유형 수정
+│   │
+│   ├── parts/                  # 자재 관리 모듈
+│   │   ├── parts.php           # 자재 목록 (5탭: 자재/카테고리/...)
+│   │   ├── parts_add.php       # 자재 등록
+│   │   ├── parts_edit.php      # 자재 수정
+│   │   ├── category_add.php    # 카테고리 등록
+│   │   └── category_edit.php   # 카테고리 수정
+│   │
+│   └── stat/                   # 통계/리포트 모듈
+│       ├── statistics.php      # 통계 대시보드
+│       ├── export_as_report.php      # AS 리포트 엑셀 내보내기
+│       ├── export_monthly_report.php # 월간 리포트 내보내기
+│       └── export_sales_report.php   # 판매 리포트 내보내기
 │
 ├── vendor/                 # Composer 패키지
 ├── logs/                   # 로그 파일
@@ -136,14 +177,86 @@ Claude Code에서 SSH MCP를 통해 원격 작업 가능:
 - 상세 가이드라인: `CLAUDE.md` 참조
 - 기존 코드 패턴 유지
 
-## 주요 기능
+## 주요 기능 및 페이지 상세
 
-- **AS 접수 관리**: 고객 AS 요청 등록/조회/처리
-- **주문 관리**: 자재 주문 및 판매 관리
-- **회원 관리**: 고객/대리점 정보 관리
-- **제품 관리**: 모델, 불량증상, AS결과 유형 관리
-- **자재 관리**: 부품/자재 재고 및 카테고리 관리
-- **대시보드**: 통계 및 현황 요약
+### 인증 (`as/`)
+
+| 파일 | 설명 |
+|------|------|
+| `index.php` | 진입점, 로그인 페이지로 리다이렉트 |
+| `login.php` | 로그인 폼 화면 |
+| `login_process.php` | 로그인 인증 처리 (세션 생성) |
+| `logout.php` | 로그아웃 (세션 파기) |
+| `dashboard.php` | 로그인 후 메인 대시보드 |
+
+### AS 접수/수리 (`as/as_task/`)
+
+| 파일 | 설명 |
+|------|------|
+| `as_requests.php` | AS 접수 목록, 검색/필터/페이징 |
+| `as_request_handler.php` | AS 접수 CRUD AJAX 처리 |
+| `as_receipt.php` | AS 접수 등록/수정 폼 |
+| `as_repair.php` | AS 수리 처리 화면 (자재 사용 기록) |
+| `as_repair_handler.php` | AS 수리 완료 AJAX 처리 |
+| `as_repair_get_parts.php` | 자재 자동완성 검색 API |
+
+### 주문/판매 (`as/orders/`)
+
+| 파일 | 설명 |
+|------|------|
+| `orders.php` | 주문 목록, 검색/필터/페이징 |
+| `order_handler.php` | 주문 CRUD AJAX 처리 |
+| `order_receipt.php` | 주문 등록 폼 |
+| `order_edit.php` | 주문 수정 폼 |
+| `order_payment.php` | 결제 상태 처리 |
+
+### 고객/회원 (`as/customers/`)
+
+| 파일 | 설명 |
+|------|------|
+| `members.php` | 회원 목록, 검색/페이징 |
+| `member_add.php` | 회원 등록 폼 |
+| `member_edit.php` | 회원 수정 폼 |
+| `member_delete.php` | 회원 삭제 AJAX 처리 |
+
+### 제품 관리 (`as/products/`)
+
+| 파일 | 설명 |
+|------|------|
+| `products.php` | 제품 관리 (3탭: 모델/불량증상/AS결과) |
+| `product_add.php` | 제품 모델 등록 |
+| `product_edit.php` | 제품 모델 수정 |
+| `poor_add.php` | 불량증상 유형 등록 |
+| `poor_edit.php` | 불량증상 유형 수정 |
+| `result_add.php` | AS결과 유형 등록 |
+| `result_edit.php` | AS결과 유형 수정 |
+
+### 자재 관리 (`as/parts/`)
+
+| 파일 | 설명 |
+|------|------|
+| `parts.php` | 자재 관리 (5탭: 자재/카테고리/...) |
+| `parts_add.php` | 자재 등록 |
+| `parts_edit.php` | 자재 수정 |
+| `category_add.php` | 자재 카테고리 등록 |
+| `category_edit.php` | 자재 카테고리 수정 |
+
+### 통계/리포트 (`as/stat/`)
+
+| 파일 | 설명 |
+|------|------|
+| `statistics.php` | 통계 대시보드 |
+| `export_as_report.php` | AS 리포트 엑셀 다운로드 |
+| `export_monthly_report.php` | 월간 리포트 엑셀 다운로드 |
+| `export_sales_report.php` | 판매 리포트 엑셀 다운로드 |
+
+### 설정/유틸리티
+
+| 파일 | 설명 |
+|------|------|
+| `db_config.php` | 운영 DB 접속 설정 |
+| `db_config.local.php` | 로컬 개발용 DB 설정 (gitignore) |
+| `mysql_compat.php` | mysql_* → mysqli 호환성 레이어 |
 
 ## 보안 주의사항
 
