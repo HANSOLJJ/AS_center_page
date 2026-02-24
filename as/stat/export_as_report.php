@@ -34,8 +34,17 @@ $range = isset($_GET['range']) ? $_GET['range'] : '';
 // 기간 설정
 $today = date('Y-m-d');
 $week_start = date('Y-m-d', strtotime('monday this week'));
-$month_start = date('Y-m-01');
 $year_start = date('Y-01-01');
+
+// 금월: 전월 26일 ~ 당월 25일 (회계 마감 기준)
+$day_of_month = (int) date('d');
+if ($day_of_month >= 26) {
+    $month_start = date('Y-m-26');
+    $month_end = date('Y-m-25', strtotime('+1 month'));
+} else {
+    $month_start = date('Y-m-26', strtotime('-1 month'));
+    $month_end = date('Y-m-25');
+}
 
 if ($range === 'today') {
     $start_date = $today;
@@ -45,7 +54,7 @@ if ($range === 'today') {
     $end_date = $today;
 } elseif ($range === 'month') {
     $start_date = $month_start;
-    $end_date = $today;
+    $end_date = $month_end;
 } elseif ($range === 'year') {
     $start_date = $year_start;
     $end_date = $today;
@@ -298,7 +307,7 @@ $sheet->getStyle('M2:M' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0')
 $sheet->getRowDimension('1')->setRowHeight(25);
 
 // 파일명 생성
-$filename = 'AS처리 리포트' . date('Ymd') . '.xlsx';
+$filename = 'AS처리_리포트_' . date('Ymd') . '.xlsx';
 
 // 헤더 설정
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
