@@ -59,3 +59,29 @@ ALTER TABLE step5_category ENGINE=InnoDB;
 **단점**
 - 디스크 용량 약 1.5~2배 증가 (32MB → ~50MB, 미미)
 - WHERE 없는 COUNT(*) 약간 느림 (해당 패턴 미사용)
+
+---
+
+## 2026-03-12: 리포트 내보내기 금월 기간 버그 수정
+
+### 증상
+
+- statistics.php 개요 탭의 금월 기간: **전월 26일 ~ 당월 25일** (회계 마감 기준)
+- export_as_report.php, export_sales_report.php의 `range=month` 기간: **당월 1일 ~ 오늘** (달력 기준)
+- 화면에서는 1/26~2/25 (30건) 표시되지만, 리포트 다운로드 시 2/1~오늘 데이터만 출력되는 불일치
+
+### 수정 사항
+
+- `export_as_report.php` - `range=month` 기간을 회계 마감 기준(전월 26일~당월 25일)으로 수정
+- `export_sales_report.php` - 동일 수정
+- `export_as_report.php` - 파일명 `AS처리 리포트` → `AS처리_리포트_` (언더스코어 통일)
+
+### 대상 파일
+
+- `as/stat/export_as_report.php`
+- `as/stat/export_sales_report.php`
+
+### 배포 방법
+
+- SSH MCP 서버(`ssh-mcp-server`)를 통해 dcom.co.kr 서버에 직접 업로드
+- 서버 경로: `/home/hosting_users/dcom2000/www/as/stat/`
