@@ -79,7 +79,7 @@ AS System은 PHP 기반 AS 및 서비스 관리 플랫폼입니다. 현재 dcom.
 |------|------|
 | 호스팅 | dcom.co.kr |
 | 서버 경로 | `/home/hosting_users/dcom2000/www/as/` |
-| PHP 버전 | 7.x |
+| PHP 버전 | 8.2 |
 | 문자 인코딩 | UTF-8 |
 
 ### SSH 접속 정보
@@ -98,7 +98,7 @@ AS System은 PHP 기반 AS 및 서비스 관리 플랫폼입니다. 현재 dcom.
 | Host | localhost |
 | Database | dcom2000 |
 | Username | dcom2000 |
-| Password | `Basserd2@@` |
+| Password | `Noblein12!!` |
 
 ## 데이터베이스
 

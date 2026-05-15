@@ -9,7 +9,7 @@ require_once __DIR__ . '/mysql_compat.php';
 
 // 데이터베이스 연결 정보
 // 로컬 개발: 'mysql', 'mic4u_user', 'change_me', 'mic4u'
-// 서버 배포: 'localhost', 'dcom2000', 'Basserd2@@', 'dcom2000'
+// 서버 배포: 'localhost', 'dcom2000', 'Noblein12!!', 'dcom2000'
 define('DB_HOST', 'mysql');
 define('DB_USER', 'mic4u_user');
 define('DB_PASS', 'change_me');
