@@ -277,12 +277,6 @@ if ($action === 'save_as_request') {
         }
     }
 
-    // 제품명 업데이트 (첫 번째 제품명으로)
-    if (!empty($first_product_name)) {
-        $product_name_esc = mysql_real_escape_string($first_product_name);
-        @mysql_query("UPDATE step13_as SET s13_product = '$product_name_esc' WHERE s13_asid = '$as_id'");
-    }
-
     $response['success'] = true;
     $response['as_id'] = $as_id;
     $response['message'] = 'AS 요청이 등록되었습니다.';
@@ -450,12 +444,6 @@ if ($action === 'update_as_request') {
             echo json_encode($response);
             exit;
         }
-    }
-
-    // 제품명 업데이트 (첫 번째 제품명으로)
-    if (!empty($first_product_name)) {
-        $product_name_esc = mysql_real_escape_string($first_product_name);
-        @mysql_query("UPDATE step13_as SET s13_product = '$product_name_esc' WHERE s13_asid = '$as_id'");
     }
 
     $response['success'] = true;

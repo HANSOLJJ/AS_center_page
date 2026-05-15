@@ -142,7 +142,7 @@ if ($action === 'save_repair_step') {
     // 새 자재들 insert/update
     $insert_success = true;
     if (count($parts_data) > 0) {
-        $signdate = date('Y-m-d H:i:s');
+        $signdate = time();
 
         foreach ($parts_data as $part) {
             $part_id = isset($part['part_id']) ? intval($part['part_id']) : 0;

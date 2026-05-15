@@ -85,3 +85,94 @@ ALTER TABLE step5_category ENGINE=InnoDB;
 
 - SSH MCP 서버(`ssh-mcp-server`)를 통해 dcom.co.kr 서버에 직접 업로드
 - 서버 경로: `/home/hosting_users/dcom2000/www/as/stat/`
+
+---
+
+## 2026-05-15: PHP 7.x → 8.2 업그레이드 대응 및 s18_signdate 옛 손상 데이터 발견
+
+### 배경
+
+호스팅의 PHP 가 7.x 에서 8.2 로 업그레이드된 직후 다음 두 동작에서 빈 응답이 와서 `SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input` 발생.
+
+- AS 작업 → **AS 요청 등록** (POST `as_request_handler.php?action=save_as_request`)
+- AS 작업 → **AS 수리 자재 등록** (POST `as_repair_handler.php?action=save_repair_step`)
+
+핸들러 상단에 임시 디버그 로깅을 깔아서 잡은 fatal 두 가지.
+
+```
+[request] mysqli_sql_exception: Unknown column 's13_product' in 'field list'
+[repair]  mysqli_sql_exception: Data truncated for column 's18_signdate' at row 1
+```
+
+### 근본 원인
+
+**PHP 8.1+ 부터 `mysqli` 기본 에러 모드가 silent → `MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT`(예외 throw) 로 바뀜**. 옛 코드는 `@mysql_query(...)` + 결과 false 체크 패턴으로 silent 동작을 가정해 짜여 있어, `@`로도 예외를 막지 못해 핸들러 전체가 죽음 → 빈 응답.
+
+추가 분석으로 두 가지 옛 결함이 silent fail 에 가려져 있었던 것이 확인됨.
+
+| 위치 | 결함 | 비고 |
+|---|---|---|
+| `as_request_handler.php` 의 `UPDATE step13_as SET s13_product = ...` (두 곳) | `step13_as.s13_product` 컬럼이 처음부터 존재하지 않음 | 운영 DB 와 5월 15일 13:14 백업 dump 둘 다에서 컬럼 부재 확인. 코드 어디에서도 SELECT 안 함 |
+| `as_repair_handler.php` 의 `$signdate = date('Y-m-d H:i:s')` | `s18_signdate` 가 `int(10) unsigned` 인데 datetime 문자열을 박음 | 옛 환경에서는 숫자 prefix 4자리만 저장 + warning 으로 통과됐음. PHP 8.1+ strict 에서는 truncation 이 fatal |
+
+### 코드 변경
+
+1. `as/mysql_compat.php` — `mysqli_report(MYSQLI_REPORT_OFF);` 추가 (옛 silent 동작 복원, 다른 잠재 silent-fail 의존 패턴도 fatal 안 나게 보호)
+2. `as/as_task/as_request_handler.php` — `s13_product` UPDATE 라인 두 곳(`save_as_request`, `update_as_request` 액션 각각) 통째 제거
+3. `as/as_task/as_repair_handler.php` — `$signdate = date('Y-m-d H:i:s')` → `$signdate = time()`
+
+### 발견된 옛 손상 데이터 (s18_signdate)
+
+위 fix 적용 후 신규 자재 등록 row 는 정상 unix timestamp 로 저장되는 것을 확인 (예: `1778834757` → `2026-05-15 17:45:57`). 그런데 DB 점검 중 **685행이 `2025`/`2026` 같은 4자리 값으로 들어있는 것**을 추가 발견.
+
+| 항목 | 값 |
+|---|---|
+| 손상된 행 수 | 685 (`step18_as_cure_cart` 전체 132,401 행 중) |
+| s18_accid 범위 | 137577 ~ 138319 |
+| 해당 자재가 속한 AS 등록 시각 (`s13_as_in_date`) 범위 | 2025-11-18 13:55 ~ 2026-05-14 18:39 |
+| 시작 시점 | 2025-11-18 (`as_repair_handler.php` 의 `$signdate = date(...)` 코드가 그 즈음부터 운영된 듯). PHP 8.2 업그레이드 이전 |
+| 손상 값 출처 | datetime 문자열 `'2026-05-14 18:39:02'` → MySQL 이 `int unsigned` 로 캐스팅하면서 숫자 prefix `2026` 만 저장 |
+
+### 보정하지 않기로 결정한 이유
+
+월/일/시/분/초 정보는 **영구히 손실**되어 정확한 자재 등록 시각을 어디서도 복원 불가. `step13_as.s13_as_in_date` 로 채우는 방안도 검토했지만, 이는 *자재 등록 시각* 이 아니라 *그 AS 의 등록 시각* 으로 추측치이며, 실제 자재 등록은 며칠 후 일어났을 가능성이 더 큼. 추측 값을 박아두면 향후 누군가 이 컬럼을 신뢰할 위험.
+
+영향 평가 결과 **`s18_signdate` 는 코드 어디에서도 SELECT/조회되지 않음**. 따라서 손상된 값을 그대로 두어도 화면/리포트/통계 모두 영향 0.
+
+| 검증 항목 | 결과 |
+|---|---|
+| 판매 리포트 (`export_sales_report.php`, `export_monthly_report.php`) | `step18` 미사용. step20/21 만 참조 |
+| AS 리포트 (`export_as_report.php`) | step18 JOIN 하지만 시점 기준은 `s13_as_out_date`. s18_signdate 미사용 |
+| 통계 (`statistics.php` TOP10 교체자재 / TOP3 수리자재) | 날짜 필터 기준 `s13_as_out_date`. s18_signdate 미사용 |
+| 영수증 (`as_receipt.php`) | SELECT 컬럼에 s18_signdate 미포함 |
+| AS 작업 화면 (`as_requests.php`, `as_repair.php` 등) | s18_signdate 미참조 |
+| FK 제약 | `step18_as_cure_cart` 에 FK 0건. 다른 테이블이 참조하지도 않음 |
+| view/trigger/routine | dcom2000 DB 전체에 0개 |
+
+### 미보정 손상 데이터 식별 쿼리
+
+향후 자재 등록 시각이 필요해질 때 손상 범위를 다시 식별하려면.
+
+```sql
+SELECT s18_accid, s18_asid, s18_signdate
+FROM step18_as_cure_cart
+WHERE s18_signdate < 1000000000;
+-- 결과: 685행, s18_accid 137577~138319
+```
+
+### 대상 파일
+
+- `as/mysql_compat.php`
+- `as/as_task/as_request_handler.php`
+- `as/as_task/as_repair_handler.php`
+
+### 배포 방법
+
+- SSH MCP 서버(`ssh-mcp-server`)로 dcom.co.kr 서버 `/home/hosting_users/dcom2000/www/as/` 하위에 업로드
+- 임시 디버그 로그(`debug_php82.log`) 제거 완료
+
+### 검증
+
+- AS 요청 등록 / AS 수리 자재 등록 두 동작 모두 정상 응답 확인
+- 신규 INSERT row 의 `s18_signdate` 가 10자리 unix timestamp 정수로 저장됨 확인 (예: 138321 행 → `1778834757` = 2026-05-15 17:45:57)
+- 핸들러 상단의 임시 디버그 코드 모두 원복

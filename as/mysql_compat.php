@@ -4,6 +4,10 @@
  * Provides mysql_* function compatibility using mysqli
  */
 
+// PHP 8.1+ mysqli 기본값이 예외 throw로 바뀌어 옛 silent 동작(false 반환)을 복원.
+// 옛 mysql_* 코드는 @mysql_query(...) + 결과 false 체크 패턴이라 silent 가정이 필수.
+mysqli_report(MYSQLI_REPORT_OFF);
+
 // Define old MySQL constants for backward compatibility
 if (!defined('MYSQL_ASSOC')) {
     define('MYSQL_ASSOC', MYSQLI_ASSOC);

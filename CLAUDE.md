@@ -7,10 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **mic4u** is a legacy PHP-based e-commerce and community platform built in the 2000s era. It's a mature, feature-rich Korean-language application with integrated forum system, analytics, and administrative dashboard.
 
 **Technology Stack**:
-- Backend: PHP 5.x with deprecated `mysql_*` functions
-- Database: MySQL
+- Backend: PHP 8.2 (legacy `mysql_*` 호출은 `as/mysql_compat.php` 호환 레이어로 mysqli 래핑)
+- Database: MariaDB / MySQL (InnoDB)
 - Frontend: HTML frames, CSS, vanilla JavaScript, Flash animations
-- Character Encoding: EUC-KR (Korean)
+- Character Encoding: EUC-KR (Korean) — 단, `as/` 하위는 UTF-8
 - No modern build tools, testing framework, or version control
 
 ## Development Setup
@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Local Development Server**:
 ```bash
-# Start PHP built-in server (PHP 5.4+)
+# Start PHP built-in server (PHP 8.2)
 php -S localhost:8000
 
 # Or use Apache with proper PHP module configured
@@ -42,7 +42,7 @@ php -S localhost:8000
 
 **Important Considerations**:
 1. **No Linting/Testing**: No automated quality checks or test suites exist
-2. **Deprecated Functions**: Codebase uses `mysql_*` functions (removed in PHP 7.0+)
+2. **Legacy MySQL API**: 코드는 `mysql_*` 함수를 호출하지만, `as/mysql_compat.php`가 mysqli로 래핑하여 PHP 8.2 환경에서 정상 동작 (PHP 7.0+에서는 원래 제거됨)
 3. **SQL Injection Vulnerable**: No evidence of parameterized queries or input sanitization
 4. **Global Variables**: Widespread use of globals and session variables
 5. **Frame-based Layout**: Main site uses HTML frames for page structure
@@ -120,7 +120,7 @@ HTTP Request → index.php (frameset)
 
 ### Database Architecture
 
-- **Direct Queries**: PHP scripts execute SQL directly via `mysql_*` functions
+- **Direct Queries**: PHP scripts call `mysql_*` API, 내부적으로 `as/mysql_compat.php`가 mysqli로 변환 실행
 - **No ORM/Query Builder**: Raw SQL strings embedded in code
 - **Schema Files**: `bbs/schema.sql`, multiple `zipcode_*.sql` files
 - **Session Storage**: `/bbs/data/__zbSessionTMP/` (BBS session directory)
@@ -204,12 +204,11 @@ All files use **EUC-KR** encoding (Korean character set). When creating new file
 ## Maintenance Notes
 
 **Technical Debt**:
-1. PHP 5.x deprecated functions (mysql_*) - requires migration to PDO/MySQLi for PHP 7+
+1. `mysql_*` API는 `as/mysql_compat.php` 호환 레이어로 PHP 8.2에서 동작 중. 장기적으로 mysqli/PDO 직접 호출로 마이그레이션 필요
 2. No automated tests
 3. No input validation/security hardening
 4. Legacy HTML frames and Flash
 5. Missing code documentation and comments
-6. No version control or commit history
 
 **Before Making Changes**:
 1. Understand the frame structure (multiple entry points)
